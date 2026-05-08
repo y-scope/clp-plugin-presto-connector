@@ -1,0 +1,82 @@
+package com.facebook.presto.plugin.clp.codec;
+
+import static com.facebook.presto.plugin.clp.codec.ClpTableHandleCodec.readTableHandle;
+import static com.facebook.presto.plugin.clp.codec.ClpTableHandleCodec.writeTableHandle;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.readUtf8String;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeUtf8String;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Optional;
+
+import com.facebook.presto.spi.ConnectorCodec;
+import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+
+import com.facebook.presto.plugin.clp.ClpTableHandle;
+import com.facebook.presto.plugin.clp.ClpTableLayoutHandle;
+
+public class ClpTableLayoutHandleCodec implements ConnectorCodec<ConnectorTableLayoutHandle> {
+    // Wire format (C++ ClpConnectorProtocol::deserialize for ConnectorTableLayoutHandle):
+    // [table handle] : serialized by ClpTableHandleCodec
+    // kqlQueryPresent : writeBoolean
+    // [kqlQuery] : 2-byte BE length + UTF-8 bytes, if present
+    // metadataSqlPresent : writeBoolean
+    // [metadataSql] : 2-byte BE length + UTF-8 bytes, if present
+
+    @Override
+    public byte[] serialize(ConnectorTableLayoutHandle handle) {
+        try {
+            if (!(handle instanceof ClpTableLayoutHandle)) {
+                throw new IllegalArgumentException(
+                        "Expected ClpTableLayoutHandle but got: " + (handle == null ? "null"
+                                : handle.getClass().getName())
+                );
+            }
+            ClpTableLayoutHandle layoutHandle = (ClpTableLayoutHandle)handle;
+            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(byteOut);
+            writeTableHandle(layoutHandle.getTable(), out);
+            // Serialize kqlQuery
+            Optional<String> kqlQuery = layoutHandle.getKqlQuery();
+            out.writeBoolean(kqlQuery.isPresent());
+            if (kqlQuery.isPresent()) {
+                writeUtf8String(kqlQuery.get(), out);
+            }
+            // Serialize metadataSql
+            Optional<String> metadataSql = layoutHandle.getMetadataSql();
+            out.writeBoolean(metadataSql.isPresent());
+            if (metadataSql.isPresent()) {
+                writeUtf8String(metadataSql.get(), out);
+            }
+            return byteOut.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to serialize ClpTableLayoutHandle", e);
+        }
+    }
+
+    @Override
+    public ConnectorTableLayoutHandle deserialize(byte[] bytes) {
+        try {
+            DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+            ClpTableHandle table = readTableHandle(in);
+            // Deserialize kqlQuery
+            Optional<String> kqlQuery = in.readBoolean() ? Optional.of(readUtf8String(in))
+                    : Optional.empty();
+            // Deserialize metadataSql
+            Optional<String> metadataSql = in.readBoolean() ? Optional.of(readUtf8String(in))
+                    : Optional.empty();
+            if (in.available() > 0) {
+                throw new IOException(
+                        "Unexpected trailing bytes in ClpTableLayoutHandle deserialization"
+                );
+            }
+            return new ClpTableLayoutHandle(table, kqlQuery, metadataSql);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to deserialize ClpTableLayoutHandle", e);
+        }
+    }
+}
