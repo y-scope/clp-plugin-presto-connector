@@ -4,7 +4,7 @@ Java plugin for Presto coordinator.
 
 ![Coordinator Architecture](../assets/clp-presto-coordinator.webp)
 
-Presto Coordinator is the brain of a Presto cluster; it parses user SQL queries, generates task plan, and manages Presto workers where the data can be retrieved. This plugin implements the Coordinator's connector interfaces (red boxes in the diagram above) that allow Presto coordinator to query against the schemaless CLP format efficiently:
+Presto Coordinator is the brain of a Presto cluster; it parses user SQL queries, generates task plans, and manages Presto workers where and how the data can be retrieved. This plugin implements the Coordinator's connector interfaces (red boxes in the diagram above) that allow the Presto coordinator to query against the schemaless CLP format efficiently:
 
 - Table and column resolution (Metadata API): These interfaces are necessary so that Presto can determine what tables (CLP datasets) exist, and what columns should be directly exposed in each table.
 

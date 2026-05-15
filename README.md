@@ -12,7 +12,7 @@ With the Presto CLP connector plugins, Presto can now work with semi-structured 
 The figure below shows the architecture of the CLP connector with Presto. Blue components are existing Presto components, whereas red components are connector interfaces tailored for querying CLP compressed logs. The Presto CLP connector is composed of two plugins, categorized by where they are plugged into the Presto architecture:
 
 - **[presto-connector](presto-connector)** — Java plugin for Presto coordinator
-- **[velox-connector](velox-connector)** — C++ plugin for Presto worker's Velox engine. 
+- **[velox-connector](velox-connector)** — C++ plugin for Presto worker's Velox engine
 
 ![Architecture](assets/clp-presto-architecture.webp)
 
@@ -58,7 +58,7 @@ See each plugin's README for build instructions:
 
 ### 2. Deploy the C++ Plugin
 
-- Configure the C++ worker with below configuration:
+- Configure the C++ worker with configuration below:
 
     ```properties
     # config.properties for C++ worker
