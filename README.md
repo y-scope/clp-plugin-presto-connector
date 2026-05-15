@@ -43,7 +43,7 @@ See each plugin's README for build instructions:
 - Copy the Java plugin JAR into Presto's plugin directory:
 
     ```shell
-    cp presto-clp/target/presto-clp-0.297.jar $PRESTO_HOME/plugin/
+    cp presto-clp/target/presto-clp-0.297.jar $PRESTO_HOME/plugin/clp
     ```
 
     Note that `$PRESTO_HOME` is the path to your Presto coordinator installation directory.
