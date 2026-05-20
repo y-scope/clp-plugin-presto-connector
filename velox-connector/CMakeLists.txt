@@ -8,6 +8,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable -fPIC for all targets so STATIC libraries can be linked into a shared library.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Match Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
+#
+# Including Folly's F14 headers emits a call to F14LinkCheck<Mode>, where Mode
+# is determined at compile time by the CPU flags. This plugin includes Presto
+# worker's headers, which pull in Folly's F14 headers transitively. Presto
+# worker is built with AVX2 (Mode 2); if this plugin is built without it, it
+# emits a call to F14LinkCheck<1>, which Presto worker does not provide,
+# causing dlopen to fail with an unresolved symbol error.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+
 # ==============================================================================
 # 1. Presto/Velox framework headers
 # ==============================================================================
@@ -62,16 +72,6 @@ add_library(presto_clp_plugin SHARED
         src/ClpPluginEntry.cpp
         src/ClpPrestoToVeloxConnector.cpp
 )
-
-# Match Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
-#
-# Including Folly's F14 headers emits a call to F14LinkCheck<Mode>, where Mode
-# is determined at compile time by the CPU flags. This plugin includes Presto
-# worker's headers, which pull in Folly's F14 headers transitively. Presto
-# worker is built with AVX2 (Mode 2); if this plugin is built without it, it
-# emits a call to F14LinkCheck<1>, which Presto worker does not provide,
-# causing dlopen to fail with an unresolved symbol error.
-target_compile_options(presto_clp_plugin PRIVATE -mavx2)
 
 target_include_directories(presto_clp_plugin
         PRIVATE
