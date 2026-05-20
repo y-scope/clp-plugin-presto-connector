@@ -46,10 +46,9 @@ message(STATUS
 FetchContent_Declare(clp
   GIT_REPOSITORY https://github.com/y-scope/clp.git
   GIT_TAG        a91e5f71f0715d7d6b3ea7c177e1b39b3e6a24a6
+  SOURCE_SUBDIR components/core
 )
-FetchContent_Populate(clp)
-
-add_subdirectory(${clp_SOURCE_DIR}/components/core ${clp_BINARY_DIR}/components/core)
+FetchContent_MakeAvailable(clp)
 
 # ==============================================================================
 # 3. Plugin target
