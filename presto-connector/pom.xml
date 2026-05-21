@@ -58,9 +58,12 @@
     <!-- Plugin versions -->
     <clean.plugin.version>3.5.0</clean.plugin.version>
     <compiler.plugin.version>3.15.0</compiler.plugin.version>
+    <deploy.plugin.version>3.1.4</deploy.plugin.version>
+    <install.plugin.version>3.1.4</install.plugin.version>
     <jar.plugin.version>3.5.0</jar.plugin.version>
     <resources.plugin.version>3.5.0</resources.plugin.version>
     <shade.plugin.version>3.6.2</shade.plugin.version>
+    <site.plugin.version>3.21.0</site.plugin.version>
     <surefire.plugin.version>3.5.5</surefire.plugin.version>
   </properties>
 
@@ -211,6 +214,14 @@
           <version>${compiler.plugin.version}</version>
         </plugin>
         <plugin>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>${deploy.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>${install.plugin.version}</version>
+        </plugin>
+        <plugin>
           <artifactId>maven-jar-plugin</artifactId>
           <version>${jar.plugin.version}</version>
         </plugin>
@@ -221,6 +232,10 @@
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
           <version>${shade.plugin.version}</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-site-plugin</artifactId>
+          <version>${site.plugin.version}</version>
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
