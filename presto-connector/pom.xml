@@ -38,7 +38,7 @@
 
   <properties>
     <!-- Dependency versions that must stay in sync with Presto 0.297 -->
-    <jackson.version>2.15.4</jackson.version>
+    <jackson.version>2.18.6</jackson.version>
     <presto.version>0.297</presto.version>
     <slice.version>0.38</slice.version>
 
