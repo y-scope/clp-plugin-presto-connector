@@ -24,7 +24,7 @@ tasks:
   generate:
     internal: true
     deps:
-      - "deps:install"
+      - "deps:install-all"
     cmds:
       - task: "utils:cmake:generate"
         vars:

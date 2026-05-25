@@ -13,8 +13,7 @@ vars:
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
 tasks:
-  # Installs all C++ dependencies.
-  install:
+  install-all:
     cmds:
       - task: "yscope-dev-utils:cmake:install-deps-and-generate-settings"
         vars:
@@ -128,7 +127,7 @@ tasks:
             - "system"
             - "url"
           URL: "https://github.com/boostorg/boost/releases/download/boost-{{.VERSION}}/\
-                    boost-{{.VERSION}}-b2-nodocs.tar.gz"
+                  boost-{{.VERSION}}-b2-nodocs.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   date:
@@ -261,7 +260,7 @@ tasks:
   simdjson:
     internal: true
     vars:
-      VERSION: "v3.13.0"
+      VERSION: "v4.6.4"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
