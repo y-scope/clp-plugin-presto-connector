@@ -2,21 +2,20 @@ version: "3"
 
 vars:
   G_LINT_VENV_DIR: "{{.G_BUILD_DIR}}/lint-venv"
-  G_LINT_VENV_CHECKSUM_FILE: "{{.G_BUILD_DIR}}/lint#venv.md5"
 
 tasks:
   check:
     cmds:
-      - task: "yml-check"
+      - task: "check-yaml"
 
   fix:
     cmds:
-      - task: "yml-fix"
+      - task: "fix-yaml"
 
-  yml:
+  yaml:
     aliases:
-      - "yml-check"
-      - "yml-fix"
+      - "check-yaml"
+      - "fix-yaml"
     deps: ["venv"]
     cmds:
       - |-
@@ -24,15 +23,14 @@ tasks:
         yamllint \
           --config-file "../tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml" \
           --strict \
-          "../.github/" \
-          "lint-requirements.txt" \
-          "taskfile.yaml" \
-          "taskfiles/"
+          lint-requirements.txt \
+          taskfile.yaml \
+          taskfiles/
 
   venv:
     internal: true
     vars:
-      CHECKSUM_FILE: "{{.G_LINT_VENV_CHECKSUM_FILE}}"
+      CHECKSUM_FILE: "{{.G_BUILD_DIR}}/{{.TASK | replace \":\" \"#\"}}.md5"
       OUTPUT_DIR: "{{.G_LINT_VENV_DIR}}"
     sources:
       - "{{.ROOT_DIR}}/taskfile.yaml"
