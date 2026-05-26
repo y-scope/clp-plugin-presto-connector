@@ -23,7 +23,6 @@ tasks:
         yamllint \
           --config-file "../tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml" \
           --strict \
-          lint-requirements.txt \
           taskfile.yaml \
           taskfiles/
 
