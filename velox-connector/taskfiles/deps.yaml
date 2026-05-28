@@ -1,7 +1,7 @@
 version: "3"
 
 includes:
-  yscope-dev-utils: "../tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
+  yscope-dev-utils: "../../tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
 
 vars:
   G_DEPS_CPP_CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_DIR}}/cmake-settings"
@@ -36,7 +36,6 @@ tasks:
       - task: "nlohmann-json"
       - task: "simdjson"
       - task: "spdlog"
-      - task: "xxhash"
       - task: "ystdlib"
       - task: "zstd"
 
@@ -124,7 +123,6 @@ tasks:
             - "process"
             - "program_options"
             - "regex"
-            - "system"
             - "url"
           URL: "https://github.com/boostorg/boost/releases/download/boost-{{.VERSION}}/\
                   boost-{{.VERSION}}-b2-nodocs.tar.gz"
@@ -298,26 +296,6 @@ tasks:
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "15a04e69c222eb6c01094b5c7ff8a249b36bb22788d72519646fb85feb267e67"
           TAR_URL: "https://github.com/gabime/spdlog/archive/refs/tags/{{.VERSION}}.tar.gz"
-          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
-
-  xxhash:
-    internal: true
-    vars:
-      VERSION: "v0.8.3"
-    run: "once"
-    cmds:
-      - task: "yscope-dev-utils:cmake:install-remote-tar"
-        vars:
-          CMAKE_GEN_ARGS:
-            - "-DCMAKE_BUILD_TYPE=Release"
-            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
-            - "-DBUILD_SHARED_LIBS=OFF"
-          CMAKE_PACKAGE_NAME: "xxHash"
-          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
-          CMAKE_SOURCE_DIR: "cmake_unofficial"
-          TAR_SHA256: "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80"
-          TAR_URL: "https://github.com/Cyan4973/xxHash/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   ystdlib:
