@@ -1,25 +1,22 @@
 version: "3"
 
-set: ["u", "pipefail"]
-shopt: ["globstar"]
-
 includes:
-  deps: "taskfiles/deps.yaml"
-  velox-connector: "taskfiles/velox-connector.yaml"
+  lint: "taskfiles/lint.yaml"
+  velox-connector: "taskfiles/velox-connector/main.yaml"
+  utils: "tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
 
 vars:
   G_BUILD_DIR: "{{.ROOT_DIR}}/build"
   G_VELOX_CONNECTOR_BUILD_DIR: "{{.G_BUILD_DIR}}/velox-connector"
-
   G_DEPS_CPP_DIR: "{{.G_BUILD_DIR}}/deps/cpp"
 
 tasks:
   clean:
-    cmds:
-      - "rm -rf '{{.G_BUILD_DIR}}'"
+    cmd: "rm -rf '{{.G_BUILD_DIR}}'"
 
   init:
     internal: true
     silent: true
     run: "once"
-    cmd: "mkdir -p '{{.G_BUILD_DIR}}'"
+    cmds:
+      - "mkdir -p '{{.G_BUILD_DIR}}'"

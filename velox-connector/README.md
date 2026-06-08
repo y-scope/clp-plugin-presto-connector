@@ -1,6 +1,5 @@
 # Velox Connector
 
-
 ## Requirements
 
 * CMake 3.28+
@@ -16,8 +15,8 @@ task velox-connector:build
 Or with CMake directly:
 
 ```shell
-task deps:install-all
-cmake -S . -B build/velox-connector
+task velox-connector:deps:install-all
+cmake -S velox-connector -B build/velox-connector
 cmake --build build/velox-connector -j
 ```
 
