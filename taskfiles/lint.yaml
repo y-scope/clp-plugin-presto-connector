@@ -21,8 +21,9 @@ tasks:
       - |-
         . "{{.G_LINT_VENV_DIR}}/bin/activate"
         yamllint \
-          --config-file "../tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml" \
+          --config-file "tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml" \
           --strict \
+          .github/ \
           taskfile.yaml \
           taskfiles/
 
@@ -49,7 +50,6 @@ tasks:
           LABEL: "lint"
           OUTPUT_DIR: "{{.OUTPUT_DIR}}"
           REQUIREMENTS_FILE: "{{.ROOT_DIR}}/lint-requirements.txt"
-
       # This command must be last
       - task: ":utils:checksum:compute"
         vars:
