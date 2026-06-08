@@ -50,6 +50,7 @@ tasks:
           LABEL: "lint"
           OUTPUT_DIR: "{{.OUTPUT_DIR}}"
           REQUIREMENTS_FILE: "{{.ROOT_DIR}}/lint-requirements.txt"
+
       # This command must be last
       - task: ":utils:checksum:compute"
         vars:

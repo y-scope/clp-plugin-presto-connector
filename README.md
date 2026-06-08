@@ -1,5 +1,3 @@
-# Contributing
-Follow the steps below to develop and contribute to the project.
 
 ## Requirements
 * [Task] >= 3.49.1
