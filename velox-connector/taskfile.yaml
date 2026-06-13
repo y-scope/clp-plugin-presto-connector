@@ -1,0 +1,32 @@
+version: "3"
+
+set: ["u", "pipefail"]
+shopt: ["globstar"]
+
+includes:
+  deps: "taskfiles/deps.yaml"
+  velox-connector: "taskfiles/velox-connector.yaml"
+
+vars:
+  G_BUILD_DIR: "{{.ROOT_DIR}}/build"
+  G_VELOX_CONNECTOR_BUILD_DIR: "{{.G_BUILD_DIR}}/velox-connector"
+
+  G_DEPS_CPP_DIR: "{{.G_BUILD_DIR}}/deps/cpp"
+
+  # Per-task compile-job cap forwarded to `cmake --parallel`. Overridable via the
+  # CLP_CPP_MAX_PARALLELISM_PER_BUILD_TASK env var (same name CLP's own taskfile reads). Default
+  # 2 keeps peak memory under ~16 GB so the GHA 4-core/16 GB runner doesn't OOM during the
+  # plugin's CLP-via-FetchContent compile.
+  G_CPP_MAX_PARALLELISM_PER_BUILD_TASK: >-
+    {{default "2" (env "CLP_CPP_MAX_PARALLELISM_PER_BUILD_TASK")}}
+
+tasks:
+  clean:
+    cmds:
+      - "rm -rf '{{.G_BUILD_DIR}}'"
+
+  init:
+    internal: true
+    silent: true
+    run: "once"
+    cmd: "mkdir -p '{{.G_BUILD_DIR}}'"

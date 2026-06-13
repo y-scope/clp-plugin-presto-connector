@@ -1,0 +1,124 @@
+# Builds .deb / .rpm / .tar.gz packages of the CLP Presto connector plugin
+# (per arch amd64+arm64) by running `tools/build-packages/build.sh` inside the
+# build-env image published by `build-dependency-image.yaml`. Using GHA's
+# `container:` directive guarantees the CI build environment matches what
+# off-GitHub users get from `build-dependency-image.sh`.
+#
+# DAG:
+#   build-dependency-image (ensure GHCR has a build-env image for our velox SHA)
+#       └─► build (matrix amd64+arm64; runs inside the build-env image)
+#
+# See tools/build-packages/README.md for the per-package build pipeline.
+
+name: "build-packages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version (defaults to 0.1.0-SNAPSHOT when blank)"
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      version:
+        description: "Package version (defaults to 0.1.0-SNAPSHOT when blank)"
+        required: false
+        type: "string"
+        default: ""
+  push:
+    paths:
+      - ".github/workflows/build-packages.yaml"
+      - ".github/workflows/build-dependency-image.yaml"
+      - "presto-connector/**"
+      - "tools/build-packages/**"
+      - "velox-connector/**"
+      # Markdown and go-task configs don't change the artifact, so skip the rebuild on noise paths.
+      - "!**/*.md"
+      - "!**/taskfile.yaml"
+      - "!**/taskfiles/**"
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+  cancel-in-progress: true
+
+permissions:
+  contents: "read"
+
+# Plugin version is hard-coded until we wire up a metadata job that exposes the value derived
+# from presto-connector/pom.xml. Bumping the version today means editing both the input
+# description above and the fallback literal below to keep them in sync.
+env:
+  VERSION: "${{inputs.version || '0.1.0-SNAPSHOT'}}"
+
+jobs:
+  build-dependency-image:
+    uses: "./.github/workflows/build-dependency-image.yaml"
+    permissions:
+      contents: "read"
+      packages: "write"
+
+  build:
+    needs: "build-dependency-image"
+    strategy:
+      # Build both arches even if one fails so we still get the artifacts that succeeded.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "amd64"
+            runner: "ubuntu-24.04"
+          - arch: "arm64"
+            runner: "ubuntu-24.04-arm"
+    runs-on: "${{matrix.runner}}"
+    timeout-minutes: 120
+    # Run all steps inside the build-env image — it has velox deps, JDK 17,
+    # go-task, dpkg/rpm-build/patchelf already installed.
+    container:
+      image: "${{needs.build-dependency-image.outputs.image}}"
+      credentials:
+        username: "${{github.actor}}"
+        password: "${{secrets.GITHUB_TOKEN}}"
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
+        with:
+          # Need the yscope-dev-utils submodule — velox-connector's taskfiles include
+          # its shared utils.yaml directly from tools/yscope-dev-utils/.
+          submodules: true
+
+      - name: "Build packages"
+        run: |-
+          bash tools/build-packages/build.sh --version "${{env.VERSION}}"
+
+      - name: "Show package checksums"
+        run: |-
+          cd packages
+          sha256sum clp-plugin-presto-connector*
+
+      - name: "Upload deb package"
+        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        with:
+          name: "clp-plugin-presto-connector-${{env.VERSION}}-${{matrix.arch}}-deb"
+          # Glob is loose because build.sh's '-' -> '~' substitution (required
+          # by rpm Version: rules and Debian sort ordering) means the on-disk
+          # filename has '~SNAPSHOT' while env.VERSION carries '-SNAPSHOT'.
+          # The arch in the matrix already partitions concurrent builds.
+          path: "packages/clp-plugin-presto-connector_*_${{matrix.arch}}.deb"
+          if-no-files-found: "error"
+          retention-days: 14
+
+      - name: "Upload rpm package"
+        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        with:
+          name: "clp-plugin-presto-connector-${{env.VERSION}}-${{matrix.arch}}-rpm"
+          path: "packages/clp-plugin-presto-connector-*.rpm"
+          if-no-files-found: "error"
+          retention-days: 14
+
+      - name: "Upload tarball"
+        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        with:
+          name: "clp-plugin-presto-connector-${{env.VERSION}}-${{matrix.arch}}-tarball"
+          path: "packages/clp-plugin-presto-connector-*-linux-${{matrix.arch}}.tar.gz"
+          if-no-files-found: "error"
+          retention-days: 14

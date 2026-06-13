@@ -1,0 +1,370 @@
+version: "3"
+
+includes:
+  yscope-dev-utils:
+    "../../tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
+
+vars:
+  G_DEPS_CPP_CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_DIR}}/cmake-settings"
+
+  # Library names (must match CMake package names for settings files)
+  G_BOOST_LIB_NAME: "Boost"
+  G_FMT_LIB_NAME: "fmt"
+  G_GSL_LIB_NAME: "Microsoft.GSL"
+  G_YSTDLIB_LIB_NAME: "ystdlib"
+
+tasks:
+  install-all:
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-deps-and-generate-settings"
+        vars:
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          CMAKE_SETTINGS_FILE: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
+          DEP_TASK: "install-all-parallel"
+
+  install-all-parallel:
+    internal: true
+    run: "once"
+    deps:
+      - task: "absl"
+      - task: "antlr-runtime"
+      - task: "boost"
+      - task: "date"
+      - task: "fmt"
+      - task: "log-surgeon"
+      - task: "microsoft-gsl"
+      - task: "msgpack-cxx"
+      - task: "nlohmann-json"
+      - task: "simdjson"
+      - task: "spdlog"
+      - task: "xxhash"
+      - task: "ystdlib"
+      - task: "zstd"
+
+  # Individual dependency tasks
+
+  absl:
+    internal: true
+    vars:
+      VERSION: "20250512.0"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_CXX_STANDARD=20"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DABSL_BUILD_TESTING=OFF"
+          CMAKE_PACKAGE_NAME: "absl"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "7262daa7c1711406248c10f41026d685e88223bc92817d16fb93c19adb57f669"
+          TAR_URL: "https://github.com/abseil/abseil-cpp/releases/download/{{.VERSION}}/\
+                        abseil-cpp-{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  antlr-runtime:
+    internal: true
+    vars:
+      VERSION: "4.13.2"
+    run: "once"
+
+    # NOTE: We can't use `yscope-dev-utils:cmake:install-remote-tar` (and by extension
+    # `utils:install-remote-cmake-lib`) since it doesn't yet support the `INCLUDE_PATTERNS` and
+    # `NUM_COMPONENTS_TO_STRIP` parameters.
+    cmds:
+      - task: "yscope-dev-utils:remote:download-and-extract-tar"
+        vars:
+          FILE_SHA256: "9f18272a9b32b622835a3365f850dd1063d60f5045fb1e12ce475ae6e18a35bb"
+          INCLUDE_PATTERNS: ["*/runtime/Cpp"]
+          NUM_COMPONENTS_TO_STRIP: "3"
+          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-src"
+          URL: "https://github.com/antlr/antlr4/archive/refs/tags/{{.VERSION}}.tar.gz"
+      - task: "yscope-dev-utils:cmake:generate"
+        vars:
+          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          EXTRA_ARGS:
+            - "-DANTLR4_INSTALL=ON"
+            - "-DANTLR_BUILD_CPP_TESTS=OFF"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+
+            # Set CMP0135 so that extracted files use the current timestamp as their modification
+            # timestamp, which ensures the library gets rebuilt if the extracted files change.
+            - "-DCMAKE_POLICY_DEFAULT_CMP0135=NEW"
+          SOURCE_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-src"
+      - task: "yscope-dev-utils:cmake:build"
+        vars:
+          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          JOBS: "{{.G_CPP_MAX_PARALLELISM_PER_BUILD_TASK}}"
+      - task: "yscope-dev-utils:cmake:install"
+        vars:
+          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          CMAKE_PACKAGE_NAME: "antlr4-runtime"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          INSTALL_PREFIX: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-install"
+
+  boost:
+    internal: true
+    vars:
+      VERSION: "1.87.0"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:boost:download-and-install"
+        vars:
+          BUILD_AND_INSTALL_ARGS:
+            - "cxxflags=-fPIC"
+            - "linkflags=-fPIC"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          FILE_SHA256: "d6c69e4459eb5d6ec208250291221e7ff4a2affde9af6e49c9303b89c687461f"
+          TARGETS:
+            - "filesystem"
+            - "iostreams"
+            - "process"
+            - "program_options"
+            - "regex"
+            - "system"
+            - "url"
+          URL: "https://github.com/boostorg/boost/releases/download/boost-{{.VERSION}}/\
+                  boost-{{.VERSION}}-b2-nodocs.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  date:
+    internal: true
+    vars:
+      VERSION: "v3.0.1"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+          CMAKE_PACKAGE_NAME: "date"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "7a390f200f0ccd207e8cff6757e04817c1a0aec3e327b006b7eb451c57ee3538"
+          TAR_URL: "https://github.com/HowardHinnant/date/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  fmt:
+    internal: true
+    vars:
+      VERSION: "11.2.0"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DFMT_DOC=OFF"
+            - "-DFMT_TEST=OFF"
+          CMAKE_PACKAGE_NAME: "{{.G_FMT_LIB_NAME}}"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "bc23066d87ab3168f27cef3e97d545fa63314f5c79df5ea444d41d56f962c6af"
+          TAR_URL: "https://github.com/fmtlib/fmt/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  log-surgeon:
+    internal: true
+    run: "once"
+    deps:
+      - "fmt"
+      - "microsoft-gsl"
+      - "ystdlib"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_FMT_LIB_NAME}}.cmake"
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_GSL_LIB_NAME}}.cmake"
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_YSTDLIB_LIB_NAME}}.cmake"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            # Suppress a GCC 12 false-positive -Wrestrict in LogEvent.cpp's
+            # std::string concatenation. Log_surgeon will drop the offending
+            # code soon — remove this once that lands.
+            - "-DCMAKE_CXX_FLAGS=-Wno-error=restrict"
+            - "-Dlog_surgeon_BUILD_TESTING=OFF"
+          CMAKE_PACKAGE_NAME: "log_surgeon"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "eebf857962f8fc022bfa5de8d00e10ee4ac36bb8f126a556935a93dde1435aa2"
+          TAR_URL: "https://github.com/y-scope/log-surgeon/archive/193e1f9.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  microsoft-gsl:
+    internal: true
+    vars:
+      VERSION: "v4.0.0"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DGSL_TEST=OFF"
+          CMAKE_PACKAGE_NAME: "{{.G_GSL_LIB_NAME}}"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "f0e32cb10654fea91ad56bde89170d78cfbf4363ee0b01d8f097de2ba49f6ce9"
+          TAR_URL: "https://github.com/microsoft/GSL/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  msgpack-cxx:
+    internal: true
+    vars:
+      VERSION: "7.0.0"
+    run: "once"
+    deps:
+      - task: "boost"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
+            - "-DMSGPACK_BUILD_DOCS=OFF"
+            - "-DMSGPACK_CXX20=ON"
+          CMAKE_PACKAGE_NAME: "msgpack-cxx"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "7504b7af7e7b9002ce529d4f941e1b7fb1fb435768780ce7da4abaac79bb156f"
+          TAR_URL: "https://github.com/msgpack/msgpack-c/releases/download/cpp-{{.VERSION}}\
+          /msgpack-cxx-{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  nlohmann-json:
+    internal: true
+    vars:
+      VERSION: "v3.11.3"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DJSON_BuildTests=OFF"
+          CMAKE_PACKAGE_NAME: "nlohmann_json"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "0d8ef5af7f9794e3263480193c491549b2ba6cc74bb018906202ada498a79406"
+
+          # NOTE: We use the GitHub-generated source tarball for this version rather than the
+          # release tarball, since the latter is served from githubusercontent.com which is blocked
+          # by some developers' firewalls. The contents of the former are a superset of the latter.
+          TAR_URL: "https://github.com/nlohmann/json/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  simdjson:
+    internal: true
+    vars:
+      VERSION: "v4.6.4"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+          CMAKE_PACKAGE_NAME: "simdjson"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "b091107844fe928158c5c2265c20360fff312889ddf7ebc4528a0f0f8f2ff9cd"
+          TAR_URL: "https://github.com/simdjson/simdjson/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  spdlog:
+    internal: true
+    vars:
+      VERSION: "v1.15.3"
+    run: "once"
+    deps:
+      - "fmt"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_FMT_LIB_NAME}}.cmake"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
+            - "-DSPDLOG_BUILD_EXAMPLE=OFF"
+            - "-DSPDLOG_BUILD_EXAMPLE_HO=OFF"
+            - "-DSPDLOG_FMT_EXTERNAL=ON"
+          CMAKE_PACKAGE_NAME: "spdlog"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "15a04e69c222eb6c01094b5c7ff8a249b36bb22788d72519646fb85feb267e67"
+          TAR_URL: "https://github.com/gabime/spdlog/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  xxhash:
+    internal: true
+    vars:
+      VERSION: "v0.8.3"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DBUILD_SHARED_LIBS=OFF"
+          CMAKE_PACKAGE_NAME: "xxHash"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          CMAKE_SOURCE_DIR: "cmake_unofficial"
+          TAR_SHA256: "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80"
+          TAR_URL: "https://github.com/Cyan4973/xxHash/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  ystdlib:
+    internal: true
+    run: "once"
+    deps:
+      - task: "boost"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-Dystdlib_BUILD_TESTING=OFF"
+          CMAKE_PACKAGE_NAME: "{{.G_YSTDLIB_LIB_NAME}}"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "65990dc2bcc4a355c2181bfe31a7800f492309d1bcd340f52a34e85047e61bc8"
+          TAR_URL: "https://github.com/y-scope/ystdlib-cpp/archive/9ed78cd.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  zstd:
+    internal: true
+    vars:
+      VERSION: "1.5.7"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DZSTD_BUILD_STATIC=ON"
+            - "-DZSTD_BUILD_SHARED=OFF"
+            - "-DZSTD_BUILD_PROGRAMS=OFF"
+            - "-DZSTD_BUILD_TESTS=OFF"
+          CMAKE_PACKAGE_NAME: "zstd"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          CMAKE_SOURCE_DIR: "build/cmake"
+          TAR_SHA256: "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3"
+          TAR_URL:
+            "https://github.com/facebook/zstd/releases/download/v{{.VERSION}}/zstd-{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"

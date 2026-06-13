@@ -25,7 +25,9 @@ tasks:
           --strict \
           .github/ \
           taskfile.yaml \
-          taskfiles/
+          taskfiles/ \
+          velox-connector/taskfile.yaml \
+          velox-connector/taskfiles/
 
   venv:
     internal: true
