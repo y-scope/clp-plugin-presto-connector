@@ -1,0 +1,2 @@
+# Staged from the host by lib.sh's build_image() at build time.
+ca-certificates.crt
