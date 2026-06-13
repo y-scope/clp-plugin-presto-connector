@@ -1,12 +1,24 @@
-# Builds .deb / .rpm / .tar.gz packages of the CLP Presto connector plugin
-# (per arch amd64+arm64) by running `tools/build-packages/build.sh` inside the
-# build-env image published by `build-dependency-image.yaml`. Using GHA's
-# `container:` directive guarantees the CI build environment matches what
-# off-GitHub users get from `build-dependency-image.sh`.
+# Builds .deb / .rpm / .tar.gz packages of the CLP Presto connector plugin (per arch
+# amd64+arm64), then layers each matching-arch .rpm onto the Presto base images
+# (`presto` JVM coordinator + `presto-native` Velox worker) and publishes multi-arch
+# images to this repo's GHCR namespace. Everything runs as one workflow so the chain
+# fires from any branch on push — no main-branch merge required (unlike `workflow_run`).
 #
 # DAG:
 #   build-dependency-image (ensure GHCR has a build-env image for our velox SHA)
 #       └─► build (matrix amd64+arm64; runs inside the build-env image)
+#             └─► build-presto-images (matrix: image × arch = 4 jobs)
+#                   └─► publish-presto-images (matrix: image = 2 jobs)
+#
+# Source/output image namespaces are deliberately different:
+#   Source (read):  ghcr.io/y-scope/<image>:<presto_image_tag>
+#                   (org-level base images published by y-scope/presto's release workflow)
+#   Output (write): ghcr.io/<this-repo>/<image>:...
+#                   (repo-scoped so the workflow's GITHUB_TOKEN has push access by default)
+#
+# Each output image gets two tags pointing at the same multi-arch manifest:
+#   - <presto_image_tag>-<plugin_version>   (pinned; immutable for that combo)
+#   - <presto_image_tag>                    (moving; latest plugin build for that Presto)
 #
 # See tools/build-packages/README.md for the per-package build pipeline.
 
@@ -28,6 +40,7 @@ on:
         default: ""
   push:
     paths:
+      - ".github/docker/presto-image.Dockerfile"
       - ".github/workflows/build-packages.yaml"
       - ".github/workflows/build-dependency-image.yaml"
       - "presto-connector/**"
@@ -50,6 +63,14 @@ permissions:
 # description above and the fallback literal below to keep them in sync.
 env:
   VERSION: "${{inputs.version || '0.1.0-SNAPSHOT'}}"
+  # Base images live at the org root, under y-scope's release-publish workflow's namespace.
+  BASE_IMAGE_REPO: "ghcr.io/y-scope"
+  # Our CLP-installed variants live under this repo's GHCR namespace so the workflow's
+  # GITHUB_TOKEN (scoped to ${{github.repository}}) has packages:write access without org-level
+  # permission setup.
+  OUTPUT_IMAGE_REPO: "ghcr.io/${{github.repository}}"
+  # Presto base image tag — hard-coded for now; promote to a dispatch input if override is needed.
+  PRESTO_IMAGE_TAG: "0.299-SNAPSHOT"
 
 jobs:
   build-dependency-image:
@@ -122,3 +143,128 @@ jobs:
           path: "packages/clp-plugin-presto-connector-*-linux-${{matrix.arch}}.tar.gz"
           if-no-files-found: "error"
           retention-days: 14
+
+  build-presto-images:
+    needs: "build"
+    permissions:
+      contents: "read"
+      packages: "write"
+
+    strategy:
+      # Keep the other branches running if one image+arch combination fails — partial output
+      # is still useful for diagnosis.
+      fail-fast: false
+      matrix:
+        image: ["presto", "presto-native"]
+        arch: ["amd64", "arm64"]
+        include:
+          # `include` entries match on `arch` and add `runner` to every entry with that arch,
+          # so we end up with 4 combinations (presto/presto-native × amd64/arm64) each on a
+          # native runner.
+          - arch: "amd64"
+            runner: "ubuntu-24.04"
+          - arch: "arm64"
+            runner: "ubuntu-24.04-arm"
+          # Per-image plugin wiring. .github/docker/presto-image.Dockerfile reads these as
+          # build args; this matrix block is the single source of truth for where each
+          # base image expects to find its plugins.
+          #
+          # `presto` (coordinator JVM): scans subdirs of /opt/presto-server/plugin/ (upstream
+          # PrestoDB convention; override here if a custom base image relocates it).
+          - image: "presto"
+            plugin_symlink_source: "/opt/clp-plugin-presto-connector/coordinator"
+            plugin_symlink_target: "/opt/presto-server/plugin/clp-plugin-presto-connector"
+          # `presto-native` (Velox C++ worker): uses the worker plugin directory.
+          - image: "presto-native"
+            plugin_symlink_source: "/opt/clp-plugin-presto-connector/worker"
+            plugin_symlink_target: "/opt/presto-server/plugin/clp-plugin-presto-connector"
+
+    runs-on: "${{matrix.runner}}"
+    timeout-minutes: 30
+
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
+
+      - name: "Extract image metadata"
+        id: "meta"
+        uses: "docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9"  # v6.1.0
+        with:
+          images: "${{env.OUTPUT_IMAGE_REPO}}/${{matrix.image}}"
+
+      - name: "Log in to GHCR"
+        # Required to pull the base images from ghcr.io/y-scope and push the per-arch output
+        # tags to this repo's namespace.
+        uses: "docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"  # v3.7.0
+        with:
+          registry: "ghcr.io"
+          username: "${{github.actor}}"
+          password: "${{secrets.GITHUB_TOKEN}}"
+
+      - name: "Download matching-arch .rpm"
+        uses: "actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16"  # v4.1.8
+        with:
+          name: "clp-plugin-presto-connector-${{env.VERSION}}-${{matrix.arch}}-rpm"
+          path: "rpm/"
+
+      - name: "Set up Docker Buildx"
+        uses: "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"  # v3.12.0
+
+      - name: "Build and push per-arch Presto image with CLP connector plugin"
+        uses: "docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8"  # v6.19.2
+        with:
+          context: "rpm"
+          file: ".github/docker/presto-image.Dockerfile"
+          platforms: "linux/${{matrix.arch}}"
+          push: true
+          # We pin the base image at its multi-arch tag and let buildx select the right
+          # per-arch manifest via `platforms`. Avoids tying us to a `<tag>-<arch>` convention
+          # the base-images workflow may not consistently publish.
+          build-args: |
+            BASE_IMAGE=${{env.BASE_IMAGE_REPO}}/${{matrix.image}}:${{env.PRESTO_IMAGE_TAG}}
+            PLUGIN_SYMLINK_SOURCE=${{matrix.plugin_symlink_source}}
+            PLUGIN_SYMLINK_TARGET=${{matrix.plugin_symlink_target}}
+          labels: "${{steps.meta.outputs.labels}}"
+          # Per-arch deliverable, pinned with both versions. The manifest job below merges
+          # these into the two multi-arch tags (pinned + moving).
+          tags: "${{env.OUTPUT_IMAGE_REPO}}/${{matrix.image}}:\
+            ${{env.PRESTO_IMAGE_TAG}}-${{env.VERSION}}-${{matrix.arch}}"
+
+  publish-presto-images:
+    needs: "build-presto-images"
+    permissions:
+      contents: "read"
+      packages: "write"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["presto", "presto-native"]
+
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 15
+
+    steps:
+      - name: "Log in to GHCR"
+        uses: "docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"  # v3.7.0
+        with:
+          registry: "ghcr.io"
+          username: "${{github.actor}}"
+          password: "${{secrets.GITHUB_TOKEN}}"
+
+      - name: "Create multi-arch manifest with pinned + moving tags"
+        # One imagetools create call assigns the merged manifest to BOTH tags:
+        #   - <presto-ver>-<plugin-ver>: immutable pin for this exact (presto, plugin) combo
+        #   - <presto-ver>:              moving pointer to the latest plugin build for that
+        #                                Presto version (re-pushing overwrites — intentional
+        #                                for SNAPSHOT-style flows)
+        env:
+          IMAGE: "${{env.OUTPUT_IMAGE_REPO}}/${{matrix.image}}"
+          PINNED_TAG: "${{env.PRESTO_IMAGE_TAG}}-${{env.VERSION}}"
+          MOVING_TAG: "${{env.PRESTO_IMAGE_TAG}}"
+        run: |-
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${PINNED_TAG}" \
+            --tag "${IMAGE}:${MOVING_TAG}" \
+            "${IMAGE}:${PINNED_TAG}-amd64" \
+            "${IMAGE}:${PINNED_TAG}-arm64"
