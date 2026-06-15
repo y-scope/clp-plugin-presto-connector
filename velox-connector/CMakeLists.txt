@@ -11,12 +11,17 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Match the Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
 #
-# NOTE: Including Folly's F14 headers emits a call to F14LinkCheck<Mode>, where Mode is determined
-# at compile time by the CPU flags. This plugin includes the Presto worker's headers, which pull in
-# Folly's F14 headers transitively. The Presto worker is built with AVX2 (Mode 2); if this plugin is
-# built without it, it emits a call to F14LinkCheck<1>, which the Presto worker does not provide,
-# causing dlopen to fail with an unresolved symbol error.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+# NOTE: Folly's F14 hash table selects an internal implementation at compile time based on CPU
+# feature flags, and enforces ABI compatibility via F14LinkCheck<Mode>: if two compilation units
+# pick different modes, dlopen fails with "undefined symbol: F14LinkCheck". -mavx2 is x86-only;
+# on all other architectures (e.g., arm64), Folly picks an appropriate mode by default.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    # Enable `-mavx2` only for x86_64 builds.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+else()
+    # No flags needed — Folly picks an appropriate F14 mode by default on all
+    # non-x86 architectures (e.g., arm64).
+endif()
 
 # ==============================================================================
 # Dependencies
