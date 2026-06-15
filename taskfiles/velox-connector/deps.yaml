@@ -52,7 +52,6 @@ tasks:
             - "-DCMAKE_CXX_STANDARD=20"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
             - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
-            - "-DABSL_BUILD_TESTING=OFF"
           CMAKE_PACKAGE_NAME: "absl"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "7262daa7c1711406248c10f41026d685e88223bc92817d16fb93c19adb57f669"
@@ -64,6 +63,8 @@ tasks:
     internal: true
     vars:
       VERSION: "4.13.2"
+      G_ANTLR_RUNTIME_BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+      G_ANTLR_RUNTIME_SRC_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-src"
     run: "once"
 
     # NOTE: We can't use `yscope-dev-utils:cmake:install-remote-tar` (and by extension
@@ -79,7 +80,7 @@ tasks:
           URL: "https://github.com/antlr/antlr4/archive/refs/tags/{{.VERSION}}.tar.gz"
       - task: "yscope-dev-utils:cmake:generate"
         vars:
-          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
           EXTRA_ARGS:
             - "-DANTLR4_INSTALL=ON"
             - "-DANTLR_BUILD_CPP_TESTS=OFF"
@@ -90,14 +91,14 @@ tasks:
             # Set CMP0135 so that extracted files use the current timestamp as their modification
             # timestamp, which ensures the library gets rebuilt if the extracted files change.
             - "-DCMAKE_POLICY_DEFAULT_CMP0135=NEW"
-          SOURCE_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-src"
+          SOURCE_DIR: "{{.G_ANTLR_RUNTIME_SRC_DIR}}"
       - task: "yscope-dev-utils:cmake:build"
         vars:
-          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
           JOBS: "{{.G_CPP_MAX_PARALLELISM_PER_BUILD_TASK}}"
       - task: "yscope-dev-utils:cmake:install"
         vars:
-          BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
           CMAKE_PACKAGE_NAME: "antlr4-runtime"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           INSTALL_PREFIX: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-install"
@@ -200,6 +201,7 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
             - "-DGSL_TEST=OFF"
           CMAKE_PACKAGE_NAME: "{{.G_GSL_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
@@ -221,6 +223,7 @@ tasks:
             - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
             - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
             - "-DMSGPACK_BUILD_DOCS=OFF"
             - "-DMSGPACK_CXX20=ON"
@@ -242,6 +245,7 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
             - "-DJSON_BuildTests=OFF"
           CMAKE_PACKAGE_NAME: "nlohmann_json"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
@@ -328,9 +332,10 @@ tasks:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
             - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+            - "-DZSTD_BUILD_CONTRIB=OFF"
+            - "-DZSTD_BUILD_PROGRAMS=OFF"
             - "-DZSTD_BUILD_SHARED=OFF"
             - "-DZSTD_BUILD_STATIC=ON"
-            - "-DZSTD_BUILD_PROGRAMS=OFF"
             - "-DZSTD_BUILD_TESTS=OFF"
           CMAKE_PACKAGE_NAME: "zstd"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
