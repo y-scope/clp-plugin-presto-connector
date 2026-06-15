@@ -58,8 +58,7 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # CLP
 # ==============================================================================
 
-# CLP options - the Velox connector only needs core infra from CLP-S, disabling below unused
-# components for lighter management.
+# CLP options - only build what the plugin needs.
 set(CLP_BUILD_CLP_REGEX_UTILS OFF CACHE BOOL "Build CLP regex utils")
 set(CLP_BUILD_CLP_S_ARCHIVEWRITER OFF CACHE BOOL "Build CLP-S archive writer")
 set(CLP_BUILD_CLP_S_FILTER OFF CACHE BOOL "Build CLP-S filter")

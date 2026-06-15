@@ -20,6 +20,6 @@ cmake -S velox-connector -B build/velox-connector
 cmake --build build/velox-connector -j
 ```
 
-The built plugin is at `build/velox-connector/libclp-plugin-velox-connector.so`.
+The built plugin will be at `build/velox-connector/libclp-plugin-velox-connector.so`.
 
 [Task]: https://taskfile.dev

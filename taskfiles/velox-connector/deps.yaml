@@ -25,21 +25,19 @@ tasks:
     internal: true
     run: "once"
     deps:
-      - task: "absl"
-      - task: "antlr-runtime"
-      - task: "boost"
-      - task: "date"
-      - task: "fmt"
-      - task: "log-surgeon"
-      - task: "microsoft-gsl"
-      - task: "msgpack-cxx"
-      - task: "nlohmann-json"
-      - task: "simdjson"
-      - task: "spdlog"
-      - task: "ystdlib"
-      - task: "zstd"
-
-  # ── Individual dependency tasks ──────────────────────────────────────────────
+      - "absl"
+      - "antlr-runtime"
+      - "boost"
+      - "date"
+      - "fmt"
+      - "log-surgeon"
+      - "microsoft-gsl"
+      - "msgpack-cxx"
+      - "nlohmann-json"
+      - "simdjson"
+      - "spdlog"
+      - "ystdlib"
+      - "zstd"
 
   absl:
     internal: true
@@ -76,8 +74,8 @@ tasks:
         vars:
           FILE_SHA256: "9f18272a9b32b622835a3365f850dd1063d60f5045fb1e12ce475ae6e18a35bb"
           INCLUDE_PATTERNS: ["*/runtime/Cpp"]
-          NUM_COMPONENTS_TO_STRIP: "3"
-          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-src"
+          NUM_COMPONENTS_TO_STRIP: 3
+          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-extracted"
           URL: "https://github.com/antlr/antlr4/archive/refs/tags/{{.VERSION}}.tar.gz"
       - task: "yscope-dev-utils:cmake:generate"
         vars:
@@ -330,8 +328,8 @@ tasks:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
             - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
-            - "-DZSTD_BUILD_STATIC=ON"
             - "-DZSTD_BUILD_SHARED=OFF"
+            - "-DZSTD_BUILD_STATIC=ON"
             - "-DZSTD_BUILD_PROGRAMS=OFF"
             - "-DZSTD_BUILD_TESTS=OFF"
           CMAKE_PACKAGE_NAME: "zstd"
