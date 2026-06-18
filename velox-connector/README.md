@@ -33,3 +33,4 @@ The built plugin will be at `build/velox-connector/libclp-plugin-velox-connector
 
 [presto-native-dependency]: https://hub.docker.com/r/prestodb/presto-native-dependency
 [Task]: https://taskfile.dev
+[velox-deps-setup]: https://github.com/facebookincubator/velox#setting-up-dependencies
