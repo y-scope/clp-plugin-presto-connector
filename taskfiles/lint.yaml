@@ -12,6 +12,10 @@ tasks:
     cmd: "rm -rf '{{.G_LINT_VENV_DIR}}'"
 
   fix:
+    cmds:
+      - task: "fix-yaml"
+
+  yaml:
     aliases:
       - "check-yaml"
       - "fix-yaml"
