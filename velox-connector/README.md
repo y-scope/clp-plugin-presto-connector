@@ -2,11 +2,18 @@
 
 ## Requirements
 
-* CMake 3.28+
-* GCC 11
+* An environment with Velox's [dependencies][velox-deps-setup] installed
+  * For example, Presto's dev container:
+    [prestodb/presto-native-dependency][presto-native-dependency]
+    * NOTE: Due a bug in GCC 12 that's used in the container, log-surgeon won't compile. Instead,
+        you'll need to explicitly set the following environment variables to point at GCC 11:
+
+        ```shell
+        export CC="gcc"
+        export CXX="g++"
+        ```
+
 * [Task] >= 3.49.1
-* The official upstream Presto dev container:
-  [`prestodb/presto-native-dependency`][presto-native-dependency]
 
 ## Building
 
