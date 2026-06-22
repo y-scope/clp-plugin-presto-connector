@@ -17,6 +17,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # on all other architectures (e.g., arm64), Folly picks an appropriate mode by default.
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
     # Enable `-mavx2` only for x86_64 builds.
+    # Enable `-maxv2` only for x86_64 builds
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
 else()
     # No flags needed — Folly picks an appropriate F14 mode by default on all
