@@ -19,6 +19,26 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
 
 # ==============================================================================
+# Dependencies
+# ==============================================================================
+
+# Use the dependencies installed via `task velox-connector:deps:install-all`.
+#
+# NOTE: `all-deps.cmake` is auto-generated and sets `<Package>_ROOT` cache variables (e.g.
+# `fmt_ROOT`) that point to the `task`-installed dependencies. CMake's `find_package()` searches
+# `<Package>_ROOT` first, so the `task`-installed dependencies will be used instead of any system
+# packages.
+set(
+    LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS
+    "${CMAKE_CURRENT_LIST_DIR}/../build/velox-connector/deps/cpp/cmake-settings/all-deps.cmake"
+    CACHE
+    STRING
+    "Path to the CMake settings file describing this library's dependencies."
+)
+
+include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}" REQUIRED)
+
+# ==============================================================================
 # Presto/Velox framework headers
 # ==============================================================================
 include(FetchContent)
@@ -38,8 +58,10 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # CLP
 # ==============================================================================
 
-# CLP options — only build what the plugin needs.
+# CLP options - only build what the plugin needs.
 set(CLP_BUILD_CLP_REGEX_UTILS OFF CACHE BOOL "Build CLP regex utils")
+set(CLP_BUILD_CLP_S_ARCHIVEWRITER OFF CACHE BOOL "Build CLP-S archive writer")
+set(CLP_BUILD_CLP_S_FILTER OFF CACHE BOOL "Build CLP-S filter")
 set(CLP_BUILD_CLP_S_JSONCONSTRUCTOR OFF CACHE BOOL "Build CLP-S JSON constructor")
 set(CLP_BUILD_CLP_S_REDUCER_DEPENDENCIES OFF CACHE BOOL "Build CLP-S reducer dependencies")
 set(CLP_BUILD_CLP_S_SEARCH_SQL OFF CACHE BOOL "Build CLP-S search SQL")

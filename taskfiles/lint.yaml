@@ -8,6 +8,9 @@ tasks:
     cmds:
       - task: "check-yaml"
 
+  clean:
+    cmd: "rm -rf '{{.G_LINT_VENV_DIR}}'"
+
   fix:
     cmds:
       - task: "fix-yaml"
