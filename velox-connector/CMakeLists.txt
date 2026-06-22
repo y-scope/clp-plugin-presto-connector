@@ -28,15 +28,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
 # `fmt_ROOT`) that point to the `task`-installed dependencies. CMake's `find_package()` searches
 # `<Package>_ROOT` first, so the `task`-installed dependencies will be used instead of any system
 # packages.
-set(
-    LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS
-    "${CMAKE_CURRENT_LIST_DIR}/../build/velox-connector/deps/cpp/cmake-settings/all-deps.cmake"
-    CACHE
-    STRING
-    "Path to the CMake settings file describing this library's dependencies."
+set(LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../build/velox-connector/deps/cpp"
+    CACHE PATH "Directory containing task-installed dependencies."
 )
 
-include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}" REQUIRED)
+include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/cmake-settings/all-deps.cmake" REQUIRED)
 
 # ==============================================================================
 # Presto/Velox framework headers
@@ -79,6 +76,20 @@ FetchContent_MakeAvailable(clp)
 # ==============================================================================
 # Plugin target
 # ==============================================================================
+
+# Compile-time include paths for the third-party headers transitively pulled in by the Velox
+# headers. The libraries themselves are resolved at runtime by the Presto worker.
+include_directories(
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/absl-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/boost-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/double-conversion-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/fmt-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/folly-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/gflags-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/glog-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/re2-source
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/xsimd-install/include
+)
 
 # Plugin source tree
 add_subdirectory(src)
