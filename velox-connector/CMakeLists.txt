@@ -46,7 +46,6 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}" REQUIRED)
 # ==============================================================================
 include(FetchContent)
 
-# Pin for prestodb/presto. Bump this one line to move to a newer presto commit.
 set(PRESTO_GIT_TAG "6e1942b72a9f32191dcd0ba49812f2ac96a25615")
 
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
