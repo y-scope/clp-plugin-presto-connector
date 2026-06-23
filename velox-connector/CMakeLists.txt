@@ -46,11 +46,13 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}" REQUIRED)
 # ==============================================================================
 include(FetchContent)
 
-message(STATUS "Downloading presto for headers (commit: 8a20b604c8c6348aab671bcd723ea4482c9e3603)")
+set(PRESTO_GIT_TAG "6e1942b72a9f32191dcd0ba49812f2ac96a25615")
+
+message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
     presto_native_execution
-    GIT_REPOSITORY    https://github.com/y-scope/presto.git
-    GIT_TAG           8a20b604c8c6348aab671bcd723ea4482c9e3603
+    GIT_REPOSITORY    https://github.com/prestodb/presto.git
+    GIT_TAG           "${PRESTO_GIT_TAG}"
     GIT_SUBMODULES    "presto-native-execution/velox"
     GIT_SUBMODULES_RECURSE OFF
 )
