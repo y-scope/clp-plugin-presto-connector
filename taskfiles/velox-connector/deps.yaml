@@ -58,10 +58,6 @@ tasks:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_CXX_STANDARD=20"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-            # The CLP dependencies' static libraries are linked into the plugin's shared object, so
-            # they are built position-independent. The velox/folly header-only dependencies
-            # (double-conversion, folly, gflags, glog, xsimd, fast_float) are never linked, so they
-            # omit this flag.
             - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
           CMAKE_PACKAGE_NAME: "absl"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
@@ -73,9 +69,9 @@ tasks:
   antlr-runtime:
     internal: true
     vars:
+      BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
+      SOURCE_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-extracted"
       VERSION: "4.13.2"
-      G_ANTLR_RUNTIME_BUILD_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-build"
-      G_ANTLR_RUNTIME_SRC_DIR: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-extracted"
     run: "once"
 
     # NOTE: We can't use `yscope-dev-utils:cmake:install-remote-tar` (and by extension
@@ -87,29 +83,29 @@ tasks:
           FILE_SHA256: "9f18272a9b32b622835a3365f850dd1063d60f5045fb1e12ce475ae6e18a35bb"
           INCLUDE_PATTERNS: ["*/runtime/Cpp"]
           NUM_COMPONENTS_TO_STRIP: 3
-          OUTPUT_DIR: "{{.G_ANTLR_RUNTIME_SRC_DIR}}"
+          OUTPUT_DIR: "{{.SOURCE_DIR}}"
           URL: "https://github.com/antlr/antlr4/archive/refs/tags/{{.VERSION}}.tar.gz"
       - task: "yscope-dev-utils:cmake:generate"
         vars:
-          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
+          BUILD_DIR: "{{.BUILD_DIR}}"
           EXTRA_ARGS:
             - "-DANTLR4_INSTALL=ON"
             - "-DANTLR_BUILD_CPP_TESTS=OFF"
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
 
             # Set CMP0135 so that extracted files use the current timestamp as their modification
             # timestamp, which ensures the library gets rebuilt if the extracted files change.
             - "-DCMAKE_POLICY_DEFAULT_CMP0135=NEW"
-          SOURCE_DIR: "{{.G_ANTLR_RUNTIME_SRC_DIR}}"
+            - "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+          SOURCE_DIR: "{{.SOURCE_DIR}}"
       - task: "yscope-dev-utils:cmake:build"
         vars:
-          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
+          BUILD_DIR: "{{.BUILD_DIR}}"
           JOBS: "{{.G_CPP_MAX_PARALLELISM_PER_BUILD_TASK}}"
       - task: "yscope-dev-utils:cmake:install"
         vars:
-          BUILD_DIR: "{{.G_ANTLR_RUNTIME_BUILD_DIR}}"
+          BUILD_DIR: "{{.BUILD_DIR}}"
           CMAKE_PACKAGE_NAME: "antlr4-runtime"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           INSTALL_PREFIX: "{{.G_DEPS_CPP_DIR}}/antlr4-runtime-install"
@@ -122,10 +118,6 @@ tasks:
     cmds:
       - task: "yscope-dev-utils:boost:download-and-install"
         vars:
-          # Boost is linked into the plugin's shared object (via CLP), so it must be
-          # position-independent like the other CLP dependencies. Those are built with CMake and use
-          # -DCMAKE_POSITION_INDEPENDENT_CODE=ON; Boost is built with b2, which ignores that variable,
-          # so it needs these flags instead.
           BUILD_AND_INSTALL_ARGS:
             - "cxxflags=-fPIC"
             - "linkflags=-fPIC"
