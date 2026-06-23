@@ -111,6 +111,16 @@ namespace facebook::presto::protocol::clp {
         const override {
           VELOX_NYI("ConnectorDistributedProcedureHandle not implemented");
         }
+        void serialize(
+                const std::shared_ptr<ConnectorDistributedProcedureHandle>& proto,
+                std::string& thrift) const override {
+          VELOX_NYI("ConnectorDistributedProcedureHandle not implemented");
+        }
+        void deserialize(
+                const std::string& thrift,
+                std::shared_ptr<ConnectorDistributedProcedureHandle>& proto) const override {
+          VELOX_NYI("ConnectorDistributedProcedureHandle not implemented");
+        }
 
         // --- ConnectorOutputTableHandle ---
         void to_json(json& j, const std::shared_ptr<ConnectorOutputTableHandle>& proto)
