@@ -11,12 +11,15 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Match the Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
 #
-# NOTE: Including Folly's F14 headers emits a call to F14LinkCheck<Mode>, where Mode is determined
-# at compile time by the CPU flags. This plugin includes the Presto worker's headers, which pull in
-# Folly's F14 headers transitively. The Presto worker is built with AVX2 (Mode 2); if this plugin is
-# built without it, it emits a call to F14LinkCheck<1>, which the Presto worker does not provide,
-# causing dlopen to fail with an unresolved symbol error.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+# NOTE: We need to use the same compilation flags as the Presto worker or else `dlopen` might fail
+# in the worker; specifically because Folly's F14 hash table uses a different implementation
+# depending on the target machine's supported CPU-features, and ABI compatibility is enforced via
+# `F14LinkCheck<Mode>` (if the plugin and worker use different compilation flags, F14's ABI won't be
+# compatible between the two).
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    # Enable `-mavx2` only for x86_64 builds.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+endif()
 
 # ==============================================================================
 # Dependencies
@@ -40,11 +43,13 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/cmake-settings/all-deps.cmake
 # ==============================================================================
 include(FetchContent)
 
-message(STATUS "Downloading presto for headers (commit: 8a20b604c8c6348aab671bcd723ea4482c9e3603)")
+set(PRESTO_GIT_TAG "6e1942b72a9f32191dcd0ba49812f2ac96a25615")
+
+message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
     presto_native_execution
-    GIT_REPOSITORY    https://github.com/y-scope/presto.git
-    GIT_TAG           8a20b604c8c6348aab671bcd723ea4482c9e3603
+    GIT_REPOSITORY    https://github.com/prestodb/presto.git
+    GIT_TAG           "${PRESTO_GIT_TAG}"
     GIT_SUBMODULES    "presto-native-execution/velox"
     GIT_SUBMODULES_RECURSE OFF
 )
