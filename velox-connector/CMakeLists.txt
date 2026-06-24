@@ -93,7 +93,7 @@ include_directories(
         ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/gflags-install/include
         ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/glog-install/include
         ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/re2-source
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/xsimd-install/include
+        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/xsimd-source/include
 )
 
 # Plugin source tree

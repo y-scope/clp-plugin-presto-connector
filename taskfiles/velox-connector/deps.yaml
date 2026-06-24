@@ -432,17 +432,14 @@ tasks:
     vars:
       VERSION: "10.0.0"
     run: "once"
+
     cmds:
-      - task: "yscope-dev-utils:cmake:install-remote-tar"
+      - task: "yscope-dev-utils:remote:download-and-extract-tar"
         vars:
-          CMAKE_GEN_ARGS:
-            - "-DCMAKE_BUILD_TYPE=Release"
-            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-          CMAKE_PACKAGE_NAME: "xsimd"
-          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
-          TAR_SHA256: "73f818368b3a4dad92fab1b2933d93694241bd2365a6181747b2df1768f6afdd"
-          TAR_URL: "https://github.com/xtensor-stack/xsimd/archive/refs/tags/{{.VERSION}}.tar.gz"
-          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+          FILE_SHA256: "73f818368b3a4dad92fab1b2933d93694241bd2365a6181747b2df1768f6afdd"
+          NUM_COMPONENTS_TO_STRIP: 1
+          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/xsimd-source"
+          URL: "https://github.com/xtensor-stack/xsimd/archive/refs/tags/{{.VERSION}}.tar.gz"
 
   ystdlib:
     internal: true
