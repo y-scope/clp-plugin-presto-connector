@@ -7,6 +7,8 @@ tasks:
   check:
     cmds:
       - task: "check-yaml"
+      - task: "check-java-bug"
+      - task: "check-java-lint"
 
   clean:
     cmd: "rm -rf '{{.G_LINT_VENV_DIR}}'"
@@ -14,6 +16,7 @@ tasks:
   fix:
     cmds:
       - task: "fix-yaml"
+      - task: "fix-java-lint"
 
   yaml:
     aliases:
@@ -59,3 +62,15 @@ tasks:
         vars:
           CHECKSUM_FILE: "{{.CHECKSUM_FILE}}"
           INCLUDE_PATTERNS: ["{{.OUTPUT_DIR}}"]
+
+  check-java-lint:
+    cmds:
+      - task: "presto-connector:lint:lint-check"
+
+  fix-java-lint:
+    cmds:
+      - task: "presto-connector:lint:lint"
+
+  check-java-bug:
+    cmds:
+      - task: "presto-connector:lint:bug-check"
