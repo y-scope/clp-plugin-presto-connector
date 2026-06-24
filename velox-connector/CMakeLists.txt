@@ -36,7 +36,7 @@ set(LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR
     CACHE PATH "Directory containing task-installed dependencies."
 )
 
-include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/cmake-settings/all-deps.cmake" REQUIRED)
+include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/cmake-settings/all-deps.cmake")
 
 # ==============================================================================
 # Presto/Velox framework headers
