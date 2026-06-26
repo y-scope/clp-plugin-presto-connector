@@ -12,6 +12,17 @@ vars:
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
+  # Velox header-dependency versions, kept in sync with Velox commit pinned in 
+  # `velox-connector/CMakeLists.txt` (6e1942b72a9f32191dcd0ba49812f2ac96a25615):
+  G_DOUBLE_CONVERSION_VERSION: "v3.1.5"
+  G_FAST_FLOAT_VERSION: "v8.0.2"
+  G_FMT_VERSION: "11.2.0"
+  G_FOLLY_VERSION: "v2026.01.05.00"
+  G_GFLAGS_VERSION: "v2.2.2"
+  G_GLOG_VERSION: "v0.6.0"
+  G_RE2_VERSION: "2024-07-02"
+  G_XSIMD_VERSION: "10.0.0"
+
 tasks:
   install-all:
     cmds:
@@ -157,7 +168,7 @@ tasks:
   double-conversion:
     internal: true
     vars:
-      VERSION: "v3.3.0"
+      VERSION: "{{.G_DOUBLE_CONVERSION_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
@@ -167,14 +178,14 @@ tasks:
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
           CMAKE_PACKAGE_NAME: "double-conversion"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
-          TAR_SHA256: "04ec44461850abbf33824da84978043b22554896b552c5fd11a9c5ae4b4d296e"
+          TAR_SHA256: "a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13"
           TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   fast_float:
     internal: true
     vars:
-      VERSION: "v8.0.0"
+      VERSION: "{{.G_FAST_FLOAT_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
@@ -184,14 +195,14 @@ tasks:
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
           CMAKE_PACKAGE_NAME: "fast_float"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
-          TAR_SHA256: "f312f2dc34c61e665f4b132c0307d6f70ad9420185fa831911bc24408acf625d"
+          TAR_SHA256: "e14a33089712b681d74d94e2a11362643bd7d769ae8f7e7caefe955f57f7eacd"
           TAR_URL: "https://github.com/fastfloat/fast_float/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   fmt:
     internal: true
     vars:
-      VERSION: "11.2.0"
+      VERSION: "{{.G_FMT_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
@@ -211,7 +222,7 @@ tasks:
   folly:
     internal: true
     vars:
-      VERSION: "v2026.01.05.00"
+      VERSION: "{{.G_FOLLY_VERSION}}"
     run: "once"
     deps:
       - "boost"
@@ -242,7 +253,7 @@ tasks:
   gflags:
     internal: true
     vars:
-      VERSION: "v2.2.2"
+      VERSION: "{{.G_GFLAGS_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
@@ -259,7 +270,7 @@ tasks:
   glog:
     internal: true
     vars:
-      VERSION: "v0.6.0"
+      VERSION: "{{.G_GLOG_VERSION}}"
     run: "once"
     deps:
       - "gflags"
@@ -374,7 +385,7 @@ tasks:
   re2:
     internal: true
     vars:
-      VERSION: "2024-07-02"
+      VERSION: "{{.G_RE2_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:remote:download-and-extract-tar"
@@ -430,7 +441,7 @@ tasks:
   xsimd:
     internal: true
     vars:
-      VERSION: "10.0.0"
+      VERSION: "{{.G_XSIMD_VERSION}}"
     run: "once"
 
     cmds:
