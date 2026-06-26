@@ -1,0 +1,37 @@
+version: "3"
+
+includes:
+  deps: "deps.yaml"
+  utils:
+    internal: true
+    taskfile: "../../tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
+
+vars:
+  G_VELOX_CONNECTOR_BUILD_DIR: "{{.G_BUILD_DIR}}/velox-connector"
+  G_DEPS_CPP_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/deps/cpp"
+
+tasks:
+  build:
+    deps:
+      - "generate"
+    cmds:
+      - task: "utils:cmake:build"
+        vars:
+          BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
+          TARGETS: ["clp-plugin-velox-connector"]
+
+  clean:
+    cmd: "rm -rf '{{.G_VELOX_CONNECTOR_BUILD_DIR}}'"
+
+  generate:
+    internal: true
+    deps:
+      - "deps:install-all"
+    cmds:
+      - task: "utils:cmake:generate"
+        vars:
+          BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
+          EXTRA_ARGS:
+            - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS=\
+                {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
+          SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"

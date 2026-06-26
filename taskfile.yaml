@@ -1,0 +1,23 @@
+version: "3"
+
+includes:
+  lint: "taskfiles/lint.yaml"
+  utils: "tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
+  velox-connector: "taskfiles/velox-connector/main.yaml"
+
+vars:
+  G_BUILD_DIR: "{{.ROOT_DIR}}/build"
+
+tasks:
+  clean:
+    deps:
+      - "lint:clean"
+      - "velox-connector:clean"
+    cmd: "rm -rf '{{.G_BUILD_DIR}}'"
+
+  init:
+    internal: true
+    silent: true
+    run: "once"
+    cmds:
+      - "mkdir -p '{{.G_BUILD_DIR}}'"
