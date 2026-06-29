@@ -12,7 +12,7 @@ vars:
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
-  # Velox header-dependency versions, kept in sync with Velox commit pinned in 
+  # Velox header-dependency versions, kept in sync with the Velox commit pinned in
   # `velox-connector/CMakeLists.txt` (6e1942b72a9f32191dcd0ba49812f2ac96a25615):
   G_DOUBLE_CONVERSION_VERSION: "v3.1.5"
   G_FAST_FLOAT_VERSION: "v8.0.2"
@@ -179,7 +179,8 @@ tasks:
           CMAKE_PACKAGE_NAME: "double-conversion"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13"
-          TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/{{.VERSION}}.tar.gz"
+          TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/\
+                        {{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   fast_float:
