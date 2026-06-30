@@ -85,13 +85,13 @@ FetchContent_MakeAvailable(clp)
 # Compile-time include paths for the third-party headers transitively pulled in by the Velox
 # headers. The libraries themselves are resolved at runtime by the Presto worker.
 include_directories(
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/absl-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/boost-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/double-conversion-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/fmt-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/folly-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/gflags-install/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/glog-install/include
+        ${absl_ROOT}/include
+        ${Boost_ROOT}/include
+        ${double-conversion_ROOT}/include
+        ${fmt_ROOT}/include
+        ${folly_ROOT}/include
+        ${gflags_ROOT}/include
+        ${glog_ROOT}/include
         ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/re2-source
         ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/xsimd-source/include
 )
