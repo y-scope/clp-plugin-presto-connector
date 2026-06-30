@@ -12,6 +12,17 @@ vars:
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
+  # Velox header-dependency versions, kept in sync with the Velox commit pinned in
+  # `velox-connector/CMakeLists.txt` (6e1942b72a9f32191dcd0ba49812f2ac96a25615):
+  G_DOUBLE_CONVERSION_VERSION: "v3.1.5"
+  G_FAST_FLOAT_VERSION: "v8.0.2"
+  G_FMT_VERSION: "11.2.0"
+  G_FOLLY_VERSION: "v2026.01.05.00"
+  G_GFLAGS_VERSION: "v2.2.2"
+  G_GLOG_VERSION: "v0.6.0"
+  G_RE2_VERSION: "2024-07-02"
+  G_XSIMD_VERSION: "10.0.0"
+
 tasks:
   install-all:
     cmds:
@@ -29,13 +40,20 @@ tasks:
       - "antlr-runtime"
       - "boost"
       - "date"
+      - "double-conversion"
+      - "fast_float"
       - "fmt"
+      - "folly"
+      - "gflags"
+      - "glog"
       - "log-surgeon"
       - "microsoft-gsl"
       - "msgpack-cxx"
       - "nlohmann-json"
+      - "re2"
       - "simdjson"
       - "spdlog"
+      - "xsimd"
       - "ystdlib"
       - "zstd"
 
@@ -117,11 +135,13 @@ tasks:
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           FILE_SHA256: "d6c69e4459eb5d6ec208250291221e7ff4a2affde9af6e49c9303b89c687461f"
           TARGETS:
+            - "context"
             - "filesystem"
             - "iostreams"
             - "process"
             - "program_options"
             - "regex"
+            - "thread"
             - "url"
           URL: "https://github.com/boostorg/boost/releases/download/boost-{{.VERSION}}/\
                   boost-{{.VERSION}}-b2-nodocs.tar.gz"
@@ -145,10 +165,45 @@ tasks:
           TAR_URL: "https://github.com/HowardHinnant/date/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
+  double-conversion:
+    internal: true
+    vars:
+      VERSION: "{{.G_DOUBLE_CONVERSION_VERSION}}"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+          CMAKE_PACKAGE_NAME: "double-conversion"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13"
+          TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/\
+                        {{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  fast_float:
+    internal: true
+    vars:
+      VERSION: "{{.G_FAST_FLOAT_VERSION}}"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+          CMAKE_PACKAGE_NAME: "fast_float"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "e14a33089712b681d74d94e2a11362643bd7d769ae8f7e7caefe955f57f7eacd"
+          TAR_URL: "https://github.com/fastfloat/fast_float/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
   fmt:
     internal: true
     vars:
-      VERSION: "11.2.0"
+      VERSION: "{{.G_FMT_VERSION}}"
     run: "once"
     cmds:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
@@ -163,6 +218,77 @@ tasks:
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "bc23066d87ab3168f27cef3e97d545fa63314f5c79df5ea444d41d56f962c6af"
           TAR_URL: "https://github.com/fmtlib/fmt/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  folly:
+    internal: true
+    vars:
+      VERSION: "{{.G_FOLLY_VERSION}}"
+    run: "once"
+    deps:
+      - "boost"
+      - "double-conversion"
+      - "fast_float"
+      - "fmt"
+      - "gflags"
+      - "glog"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_FMT_LIB_NAME}}.cmake"
+            - "-DDoubleConversion_ROOT={{.G_DEPS_CPP_DIR}}/double-conversion-install"
+            - "-DFastFloat_ROOT={{.G_DEPS_CPP_DIR}}/fast_float-install"
+            - "-DGflags_ROOT={{.G_DEPS_CPP_DIR}}/gflags-install"
+            - "-DGlog_ROOT={{.G_DEPS_CPP_DIR}}/glog-install"
+            - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+          CMAKE_PACKAGE_NAME: "folly"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "31d05e867db6d4681989aca5f901079dbc33028e3139419fd5024b611689adea"
+          TAR_URL: "https://github.com/facebook/folly/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  gflags:
+    internal: true
+    vars:
+      VERSION: "{{.G_GFLAGS_VERSION}}"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+          CMAKE_PACKAGE_NAME: "gflags"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf"
+          TAR_URL: "https://github.com/gflags/gflags/archive/refs/tags/{{.VERSION}}.tar.gz"
+          WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  glog:
+    internal: true
+    vars:
+      VERSION: "{{.G_GLOG_VERSION}}"
+    run: "once"
+    deps:
+      - "gflags"
+    cmds:
+      - task: "yscope-dev-utils:cmake:install-remote-tar"
+        vars:
+          CMAKE_GEN_ARGS:
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/gflags.cmake"
+            - "-DBUILD_SHARED_LIBS=OFF"
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DBUILD_TESTING=OFF"
+            - "-DWITH_UNWIND=OFF"
+          CMAKE_PACKAGE_NAME: "glog"
+          CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
+          TAR_SHA256: "8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6"
+          TAR_URL: "https://github.com/google/glog/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   log-surgeon:
@@ -257,6 +383,19 @@ tasks:
           TAR_URL: "https://github.com/nlohmann/json/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
+  re2:
+    internal: true
+    vars:
+      VERSION: "{{.G_RE2_VERSION}}"
+    run: "once"
+    cmds:
+      - task: "yscope-dev-utils:remote:download-and-extract-tar"
+        vars:
+          FILE_SHA256: "eb2df807c781601c14a260a507a5bb4509be1ee626024cb45acbd57cb9d4032b"
+          NUM_COMPONENTS_TO_STRIP: 1
+          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/re2-source"
+          URL: "https://github.com/google/re2/archive/refs/tags/{{.VERSION}}.tar.gz"
+
   simdjson:
     internal: true
     vars:
@@ -299,6 +438,20 @@ tasks:
           TAR_SHA256: "15a04e69c222eb6c01094b5c7ff8a249b36bb22788d72519646fb85feb267e67"
           TAR_URL: "https://github.com/gabime/spdlog/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
+
+  xsimd:
+    internal: true
+    vars:
+      VERSION: "{{.G_XSIMD_VERSION}}"
+    run: "once"
+
+    cmds:
+      - task: "yscope-dev-utils:remote:download-and-extract-tar"
+        vars:
+          FILE_SHA256: "73f818368b3a4dad92fab1b2933d93694241bd2365a6181747b2df1768f6afdd"
+          NUM_COMPONENTS_TO_STRIP: 1
+          OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/xsimd-source"
+          URL: "https://github.com/xtensor-stack/xsimd/archive/refs/tags/{{.VERSION}}.tar.gz"
 
   ystdlib:
     internal: true

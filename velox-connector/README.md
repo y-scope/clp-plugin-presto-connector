@@ -2,18 +2,24 @@
 
 ## Requirements
 
-* An environment with Velox's [dependencies][velox-deps-setup] installed
-  * For example, Presto's dev container:
-    [prestodb/presto-native-dependency][presto-native-dependency]
-    * NOTE: Due a bug in GCC 12 that's used in the container, log-surgeon won't compile. Instead,
-        you'll need to explicitly set the following environment variables to point at GCC 11:
-
-        ```shell
-        export CC="gcc"
-        export CXX="g++"
-        ```
-
 * [Task] >= 3.49.1
+* One of the following build environments:
+  * A machine with:
+    * CMake >= 3.28.3 and < 4.0
+    * A C++20 compiler
+    * The following libraries:
+      * `libcurl4-openssl-dev`
+      * `libevent-dev`
+      * `libssl-dev`
+  * A container with Velox's [dependencies][velox-deps-setup] installed, such as Presto's dev
+    container ([prestodb/presto-native-dependency][presto-native-dependency]):
+    * NOTE: Due to a bug in the container's GCC 12, log-surgeon won't compile; Instead, set
+      `CC`/`CXX` to point at GCC 11 before building:
+
+      ```shell
+      export CC="gcc"
+      export CXX="g++"
+      ```
 
 ## Building
 

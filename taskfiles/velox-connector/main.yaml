@@ -31,7 +31,6 @@ tasks:
       - task: "utils:cmake:generate"
         vars:
           BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
-          EXTRA_ARGS:
-            - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS=\
-                {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"
+          EXTRA_ARGS:
+            - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR={{.G_DEPS_CPP_DIR}}"
