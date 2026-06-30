@@ -1,2 +1,10 @@
 /.task/
 /build/
+/presto-connector/target/
+/packages/
+
+# Task runtime dirs in subprojects (e.g. velox-connector/.task/).
+.task/
+
+# Claude Code per-project state (transcripts, scheduled tasks, etc).
+/.claude/

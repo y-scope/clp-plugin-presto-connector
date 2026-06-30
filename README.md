@@ -2,6 +2,8 @@
 
 ## Requirements
 
+* JDK 17
+* [Maven] 3.8+
 * [Task] >= 3.49.1
 
 ## Adding files
@@ -38,4 +40,10 @@ one of the tasks in the table below.
 | `lint:check-yaml`  | Runs the YAML linters.                   |
 | `lint:fix-yaml`    | Runs the YAML linters and fixes issues.  |
 
+## Building installable packages
+
+To build `.deb`, `.rpm`, and `.tar.gz` artifacts of the plugin locally, see
+[tools/build-packages/README.md](tools/build-packages/README.md).
+
+[Maven]: https://maven.apache.org/
 [Task]: https://taskfile.dev
