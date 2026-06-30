@@ -38,7 +38,6 @@
 
   <properties>
     <!-- Dependency versions that must stay in sync with Presto 0.297 -->
-    <jackson.version>2.22.0</jackson.version>
     <presto.version>0.297</presto.version>
     <slice.version>0.38</slice.version>
 
@@ -46,6 +45,10 @@
     <airlift.version>0.229</airlift.version>
     <guava.version>33.6.0-jre</guava.version>
     <guice.version>6.0.0</guice.version>
+    <!-- jackson-annotations publishes a 2-segment version (2.22) while
+     jackson-core/jackson-databind publish 2.22.0; the Jackson BOM pairs
+     annotations 2.22 with the 2.22.0 family. -->
+    <jackson.annotations.version>2.22</jackson.annotations.version>
 
     <!-- Runtime dependency versions -->
     <mysql.version>9.7.0</mysql.version>
@@ -132,7 +135,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <version>${jackson.version}</version>
+      <version>${jackson.annotations.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
