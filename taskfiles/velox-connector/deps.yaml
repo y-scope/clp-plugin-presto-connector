@@ -6,14 +6,21 @@ includes:
 vars:
   G_DEPS_CPP_CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_DIR}}/cmake-settings"
 
+  # The Presto commit that the Velox connector is built against.
+  #
+  # NOTE: This references the upstream OSS commit, contributed by YScope, that makes the plugin
+  # possible. This functionality isn't bundled with any Presto release yet.
+  #
+  # TODO: Update this to the `release-0.299` tag once it's available.
+  G_PRESTO_GIT_TAG: "6e1942b72a9f32191dcd0ba49812f2ac96a25615"
+
   # Library names (must match CMake package names for settings files)
   G_BOOST_LIB_NAME: "Boost"
   G_FMT_LIB_NAME: "fmt"
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
-  # Velox header-dependency versions, kept in sync with the Velox commit pinned in
-  # `velox-connector/CMakeLists.txt` (6e1942b72a9f32191dcd0ba49812f2ac96a25615):
+  # Velox header-dependency versions, kept in sync with the Velox bundled in `G_PRESTO_GIT_TAG`:
   G_DOUBLE_CONVERSION_VERSION: "v3.1.5"
   G_FAST_FLOAT_VERSION: "v8.0.2"
   G_FMT_VERSION: "11.2.0"
@@ -395,6 +402,12 @@ tasks:
           NUM_COMPONENTS_TO_STRIP: 1
           OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/re2-source"
           URL: "https://github.com/google/re2/archive/refs/tags/{{.VERSION}}.tar.gz"
+      - >-
+        echo "set(re2_ROOT
+          \"{{.G_DEPS_CPP_DIR}}/re2-source\"
+          CACHE PATH
+          \"Package root for re2.\"
+        )" > "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/re2.cmake"
 
   simdjson:
     internal: true
@@ -452,6 +465,12 @@ tasks:
           NUM_COMPONENTS_TO_STRIP: 1
           OUTPUT_DIR: "{{.G_DEPS_CPP_DIR}}/xsimd-source"
           URL: "https://github.com/xtensor-stack/xsimd/archive/refs/tags/{{.VERSION}}.tar.gz"
+      - >-
+        echo "set(xsimd_ROOT
+          \"{{.G_DEPS_CPP_DIR}}/xsimd-source\"
+          CACHE PATH
+          \"Package root for xsimd.\"
+        )" > "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/xsimd.cmake"
 
   ystdlib:
     internal: true

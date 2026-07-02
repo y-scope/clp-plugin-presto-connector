@@ -31,19 +31,28 @@ endif()
 # `fmt_ROOT`) that point to the `task`-installed dependencies. CMake's `find_package()` searches
 # `<Package>_ROOT` first, so the `task`-installed dependencies will be used instead of any system
 # packages.
-set(LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR
-    "${CMAKE_CURRENT_LIST_DIR}/../build/velox-connector/deps/cpp"
-    CACHE PATH "Directory containing task-installed dependencies."
+set(
+    LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS
+    "${CMAKE_CURRENT_LIST_DIR}/../build/velox-connector/deps/cpp/cmake-settings/all-deps.cmake"
+    CACHE
+    STRING
+    "Path to the CMake settings file describing this library's dependencies."
 )
 
-include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/cmake-settings/all-deps.cmake")
+include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}")
 
 # ==============================================================================
 # Presto/Velox framework headers
 # ==============================================================================
 include(FetchContent)
 
-set(PRESTO_GIT_TAG "6e1942b72a9f32191dcd0ba49812f2ac96a25615")
+set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
+if(NOT PRESTO_GIT_TAG)
+    message(FATAL_ERROR
+        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or pass "
+        "`-DPRESTO_GIT_TAG=<commit>` when configuring CMake directly."
+    )
+endif()
 
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
@@ -92,8 +101,8 @@ include_directories(
         ${folly_ROOT}/include
         ${gflags_ROOT}/include
         ${glog_ROOT}/include
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/re2-source
-        ${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_DIR}/xsimd-source/include
+        ${re2_ROOT}
+        ${xsimd_ROOT}/include
 )
 
 # Plugin source tree
