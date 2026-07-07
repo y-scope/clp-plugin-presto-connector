@@ -48,7 +48,7 @@ tasks:
       - "boost"
       - "date"
       - "double-conversion"
-      - "fast_float"
+      - "fast-float"
       - "fmt"
       - "folly"
       - "gflags"
@@ -190,7 +190,7 @@ tasks:
                         {{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
-  fast_float:
+  fast-float:
     internal: true
     vars:
       VERSION: "{{.G_FAST_FLOAT_VERSION}}"
@@ -235,7 +235,7 @@ tasks:
     deps:
       - "boost"
       - "double-conversion"
-      - "fast_float"
+      - "fast-float"
       - "fmt"
       - "gflags"
       - "glog"
