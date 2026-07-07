@@ -49,8 +49,8 @@ include(FetchContent)
 set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
 if(NOT PRESTO_GIT_TAG)
     message(FATAL_ERROR
-        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or pass "
-        "`-DPRESTO_GIT_TAG=<commit>` when configuring CMake directly."
+        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or set"
+        " PRESTO_GIT_TAG when configuring CMake directly."
     )
 endif()
 
