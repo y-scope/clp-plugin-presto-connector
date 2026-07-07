@@ -24,7 +24,9 @@ vars:
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
-  # Velox header-dependency versions, kept in sync with the Velox bundled in `G_PRESTO_GIT_TAG`:
+  # Velox header-dependency versions
+  #
+  # NOTE: These must be kept in sync with the version of Velox used by presto@<G_PRESTO_GIT_TAG>
   G_DOUBLE_CONVERSION_VERSION: "v3.1.5"
   G_FAST_FLOAT_VERSION: "v8.0.2"
   G_FMT_VERSION: "11.2.0"
