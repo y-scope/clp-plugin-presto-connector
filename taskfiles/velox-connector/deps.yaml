@@ -190,8 +190,8 @@ tasks:
           CMAKE_PACKAGE_NAME: "{{.G_DOUBLE_CONVERSION_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13"
-          TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/\
-                        {{.VERSION}}.tar.gz"
+          TAR_URL: >-
+            https://github.com/google/double-conversion/archive/refs/tags/{{.VERSION}}.tar.gz
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
   fast-float:
@@ -247,6 +247,12 @@ tasks:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
         vars:
           CMAKE_GEN_ARGS:
+            # Build and install args
+            - "-DCMAKE_BUILD_TYPE=Release"
+            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
+            - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
+
+            # Dependency args
             - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
             - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_FMT_LIB_NAME}}.cmake"
             - >-
@@ -254,9 +260,6 @@ tasks:
             - "-DFastFloat_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_FAST_FLOAT_LIB_NAME}}-install"
             - "-DGflags_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_GFLAGS_LIB_NAME}}-install"
             - "-DGlog_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_GLOG_LIB_NAME}}-install"
-            - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
-            - "-DCMAKE_BUILD_TYPE=Release"
-            - "-DCMAKE_INSTALL_MESSAGE=LAZY"
           CMAKE_PACKAGE_NAME: "folly"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "31d05e867db6d4681989aca5f901079dbc33028e3139419fd5024b611689adea"
@@ -291,13 +294,16 @@ tasks:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
         vars:
           CMAKE_GEN_ARGS:
-            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_GFLAGS_LIB_NAME}}.cmake"
+            # Build and install args
             - "-DBUILD_SHARED_LIBS=OFF"
+            - "-DBUILD_TESTING=OFF"
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-            - "-DBUILD_TESTING=OFF"
             - "-DWITH_GTEST=OFF"
             - "-DWITH_UNWIND=OFF"
+
+            # Dependency args
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_GFLAGS_LIB_NAME}}.cmake"
           CMAKE_PACKAGE_NAME: "{{.G_GLOG_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6"
