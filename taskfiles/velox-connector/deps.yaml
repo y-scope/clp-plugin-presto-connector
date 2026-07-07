@@ -8,10 +8,8 @@ vars:
 
   # The Presto commit that the Velox connector is built against.
   #
-  # NOTE: This references the upstream OSS commit, contributed by YScope, that makes the plugin
-  # possible. This functionality isn't bundled with any Presto release yet.
-  #
-  # TODO: Update this to the `release-0.299` tag once it's available.
+  # NOTE: This reference is a commit that hasn't been included in a release yet, but contains the
+  # functionality necessary to implement the Velox connector.
   G_PRESTO_GIT_TAG: "6e1942b72a9f32191dcd0ba49812f2ac96a25615"
 
   # Library names (must match CMake package names for settings files)
