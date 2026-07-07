@@ -296,6 +296,7 @@ tasks:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
             - "-DBUILD_TESTING=OFF"
+            - "-DWITH_GTEST=OFF"
             - "-DWITH_UNWIND=OFF"
           CMAKE_PACKAGE_NAME: "{{.G_GLOG_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
