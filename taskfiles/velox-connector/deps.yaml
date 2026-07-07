@@ -16,7 +16,11 @@ vars:
 
   # Library names (must match CMake package names for settings files)
   G_BOOST_LIB_NAME: "Boost"
+  G_DOUBLE_CONVERSION_LIB_NAME: "double-conversion"
+  G_FAST_FLOAT_LIB_NAME: "fast_float"
   G_FMT_LIB_NAME: "fmt"
+  G_GFLAGS_LIB_NAME: "gflags"
+  G_GLOG_LIB_NAME: "glog"
   G_GSL_LIB_NAME: "Microsoft.GSL"
   G_YSTDLIB_LIB_NAME: "ystdlib"
 
@@ -183,7 +187,7 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-          CMAKE_PACKAGE_NAME: "double-conversion"
+          CMAKE_PACKAGE_NAME: "{{.G_DOUBLE_CONVERSION_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13"
           TAR_URL: "https://github.com/google/double-conversion/archive/refs/tags/\
@@ -201,7 +205,7 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-          CMAKE_PACKAGE_NAME: "fast_float"
+          CMAKE_PACKAGE_NAME: "{{.G_FAST_FLOAT_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "e14a33089712b681d74d94e2a11362643bd7d769ae8f7e7caefe955f57f7eacd"
           TAR_URL: "https://github.com/fastfloat/fast_float/archive/refs/tags/{{.VERSION}}.tar.gz"
@@ -245,10 +249,11 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_BOOST_LIB_NAME}}.cmake"
             - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_FMT_LIB_NAME}}.cmake"
-            - "-DDoubleConversion_ROOT={{.G_DEPS_CPP_DIR}}/double-conversion-install"
-            - "-DFastFloat_ROOT={{.G_DEPS_CPP_DIR}}/fast_float-install"
-            - "-DGflags_ROOT={{.G_DEPS_CPP_DIR}}/gflags-install"
-            - "-DGlog_ROOT={{.G_DEPS_CPP_DIR}}/glog-install"
+            - >-
+              -DDoubleConversion_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_DOUBLE_CONVERSION_LIB_NAME}}-install
+            - "-DFastFloat_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_FAST_FLOAT_LIB_NAME}}-install"
+            - "-DGflags_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_GFLAGS_LIB_NAME}}-install"
+            - "-DGlog_ROOT={{.G_DEPS_CPP_DIR}}/{{.G_GLOG_LIB_NAME}}-install"
             - "-DCMAKE_POLICY_DEFAULT_CMP0074=NEW"
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
@@ -269,7 +274,7 @@ tasks:
           CMAKE_GEN_ARGS:
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
-          CMAKE_PACKAGE_NAME: "gflags"
+          CMAKE_PACKAGE_NAME: "{{.G_GFLAGS_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf"
           TAR_URL: "https://github.com/gflags/gflags/archive/refs/tags/{{.VERSION}}.tar.gz"
@@ -286,13 +291,13 @@ tasks:
       - task: "yscope-dev-utils:cmake:install-remote-tar"
         vars:
           CMAKE_GEN_ARGS:
-            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/gflags.cmake"
+            - "-C {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/{{.G_GFLAGS_LIB_NAME}}.cmake"
             - "-DBUILD_SHARED_LIBS=OFF"
             - "-DCMAKE_BUILD_TYPE=Release"
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
             - "-DBUILD_TESTING=OFF"
             - "-DWITH_UNWIND=OFF"
-          CMAKE_PACKAGE_NAME: "glog"
+          CMAKE_PACKAGE_NAME: "{{.G_GLOG_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
           TAR_SHA256: "8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6"
           TAR_URL: "https://github.com/google/glog/archive/refs/tags/{{.VERSION}}.tar.gz"
