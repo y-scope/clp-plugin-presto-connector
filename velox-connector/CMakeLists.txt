@@ -47,7 +47,7 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}")
 include(FetchContent)
 
 set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
-if(NOT PRESTO_GIT_TAG)
+if(PRESTO_GIT_TAG STREQUAL "")
     message(FATAL_ERROR
         "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or set"
         " PRESTO_GIT_TAG when configuring CMake directly."
