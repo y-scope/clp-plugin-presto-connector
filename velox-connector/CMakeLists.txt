@@ -39,14 +39,20 @@ set(
     "Path to the CMake settings file describing this library's dependencies."
 )
 
-include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}" REQUIRED)
+include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}")
 
 # ==============================================================================
 # Presto/Velox framework headers
 # ==============================================================================
 include(FetchContent)
 
-set(PRESTO_GIT_TAG "6e1942b72a9f32191dcd0ba49812f2ac96a25615")
+set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
+if(PRESTO_GIT_TAG STREQUAL "")
+    message(FATAL_ERROR
+        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or set"
+        " PRESTO_GIT_TAG when configuring CMake directly."
+    )
+endif()
 
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
@@ -84,6 +90,20 @@ FetchContent_MakeAvailable(clp)
 # ==============================================================================
 # Plugin target
 # ==============================================================================
+
+# Compile-time include paths for the third-party headers transitively pulled in by the Velox
+# headers. The libraries themselves are resolved at runtime by the Presto worker.
+include_directories(
+        ${absl_ROOT}/include
+        ${Boost_ROOT}/include
+        ${double-conversion_ROOT}/include
+        ${fmt_ROOT}/include
+        ${folly_ROOT}/include
+        ${gflags_ROOT}/include
+        ${glog_ROOT}/include
+        ${re2_ROOT}
+        ${xsimd_ROOT}/include
+)
 
 # Plugin source tree
 add_subdirectory(src)
