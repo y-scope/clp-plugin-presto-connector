@@ -6,7 +6,7 @@ includes:
   velox-connector: "taskfiles/velox-connector/main.yaml"
 
 vars:
-  G_BUILD_DIR: "{{.ROOT_DIR}}/build"
+  G_BUILD_DIR: '{{.CLP_PLUGIN_BUILD_DIR | default (printf "%s/build" .ROOT_DIR)}}'
 
 tasks:
   clean:
