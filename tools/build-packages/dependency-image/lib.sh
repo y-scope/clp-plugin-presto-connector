@@ -68,22 +68,13 @@ build_image() {
         : > "${ca_bundle}"
     fi
 
-    # Stage the minimal repo context needed to run the dependency-install task.
     ensure_yscope_dev_utils_submodule
-
-    local repo_context="${ca_stage}/repo-root"
-    mkdir -p "${repo_context}/tools"
-    cp "${_REPO_ROOT}/taskfile.yaml" "${repo_context}/taskfile.yaml"
-    cp -a "${_REPO_ROOT}/taskfiles" "${repo_context}/taskfiles"
-    cp -a "${_REPO_ROOT}/tools/yscope-dev-utils" "${repo_context}/tools/yscope-dev-utils"
 
     docker buildx build \
         --platform "${platform}" \
-        --build-context "ca-bundle=${_REPO_ROOT}/tools/ca-bundle" \
-        --build-context "repo-root=${repo_context}" \
         --secret "id=host-ca,src=${ca_bundle}" \
         --tag "${tag}" \
         "${output}" \
         -f "${_DEP_IMG_DIR}/Dockerfile" \
-        "${_DEP_IMG_DIR}"
+        "${_REPO_ROOT}"
 }

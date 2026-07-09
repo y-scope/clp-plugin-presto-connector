@@ -6,7 +6,7 @@
 FROM quay.io/pypa/manylinux_2_28:latest
 
 # Install an optional host CA bundle without copying the bundle into an image layer.
-COPY --from=ca-bundle install-ca-bundle.sh /tmp/install-ca-bundle.sh
+COPY tools/ca-bundle/install-ca-bundle.sh /tmp/install-ca-bundle.sh
 RUN --mount=type=secret,id=host-ca \
     if [ -s /run/secrets/host-ca ]; then \
         bash /tmp/install-ca-bundle.sh /run/secrets/host-ca; \
@@ -41,12 +41,13 @@ ENV PATH=/opt/go-task/bin:${PATH}
 
 ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
 WORKDIR /opt/clp-plugin-presto-connector
-COPY --from=repo-root taskfile.yaml ./
-COPY --from=repo-root taskfiles ./taskfiles
-COPY --from=repo-root tools/yscope-dev-utils ./tools/yscope-dev-utils
+RUN mkdir -p tools
 
 # Build one dependency at a time; each dependency build still defaults to nproc.
-RUN TASK_CONCURRENCY=1 task velox-connector:deps:install-all
+RUN --mount=type=bind,source=taskfile.yaml,target=/opt/clp-plugin-presto-connector/taskfile.yaml,readonly \
+    --mount=type=bind,source=taskfiles,target=/opt/clp-plugin-presto-connector/taskfiles,readonly \
+    --mount=type=bind,source=tools/yscope-dev-utils,target=/opt/clp-plugin-presto-connector/tools/yscope-dev-utils,readonly \
+    TASK_CONCURRENCY=1 task velox-connector:deps:install-all
 
 # Marker for scripts to verify they are running in the dependency image.
 ENV CLP_PLUGIN_BUILD_ENV=1
