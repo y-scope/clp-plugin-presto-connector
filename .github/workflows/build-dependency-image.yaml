@@ -44,11 +44,13 @@ jobs:
     steps:
       - name: "Check out repository"
         uses: "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: "Resolve dependency image"
         id: "image"
         run: |-
-          source tools/build-packages/dependency-image/lib.sh
+          source tools/build-packages/dependency-image/utils.sh
           build_env_hash=$(derive_build_env_hash)
           image_repo="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image=$(image_ref "${image_repo}" "${IMAGE_NAME}" "${build_env_hash}")
@@ -99,6 +101,8 @@ jobs:
     steps:
       - name: "Check out repository"
         uses: "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: "Log in to GHCR"
         if: "github.event_name != 'pull_request'"
@@ -116,7 +120,7 @@ jobs:
           IMAGE: "${{needs.plan.outputs.image}}"
           ARCH: "${{matrix.arch}}"
         run: |-
-          source tools/build-packages/dependency-image/lib.sh
+          source tools/build-packages/dependency-image/utils.sh
           output="--push"
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             output="--load"

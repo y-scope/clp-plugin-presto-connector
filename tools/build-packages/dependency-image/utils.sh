@@ -21,6 +21,7 @@ image_ref() {
 
 # Inputs that should change the build-env image tag.
 _BUILD_ENV_HASH_INPUTS=(
+    ".dockerignore"
     ".github/workflows/build-dependency-image.yaml"
     "taskfile.yaml"
     "taskfiles"
@@ -34,7 +35,7 @@ _BUILD_ENV_HASH_INPUTS=(
 # Requires: git, sha256sum
 derive_build_env_hash() {
     (
-        cd "${_REPO_ROOT}"
+        cd "${_REPO_ROOT}" || exit
         ensure_yscope_dev_utils_submodule >&2
         git ls-files -z --recurse-submodules -- "${_BUILD_ENV_HASH_INPUTS[@]}" \
             | sort -z \

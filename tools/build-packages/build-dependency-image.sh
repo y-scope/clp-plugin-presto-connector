@@ -17,7 +17,7 @@ set -o nounset
 set -o pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-source "${script_dir}/dependency-image/lib.sh"
+source "${script_dir}/dependency-image/utils.sh"
 
 # Derive this repo's GHCR namespace from its GitHub origin remote.
 image_repo_from_origin() {
