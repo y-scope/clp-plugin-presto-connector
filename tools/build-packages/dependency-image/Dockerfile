@@ -39,11 +39,9 @@ RUN set -eux; \
 ENV PATH=/opt/go-task/bin:${PATH}
 
 ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
-WORKDIR /opt/clp-plugin-presto-connector
-RUN mkdir -p tools
 
 # Build one dependency at a time; each dependency build still defaults to nproc.
-RUN --mount=type=bind,source=taskfile.yaml,target=/opt/clp-plugin-presto-connector/taskfile.yaml,readonly \
-    --mount=type=bind,source=taskfiles,target=/opt/clp-plugin-presto-connector/taskfiles,readonly \
-    --mount=type=bind,source=tools/yscope-dev-utils,target=/opt/clp-plugin-presto-connector/tools/yscope-dev-utils,readonly \
-    TASK_CONCURRENCY=1 task velox-connector:deps:install-all
+# Bind-mount the repository as readonly build input. Dependency outputs are
+# written to CLP_PLUGIN_BUILD_DIR inside the image.
+RUN --mount=type=bind,source=.,target=/repo,readonly \
+    TASK_CONCURRENCY=1 task -d /repo velox-connector:deps:install-all
