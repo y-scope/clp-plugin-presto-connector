@@ -3,8 +3,7 @@
 # Shared dependency-image helpers for tag derivation and Docker builds.
 # Callers decide whether to use a local image, pull from GHCR, or build.
 
-_DEP_IMG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-_REPO_ROOT="$(cd "${_DEP_IMG_DIR}/../../.." &>/dev/null && pwd)"
+_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." &>/dev/null && pwd)"
 
 # Keep local builds working when the checkout lacks initialized submodules.
 ensure_yscope_dev_utils_submodule() {
@@ -75,6 +74,6 @@ build_image() {
         --secret "id=host-ca,src=${ca_bundle}" \
         --tag "${tag}" \
         "${output}" \
-        -f "${_DEP_IMG_DIR}/Dockerfile" \
+        -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile" \
         "${_REPO_ROOT}"
 }
