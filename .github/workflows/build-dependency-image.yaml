@@ -16,7 +16,6 @@ on:
       - "taskfiles/**"
       - "tools/build-packages/build-dependency-image.sh"
       - "tools/build-packages/dependency-image/**"
-      - "tools/ca-bundle/**"
       - "tools/yscope-dev-utils"
   workflow_call:
     outputs:

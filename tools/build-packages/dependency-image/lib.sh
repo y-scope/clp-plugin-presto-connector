@@ -26,7 +26,6 @@ _BUILD_ENV_HASH_INPUTS=(
     "taskfiles"
     "tools/build-packages/build-dependency-image.sh"
     "tools/build-packages/dependency-image"
-    "tools/ca-bundle"
     "tools/yscope-dev-utils"
 )
 
@@ -63,7 +62,7 @@ build_image() {
     local ca_stage; ca_stage=$(mktemp -d)
     trap "rm -rf '${ca_stage}'" RETURN
     local ca_bundle="${ca_stage}/host-ca"
-    if ! "${_REPO_ROOT}/tools/ca-bundle/stage-ca-bundle.sh" "${ca_bundle}"; then
+    if ! "${_REPO_ROOT}/tools/build-packages/dependency-image/ca-bundle/stage-ca-bundle.sh" "${ca_bundle}"; then
         : > "${ca_bundle}"
     fi
 
