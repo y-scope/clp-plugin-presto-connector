@@ -1,13 +1,23 @@
 # Publishes the content-addressed build-env image used by package builds.
+# Pull requests build the image locally without publishing it.
 #
 # Flow:
-#   plan      derive the env-<hash> image reference and check GHCR
-#   build     publish per-architecture images when the tag is missing
+#   plan      derive the env-<hash> image reference and decide whether to build
+#   build     validate or publish per-architecture images
 #   manifest  publish the multi-architecture env-<hash> tag
 
 name: "build-dependency-image"
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-dependency-image.yaml"
+      - "taskfile.yaml"
+      - "taskfiles/**"
+      - "tools/build-packages/build-dependency-image.sh"
+      - "tools/build-packages/dependency-image/**"
+      - "tools/ca-bundle/**"
+      - "tools/yscope-dev-utils"
   workflow_call:
     outputs:
       image:
@@ -46,18 +56,22 @@ jobs:
           echo "ref=${image}" >> "$GITHUB_OUTPUT"
 
       - name: "Log in to GHCR"
+        if: "github.event_name != 'pull_request'"
         uses: "docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"  # v3.7.0
         with:
           registry: "ghcr.io"
           username: "${{github.actor}}"
           password: "${{secrets.GITHUB_TOKEN}}"
 
-      - name: "Decide whether to rebuild"
+      - name: "Decide whether to build"
         id: "decide"
         env:
           IMAGE: "${{steps.image.outputs.ref}}"
         run: |-
-          if docker buildx imagetools inspect "${IMAGE}" &>/dev/null; then
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            echo "::notice::Pull request validation will build ${IMAGE} locally without publishing"
+            needs_build=true
+          elif docker buildx imagetools inspect "${IMAGE}" &>/dev/null; then
             echo "::notice::${IMAGE} already exists — skipping rebuild"
             needs_build=false
           else
@@ -88,6 +102,7 @@ jobs:
         uses: "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"  # v4.3.1
 
       - name: "Log in to GHCR"
+        if: "github.event_name != 'pull_request'"
         uses: "docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"  # v3.7.0
         with:
           registry: "ghcr.io"
@@ -97,17 +112,21 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"  # v3.12.0
 
-      - name: "Build and push per-arch dependency image"
+      - name: "Build per-arch dependency image"
         env:
           IMAGE: "${{needs.plan.outputs.image}}"
           ARCH: "${{matrix.arch}}"
         run: |-
           source tools/build-packages/dependency-image/lib.sh
-          build_image "${IMAGE}-${ARCH}" "linux/${ARCH}" "--push"
+          output="--push"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            output="--load"
+          fi
+          build_image "${IMAGE}-${ARCH}" "linux/${ARCH}" "${output}"
 
   manifest:
     needs: ["plan", "build"]
-    if: "needs.plan.outputs.needs-build == 'true'"
+    if: "github.event_name != 'pull_request' && needs.plan.outputs.needs-build == 'true'"
     permissions:
       packages: "write"
     runs-on: "ubuntu-24.04"
