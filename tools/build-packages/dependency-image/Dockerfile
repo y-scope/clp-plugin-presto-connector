@@ -26,8 +26,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
  && dnf clean all
 
 # Pin CMake below 4.0 for current CLP dependency builds.
-RUN python3 -m pip install --no-cache-dir --upgrade pip \
- && python3 -m pip install --no-cache-dir 'cmake==3.28.*'
+RUN python3 -m pip install --no-cache-dir 'cmake==3.28.*'
 
 # go-task — task driver for dependency installation and CMake builds.
 ARG GO_TASK_VERSION=v3.48.0
@@ -48,6 +47,3 @@ RUN --mount=type=bind,source=taskfile.yaml,target=/opt/clp-plugin-presto-connect
     --mount=type=bind,source=taskfiles,target=/opt/clp-plugin-presto-connector/taskfiles,readonly \
     --mount=type=bind,source=tools/yscope-dev-utils,target=/opt/clp-plugin-presto-connector/tools/yscope-dev-utils,readonly \
     TASK_CONCURRENCY=1 task velox-connector:deps:install-all
-
-# Marker for scripts to verify they are running in the dependency image.
-ENV CLP_PLUGIN_BUILD_ENV=1
