@@ -44,6 +44,30 @@ derive_build_env_hash() {
     )
 }
 
+# Stages the host CA bundle into the temporary Docker build context.
+#
+# Args: <destination-path>
+_stage_host_ca_bundle() {
+    local dest="${1:?_stage_host_ca_bundle requires a destination path}"
+    local ca_bundle_candidates=(
+        "${SSL_CERT_FILE:-}"
+        /etc/ssl/certs/ca-certificates.crt
+        /etc/pki/tls/certs/ca-bundle.crt
+        /etc/ssl/cert.pem
+    )
+
+    local src
+    for src in "${ca_bundle_candidates[@]}"; do
+        [[ -f "${src}" && -s "${src}" ]] || continue
+        echo "==> Staging host CA bundle: ${src} -> ${dest}" >&2
+        cp "${src}" "${dest}"
+        return 0
+    done
+
+    echo "==> No host CA bundle found; continuing without host CA context." >&2
+    return 1
+}
+
 # ── Docker build ──────────────────────────────────────────────────────────────
 
 # Builds the dependency image.
@@ -57,25 +81,25 @@ derive_build_env_hash() {
 build_image() {
     local tag="$1" platform="$2" output="$3"
 
-    # Mount the host CA bundle via a named build context (bind-mounted in the
-    # Dockerfile) so the bundle bytes stay out of the image layers and the
-    # primary build context. A BuildKit secret can't be used here since
-    # secrets are capped at 500KiB and corporate CA bundles routinely exceed
-    # that. An empty file means no host CA.
+    # Expose the host CA bundle as a narrow named build context so the Dockerfile
+    # can bind-mount it during networked RUN steps without baking it into image
+    # layers. Use a real context instead of a BuildKit secret because corporate CA
+    # bundles can exceed BuildKit's 500KiB secret limit.
     local ca_stage; ca_stage=$(mktemp -d)
-    trap "rm -rf '${ca_stage}'" RETURN
-    local ca_bundle="${ca_stage}/host-ca"
-    if ! "${_REPO_ROOT}/tools/build-packages/dependency-image/ca-bundle/stage-ca-bundle.sh" "${ca_bundle}"; then
-        : > "${ca_bundle}"
-    fi
+    (
+        trap 'rm -rf "${ca_stage}"' EXIT
 
-    ensure_yscope_dev_utils_submodule
+        local ca_bundle="${ca_stage}/host-ca"
+        _stage_host_ca_bundle "${ca_bundle}" || : > "${ca_bundle}"
 
-    docker buildx build \
-        --platform "${platform}" \
-        --build-context "host-ca=${ca_stage}" \
-        --tag "${tag}" \
-        "${output}" \
-        -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile" \
-        "${_REPO_ROOT}"
+        ensure_yscope_dev_utils_submodule
+
+        docker buildx build \
+            --platform "${platform}" \
+            --build-context "host-ca=${ca_stage}" \
+            --tag "${tag}" \
+            "${output}" \
+            -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile" \
+            "${_REPO_ROOT}"
+    )
 }

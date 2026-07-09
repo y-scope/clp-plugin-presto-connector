@@ -5,6 +5,8 @@
 
 FROM quay.io/pypa/manylinux_2_28:latest
 
+ARG HOST_CA_BUNDLE=/run/secrets/host-ca
+
 # When available, expose the host CA bundle only to networked build steps via
 # tool-specific environment variables. This supports local corporate builds
 # without baking host CA certificates into the final image.
@@ -12,15 +14,15 @@ FROM quay.io/pypa/manylinux_2_28:latest
 # Install OS packages missing from the manylinux base image.
 # dnf talks to libcurl directly and ignores CURL_CA_BUNDLE/SSL_CERT_FILE, so
 # it needs its own --setopt=sslcacert pointed at the host CA bundle.
-RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
     dnf_sslcacert_opt=""; \
-    if [ -s /run/secrets/host-ca ]; then \
-        export CURL_CA_BUNDLE=/run/secrets/host-ca \
-            GIT_SSL_CAINFO=/run/secrets/host-ca \
-            PIP_CERT=/run/secrets/host-ca \
-            REQUESTS_CA_BUNDLE=/run/secrets/host-ca \
-            SSL_CERT_FILE=/run/secrets/host-ca; \
-        dnf_sslcacert_opt="--setopt=sslcacert=/run/secrets/host-ca"; \
+    if [ -s "${HOST_CA_BUNDLE}" ]; then \
+        export CURL_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            GIT_SSL_CAINFO="${HOST_CA_BUNDLE}" \
+            PIP_CERT="${HOST_CA_BUNDLE}" \
+            REQUESTS_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            SSL_CERT_FILE="${HOST_CA_BUNDLE}"; \
+        dnf_sslcacert_opt="--setopt=sslcacert=${HOST_CA_BUNDLE}"; \
     fi \
  && dnf install -y --setopt=install_weak_deps=False ${dnf_sslcacert_opt} \
         dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
@@ -29,13 +31,13 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
 
 # Pin CMake below 4.0 for current CLP dependency builds. Pin a recent pip so
 # it selects the pre-built CMake wheel instead of the source tarball.
-RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
-    if [ -s /run/secrets/host-ca ]; then \
-        export CURL_CA_BUNDLE=/run/secrets/host-ca \
-            GIT_SSL_CAINFO=/run/secrets/host-ca \
-            PIP_CERT=/run/secrets/host-ca \
-            REQUESTS_CA_BUNDLE=/run/secrets/host-ca \
-            SSL_CERT_FILE=/run/secrets/host-ca; \
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
+    if [ -s "${HOST_CA_BUNDLE}" ]; then \
+        export CURL_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            GIT_SSL_CAINFO="${HOST_CA_BUNDLE}" \
+            PIP_CERT="${HOST_CA_BUNDLE}" \
+            REQUESTS_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            SSL_CERT_FILE="${HOST_CA_BUNDLE}"; \
     fi \
  && python3 -m pip install --no-cache-dir 'pip==21.3.1' \
  && python3 -m pip install --no-cache-dir 'cmake==3.28.*'
@@ -43,14 +45,14 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
 # go-task — task driver for dependency installation and CMake builds.
 ARG GO_TASK_VERSION=v3.48.0
 ARG TARGETARCH
-RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
     set -eux; \
-    if [ -s /run/secrets/host-ca ]; then \
-        export CURL_CA_BUNDLE=/run/secrets/host-ca \
-            GIT_SSL_CAINFO=/run/secrets/host-ca \
-            PIP_CERT=/run/secrets/host-ca \
-            REQUESTS_CA_BUNDLE=/run/secrets/host-ca \
-            SSL_CERT_FILE=/run/secrets/host-ca; \
+    if [ -s "${HOST_CA_BUNDLE}" ]; then \
+        export CURL_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            GIT_SSL_CAINFO="${HOST_CA_BUNDLE}" \
+            PIP_CERT="${HOST_CA_BUNDLE}" \
+            REQUESTS_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            SSL_CERT_FILE="${HOST_CA_BUNDLE}"; \
     fi; \
     mkdir -p /opt/go-task/bin; \
     curl -fsSL "https://github.com/go-task/task/releases/download/${GO_TASK_VERSION}/task_linux_${TARGETARCH}.tar.gz" \
@@ -66,12 +68,12 @@ ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 # checksum metadata are written outside the repository mount so package builds
 # can reuse the installed dependencies from the image.
 RUN --mount=type=bind,source=.,target=/repo,readonly \
-    --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
-    if [ -s /run/secrets/host-ca ]; then \
-        export CURL_CA_BUNDLE=/run/secrets/host-ca \
-            GIT_SSL_CAINFO=/run/secrets/host-ca \
-            PIP_CERT=/run/secrets/host-ca \
-            REQUESTS_CA_BUNDLE=/run/secrets/host-ca \
-            SSL_CERT_FILE=/run/secrets/host-ca; \
+    --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
+    if [ -s "${HOST_CA_BUNDLE}" ]; then \
+        export CURL_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            GIT_SSL_CAINFO="${HOST_CA_BUNDLE}" \
+            PIP_CERT="${HOST_CA_BUNDLE}" \
+            REQUESTS_CA_BUNDLE="${HOST_CA_BUNDLE}" \
+            SSL_CERT_FILE="${HOST_CA_BUNDLE}"; \
     fi \
  && TASK_CONCURRENCY=1 task -d /repo velox-connector:deps:install-all
