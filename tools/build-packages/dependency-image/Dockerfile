@@ -25,8 +25,10 @@ RUN dnf install -y --setopt=install_weak_deps=False \
         libunwind-devel ninja-build openssl-devel patchelf python3-pip rpm-build \
  && dnf clean all
 
-# Pin CMake below 4.0 for current CLP dependency builds.
-RUN python3 -m pip install --no-cache-dir 'cmake==3.28.*'
+# Pin CMake below 4.0 for current CLP dependency builds. Pin a recent pip so
+# it selects the pre-built CMake wheel instead of the source tarball.
+RUN python3 -m pip install --no-cache-dir 'pip==21.3.1' \
+ && python3 -m pip install --no-cache-dir 'cmake==3.28.*'
 
 # go-task — task driver for dependency installation and CMake builds.
 ARG GO_TASK_VERSION=v3.48.0
@@ -39,9 +41,11 @@ RUN set -eux; \
 ENV PATH=/opt/go-task/bin:${PATH}
 
 ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
+ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 
 # Build one dependency at a time; each dependency build still defaults to nproc.
-# Bind-mount the repository as readonly build input. Dependency outputs are
-# written to CLP_PLUGIN_BUILD_DIR inside the image.
+# Bind-mount the repository as readonly build input. Dependency outputs and Task
+# checksum metadata are written outside the repository mount so package builds
+# can reuse the installed dependencies from the image.
 RUN --mount=type=bind,source=.,target=/repo,readonly \
     TASK_CONCURRENCY=1 task -d /repo velox-connector:deps:install-all
