@@ -57,8 +57,11 @@ derive_build_env_hash() {
 build_image() {
     local tag="$1" platform="$2" output="$3"
 
-    # Mount the host CA bundle as a BuildKit secret so the bundle bytes stay
-    # out of the image layers and build context. An empty file means no host CA.
+    # Mount the host CA bundle via a named build context (bind-mounted in the
+    # Dockerfile) so the bundle bytes stay out of the image layers and the
+    # primary build context. A BuildKit secret can't be used here since
+    # secrets are capped at 500KiB and corporate CA bundles routinely exceed
+    # that. An empty file means no host CA.
     local ca_stage; ca_stage=$(mktemp -d)
     trap "rm -rf '${ca_stage}'" RETURN
     local ca_bundle="${ca_stage}/host-ca"
@@ -70,7 +73,7 @@ build_image() {
 
     docker buildx build \
         --platform "${platform}" \
-        --secret "id=host-ca,src=${ca_bundle}" \
+        --build-context "host-ca=${ca_stage}" \
         --tag "${tag}" \
         "${output}" \
         -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile" \

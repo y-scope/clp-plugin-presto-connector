@@ -10,22 +10,26 @@ FROM quay.io/pypa/manylinux_2_28:latest
 # without baking host CA certificates into the final image.
 
 # Install OS packages missing from the manylinux base image.
-RUN --mount=type=secret,id=host-ca \
+# dnf talks to libcurl directly and ignores CURL_CA_BUNDLE/SSL_CERT_FILE, so
+# it needs its own --setopt=sslcacert pointed at the host CA bundle.
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
+    dnf_sslcacert_opt=""; \
     if [ -s /run/secrets/host-ca ]; then \
         export CURL_CA_BUNDLE=/run/secrets/host-ca \
             GIT_SSL_CAINFO=/run/secrets/host-ca \
             PIP_CERT=/run/secrets/host-ca \
             REQUESTS_CA_BUNDLE=/run/secrets/host-ca \
             SSL_CERT_FILE=/run/secrets/host-ca; \
+        dnf_sslcacert_opt="--setopt=sslcacert=/run/secrets/host-ca"; \
     fi \
- && dnf install -y --setopt=install_weak_deps=False \
+ && dnf install -y --setopt=install_weak_deps=False ${dnf_sslcacert_opt} \
         dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
         libunwind-devel ninja-build openssl-devel patchelf python3-pip rpm-build \
  && dnf clean all
 
 # Pin CMake below 4.0 for current CLP dependency builds. Pin a recent pip so
 # it selects the pre-built CMake wheel instead of the source tarball.
-RUN --mount=type=secret,id=host-ca \
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
     if [ -s /run/secrets/host-ca ]; then \
         export CURL_CA_BUNDLE=/run/secrets/host-ca \
             GIT_SSL_CAINFO=/run/secrets/host-ca \
@@ -39,7 +43,7 @@ RUN --mount=type=secret,id=host-ca \
 # go-task — task driver for dependency installation and CMake builds.
 ARG GO_TASK_VERSION=v3.48.0
 ARG TARGETARCH
-RUN --mount=type=secret,id=host-ca \
+RUN --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
     set -eux; \
     if [ -s /run/secrets/host-ca ]; then \
         export CURL_CA_BUNDLE=/run/secrets/host-ca \
@@ -62,7 +66,7 @@ ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 # checksum metadata are written outside the repository mount so package builds
 # can reuse the installed dependencies from the image.
 RUN --mount=type=bind,source=.,target=/repo,readonly \
-    --mount=type=secret,id=host-ca \
+    --mount=type=bind,from=host-ca,source=host-ca,target=/run/secrets/host-ca \
     if [ -s /run/secrets/host-ca ]; then \
         export CURL_CA_BUNDLE=/run/secrets/host-ca \
             GIT_SSL_CAINFO=/run/secrets/host-ca \
