@@ -61,7 +61,10 @@ _stage_host_ca_bundle() {
     for src in "${ca_bundle_candidates[@]}"; do
         [[ -f "${src}" && -s "${src}" ]] || continue
         echo >&2 "==> Staging host CA bundle: ${src} -> ${dest}"
-        cp "${src}" "${dest}"
+        if ! cp "${src}" "${dest}"; then
+            echo >&2 "ERROR: failed to stage host CA bundle: ${src}"
+            return 1
+        fi
         return 0
     done
 
