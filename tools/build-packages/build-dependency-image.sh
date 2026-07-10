@@ -75,7 +75,7 @@ main() {
 
     echo "==> Image not available — building from scratch..." >&2
     build_image "${image}" "${platform}" "--load"
-    echo "==> Built locally." >&2
+    echo >&2 "==> Built locally."
     echo "${image}"
 }
 
