@@ -24,8 +24,6 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
         libunwind-devel ninja-build openssl-devel patchelf python3-pip rpm-build \
  && dnf clean all
 
-# Pin CMake below 4.0 for current CLP dependency builds. Pin a recent pip so
-# it selects the pre-built CMake wheel instead of the source tarball.
 RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
     . "${HOST_CA_ENV}" \
  && python3 -m pip install --no-cache-dir 'pip==21.3.1' \
