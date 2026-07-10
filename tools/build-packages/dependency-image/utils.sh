@@ -65,7 +65,7 @@ _stage_host_ca_bundle() {
         return 0
     done
 
-    echo "==> No host CA bundle found; continuing without host CA context." >&2
+    echo >&2 "==> No host CA bundle found; continuing without host CA context."
     return 1
 }
 
