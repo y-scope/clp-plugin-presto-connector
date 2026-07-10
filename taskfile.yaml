@@ -7,7 +7,7 @@ includes:
 
 vars:
   DEFAULT_CLP_PLUGIN_BUILD_DIR: "{{.ROOT_DIR}}/build"
-  G_BUILD_DIR: '{{default .DEFAULT_CLP_PLUGIN_BUILD_DIR (env "CLP_PLUGIN_BUILD_DIR")}}'
+  G_BUILD_DIR: '{{env "CLP_PLUGIN_BUILD_DIR" | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}'
 
 tasks:
   clean:
