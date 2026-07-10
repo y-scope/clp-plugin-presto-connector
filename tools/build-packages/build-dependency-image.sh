@@ -70,7 +70,7 @@ main() {
         return
     fi
 
-    echo "    docker pull failed; will build from scratch. Pull error:" >&2
+    echo >&2 "    docker pull failed; will build from scratch. Pull error:"
     printf '%s\n' "${pull_err}" | sed 's/^/      /' >&2
 
     echo >&2 "==> Image not available — building from scratch..."
