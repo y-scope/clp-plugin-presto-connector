@@ -11,6 +11,7 @@ name: "build-dependency-image"
 on:
   pull_request:
     paths:
+      - ".dockerignore"
       - ".github/workflows/build-dependency-image.yaml"
       - "taskfile.yaml"
       - "taskfiles/**"
