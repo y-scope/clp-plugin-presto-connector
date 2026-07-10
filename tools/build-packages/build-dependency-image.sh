@@ -41,7 +41,7 @@ host_platform() {
     case "$(uname -m)" in
         x86_64) printf 'linux/amd64\n' ;;
         aarch64|arm64) printf 'linux/arm64\n' ;;
-        *) echo "ERROR: unsupported host arch: $(uname -m)" >&2; exit 1 ;;
+        *) echo >&2 "ERROR: unsupported host arch: $(uname -m)"; exit 1 ;;
     esac
 }
 
