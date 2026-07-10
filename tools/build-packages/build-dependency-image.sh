@@ -73,7 +73,7 @@ main() {
     echo "    docker pull failed; will build from scratch. Pull error:" >&2
     printf '%s\n' "${pull_err}" | sed 's/^/      /' >&2
 
-    echo "==> Image not available — building from scratch..." >&2
+    echo >&2 "==> Image not available — building from scratch..."
     build_image "${image}" "${platform}" "--load"
     echo >&2 "==> Built locally."
     echo "${image}"
