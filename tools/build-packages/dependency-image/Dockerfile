@@ -43,10 +43,7 @@ ENV PATH=/opt/go-task/bin:${PATH}
 ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
 ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 
-# Build one dependency at a time; each dependency build still defaults to nproc.
-# Bind-mount the repository as readonly build input. Dependency outputs and Task
-# checksum metadata are written outside the repository mount so package builds
-# can reuse the installed dependencies from the image.
+# Build one dependency at a time to avoid excessive memory usage from parallel builds.
 RUN --mount=type=bind,source=.,target=/repo,readonly \
     --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
     . "${HOST_CA_ENV}" \
