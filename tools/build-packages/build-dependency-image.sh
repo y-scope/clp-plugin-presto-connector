@@ -54,8 +54,8 @@ main() {
     image="$(image_ref "${image_repo}" "build-env" "${build_env_hash}")"
     platform="$(host_platform)"
 
-    echo "    build-env hash: ${build_env_hash}" >&2
-    echo "    image:          ${image}" >&2
+    echo >&2 "    build-env hash: ${build_env_hash}"
+    echo >&2 "    image:          ${image}"
 
     if docker image inspect "${image}" &>/dev/null; then
         echo >&2 "==> Found in local Docker cache."
