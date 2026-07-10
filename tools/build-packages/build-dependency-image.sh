@@ -58,7 +58,7 @@ main() {
     echo "    image:          ${image}" >&2
 
     if docker image inspect "${image}" &>/dev/null; then
-        echo "==> Found in local Docker cache." >&2
+        echo >&2 "==> Found in local Docker cache."
         echo "${image}"
         return
     fi
