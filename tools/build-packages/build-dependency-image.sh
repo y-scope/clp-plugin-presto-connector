@@ -48,7 +48,7 @@ host_platform() {
 main() {
     local build_env_hash image image_repo platform pull_err
 
-    echo "==> Deriving build-env hash..." >&2
+    echo >&2 "==> Deriving build-env hash..."
     build_env_hash="$(derive_build_env_hash)"
     image_repo="$(image_repo_from_origin)"
     image="$(image_ref "${image_repo}" "build-env" "${build_env_hash}")"
