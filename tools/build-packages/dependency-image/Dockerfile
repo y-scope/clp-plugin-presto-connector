@@ -1,7 +1,4 @@
 # syntax=docker/dockerfile:1
-#
-# Build-env image for CLP Presto connector packages.
-# Installs packaging tools and connector C/C++ dependencies.
 
 FROM quay.io/pypa/manylinux_2_28:latest
 
