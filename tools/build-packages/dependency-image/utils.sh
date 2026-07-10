@@ -38,7 +38,7 @@ derive_build_env_hash() {
         cd "${_REPO_ROOT}" || exit
         ensure_yscope_dev_utils_submodule >&2
         git ls-files -z --recurse-submodules -- "${_BUILD_ENV_HASH_INPUTS[@]}" \
-            | sort -z \
+            | LC_ALL=C sort -z  \
             | xargs -0 sha256sum \
             | sha256sum \
             | cut -c1-16
