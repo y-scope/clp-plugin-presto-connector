@@ -47,4 +47,4 @@ ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 RUN --mount=type=bind,source=.,target=/repo,readonly \
     --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
     . "${HOST_CA_ENV}" \
- && TASK_CONCURRENCY=1 task -d /repo velox-connector:deps:install-all
+ && task --concurrency 1 -d /repo velox-connector:deps:install-all
