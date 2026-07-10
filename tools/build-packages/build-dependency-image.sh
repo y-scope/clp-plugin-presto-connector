@@ -28,8 +28,8 @@ image_repo_from_origin() {
         git@github.com:*) owner_repo="${remote_url#git@github.com:}" ;;
         ssh://git@github.com/*) owner_repo="${remote_url#ssh://git@github.com/}" ;;
         *)
-            echo "ERROR: can't derive GHCR image repo from origin remote: ${remote_url}" >&2
-            echo "       Expected a github.com remote." >&2
+            echo >&2 "ERROR: can't derive GHCR image repo from origin remote: ${remote_url}"
+            echo >&2 "       Expected a github.com remote."
             exit 1
             ;;
     esac
