@@ -34,7 +34,6 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
  && python3 -m pip install --no-cache-dir 'pip==21.3.1' \
  && python3 -m pip install --no-cache-dir 'cmake==3.28.*'
 
-# go-task — task driver for dependency installation and CMake builds.
 ARG GO_TASK_VERSION=v3.48.0
 ARG TARGETARCH
 RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
