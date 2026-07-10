@@ -65,7 +65,7 @@ main() {
 
     echo >&2 "==> Checking repository registry..."
     if pull_err="$(docker pull "${image}" 2>&1)"; then
-        echo "==> Pulled from repository registry." >&2
+        echo >&2 "==> Pulled from repository registry."
         echo "${image}"
         return
     fi
