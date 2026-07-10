@@ -60,7 +60,7 @@ _stage_host_ca_bundle() {
     local src
     for src in "${ca_bundle_candidates[@]}"; do
         [[ -f "${src}" && -s "${src}" ]] || continue
-        echo "==> Staging host CA bundle: ${src} -> ${dest}" >&2
+        echo >&2 "==> Staging host CA bundle: ${src} -> ${dest}"
         cp "${src}" "${dest}"
         return 0
     done
