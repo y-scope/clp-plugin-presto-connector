@@ -72,7 +72,7 @@ main() {
     fi
 
     echo >&2 "    docker pull failed; will build from scratch. Pull error:"
-    printf '%s\n' "${pull_err}" | sed 's/^/      /' >&2
+    printf '%s\n' "${pull_err}" | sed >&2 's/^/      /'
 
     echo >&2 "==> Image not available — building from scratch..."
     build_image "${image}" "${platform}" "--load"

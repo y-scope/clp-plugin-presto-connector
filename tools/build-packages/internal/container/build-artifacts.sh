@@ -67,14 +67,7 @@ done
 
 [[ -z "${version}" ]] || validate_package_version "${version}"
 
-# ── Validate environment ──────────────────────────────────────────────────────
-
-for cmd in cmake dpkg-deb envsubst git javac ldd patchelf readlink rpmbuild strip tar task; do
-    command -v "${cmd}" &>/dev/null \
-        || die "required command '${cmd}' not found in PATH"
-done
-
-[[ -n "${HOME:-}" ]] || die "HOME must be set"
+# ── Configure Java and Maven ──────────────────────────────────────────────────
 
 if [[ -z "${JAVA_HOME:-}" ]]; then
     javac_path=$(readlink -f "$(command -v javac)")
@@ -82,14 +75,15 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
 fi
 
 maven_opts="${MAVEN_OPTS:-}"
-[[ -n "${maven_opts}" ]] && maven_opts+=" "
-maven_opts+="-Duser.home=${HOME}"
 if [[ -n "${MAVEN_USER_HOME:-}" ]]; then
     # MAVEN_USER_HOME also caches the Maven Wrapper distribution, which is
     # separate from Maven's local artifact repository.
     mkdir -p "${MAVEN_USER_HOME}/repository"
-    maven_opts+=" -Dmaven.repo.local=${MAVEN_USER_HOME}/repository"
+    [[ -n "${maven_opts}" ]] && maven_opts+=" "
+    maven_opts+="-Dmaven.repo.local=${MAVEN_USER_HOME}/repository"
 fi
+
+# ── Resolve architecture ──────────────────────────────────────────────────────
 
 case "$(uname -m)" in
     x86_64)  arch="amd64"; rpm_arch="x86_64"  ;;
@@ -167,8 +161,6 @@ echo ""
 
 # ── Build presto-connector .jar ───────────────────────────────────────────────
 
-# Pin Java's user.home to HOME so Maven behaves consistently in local and CI
-# containers instead of inferring its home from the container account.
 echo "==> Building presto-connector .jar via fetched mvnw..."
 run_maven clean package -DskipTests -B
 
