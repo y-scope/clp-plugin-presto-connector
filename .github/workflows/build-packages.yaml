@@ -126,7 +126,7 @@ jobs:
           done
 
       - name: "Upload deb package"
-        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
         with:
           name: "${{steps.packages.outputs.deb_filename}}"
           path: "packages/${{steps.packages.outputs.deb_filename}}"
@@ -134,7 +134,7 @@ jobs:
           retention-days: 14
 
       - name: "Upload rpm package"
-        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
         with:
           name: "${{steps.packages.outputs.rpm_filename}}"
           path: "packages/${{steps.packages.outputs.rpm_filename}}"
@@ -142,7 +142,7 @@ jobs:
           retention-days: 14
 
       - name: "Upload tarball"
-        uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"  # v4.6.2
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
         with:
           name: "${{steps.packages.outputs.tar_gz_filename}}"
           path: "packages/${{steps.packages.outputs.tar_gz_filename}}"
