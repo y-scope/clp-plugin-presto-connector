@@ -8,7 +8,7 @@
 # Example:
 #   image=$(tools/build-packages/build-dependency-image.sh)
 #   docker run --rm -v "$(pwd):/src" -w /src "${image}" \
-#       task velox-connector:build
+#       task velox-connector:build-with-installed-deps
 #
 # Requires: docker (with buildx), git, sha256sum.
 
@@ -17,7 +17,8 @@ set -o nounset
 set -o pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-source "${script_dir}/dependency-image/utils.sh"
+# shellcheck source=tools/build-packages/internal/host/build-env.sh
+source "${script_dir}/internal/host/build-env.sh"
 
 # Derive this repo's GHCR namespace from its GitHub origin remote.
 image_repo_from_origin() {

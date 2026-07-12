@@ -9,12 +9,23 @@ includes:
 vars:
   G_VELOX_CONNECTOR_BUILD_DIR: "{{.G_BUILD_DIR}}/velox-connector"
   G_DEPS_CPP_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/deps/cpp"
+  DEFAULT_FETCHCONTENT_BASE_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/_deps"
+  G_FETCHCONTENT_BASE_DIR: '{{env "FETCHCONTENT_BASE_DIR" | default .DEFAULT_FETCHCONTENT_BASE_DIR}}'
 
 tasks:
   build:
     deps:
-      - "generate"
+      - "deps:install-all"
     cmds:
+      - task: "build-with-installed-deps"
+
+  build-with-installed-deps:
+    desc: Builds the connector using dependencies already installed in G_DEPS_CPP_DIR.
+    preconditions:
+      - sh: "test -f '{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake'"
+        msg: "Installed dependency settings not found; run velox-connector:deps:install-all first."
+    cmds:
+      - task: "generate"
       - task: "utils:cmake:build"
         vars:
           BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
@@ -25,8 +36,6 @@ tasks:
 
   generate:
     internal: true
-    deps:
-      - "deps:install-all"
     cmds:
       - task: "utils:cmake:generate"
         vars:
@@ -34,5 +43,6 @@ tasks:
           EXTRA_ARGS:
             - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS=\
                 {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
+            - "-DFETCHCONTENT_BASE_DIR={{.G_FETCHCONTENT_BASE_DIR}}"
             - "-DPRESTO_GIT_TAG={{.G_PRESTO_GIT_TAG}}"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"
