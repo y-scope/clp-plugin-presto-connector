@@ -85,11 +85,11 @@ clp-plugin-presto-connector-<maven-version>-linux-<arch>/
 └── worker/
 ```
 
-To install a tarball into the default `.deb`/`.rpm` location:
+To install the tarball, extract it and copy the payload into your chosen plugin directory:
 
 ```bash
 tar xzf <archive>
-cp -a clp-plugin-presto-connector-*-linux-*/. /opt/clp-plugin-presto-connector/
+cp -a clp-plugin-presto-connector-*-linux-*/<coordinator|worker>. /<plugin-directory>/clp-plugin-presto-connector/
 ```
 
 ## CI flow
