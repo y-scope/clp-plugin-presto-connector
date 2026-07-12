@@ -53,11 +53,19 @@ derive_build_env_hash() (
 
     cd "${_REPO_ROOT}"
     _ensure_build_env_submodules >&2
+
+    local stat_mode_cmd=(stat -c '%a')
+    if ! "${stat_mode_cmd[@]}" -- "${_REPO_ROOT}" &>/dev/null; then
+        stat_mode_cmd=(stat -f '%A')
+    fi
+
     {
         git ls-files -z --cached --recurse-submodules -- "${hash_inputs[@]}"
         git ls-files -z --others --exclude-standard -- "${hash_inputs[@]}"
         git -C tools/yscope-dev-utils ls-files -z --others --exclude-standard \
-            | sed -z 's|^|tools/yscope-dev-utils/|'
+            | while IFS= read -r -d '' rel_file; do
+                printf '%s\0' "tools/yscope-dev-utils/${rel_file}"
+            done
     } \
         | sort -zu \
         | while IFS= read -r -d '' file; do
@@ -67,7 +75,7 @@ derive_build_env_hash() (
                 printf 'symlink %q ' "${file}"
                 readlink -- "${file}"
             elif [[ -f "${file}" ]]; then
-                file_mode=$(stat -c '%a' -- "${file}")
+                file_mode=$("${stat_mode_cmd[@]}" -- "${file}")
                 executable_mode=$((8#${file_mode} & 8#111))
                 printf 'file %03o ' "${executable_mode}"
                 sha256sum -- "${file}"
