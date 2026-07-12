@@ -59,6 +59,11 @@ derive_build_env_hash() (
         stat_mode_cmd=(stat -f '%A')
     fi
 
+    local sha256_cmd=(sha256sum)
+    if ! command -v sha256sum &>/dev/null; then
+        sha256_cmd=(shasum -a 256)
+    fi
+
     {
         git ls-files -z --cached --recurse-submodules -- "${hash_inputs[@]}"
         git ls-files -z --others --exclude-standard -- "${hash_inputs[@]}"
@@ -78,10 +83,10 @@ derive_build_env_hash() (
                 file_mode=$("${stat_mode_cmd[@]}" -- "${file}")
                 executable_mode=$((8#${file_mode} & 8#111))
                 printf 'file %03o ' "${executable_mode}"
-                sha256sum -- "${file}"
+                "${sha256_cmd[@]}" -- "${file}"
             fi
         done \
-        | sha256sum \
+        | "${sha256_cmd[@]}" \
         | cut -c1-16
 )
 
