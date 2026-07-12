@@ -31,10 +31,10 @@ OpenSSL/libcurl versions.
 %install
 cp -a %{payload_dir}/. %{buildroot}/
 
-# Explicitly own the leaf install dirs so rpm tracks and removes them on
-# uninstall. The top-level /opt/clp-plugin-presto-connector/ is created
-# implicitly when rpm processes the first child %dir entry.
+# Explicitly own every install dir, including the package root, so rpm
+# tracks and removes all of them on uninstall.
 %files
+%dir %{plugin_root}
 %dir %{presto_jar_dir}
 %{presto_jar_dir}/clp-plugin-presto-connector.jar
 %dir %{velox_so_dir}

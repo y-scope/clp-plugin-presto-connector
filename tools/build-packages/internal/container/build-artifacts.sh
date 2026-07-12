@@ -12,8 +12,9 @@ set -o pipefail
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." &>/dev/null && pwd)"
 
 # Install layout. Overridable via env; also exposed to rpmbuild via --define.
-readonly PRESTO_JAR_DIR="${PRESTO_JAR_DIR:-/opt/clp-plugin-presto-connector/coordinator}"
-readonly VELOX_SO_DIR="${VELOX_SO_DIR:-/opt/clp-plugin-presto-connector/worker}"
+readonly PLUGIN_ROOT="${PLUGIN_ROOT:-/opt/clp-plugin-presto-connector}"
+readonly PRESTO_JAR_DIR="${PRESTO_JAR_DIR:-${PLUGIN_ROOT}/coordinator}"
+readonly VELOX_SO_DIR="${VELOX_SO_DIR:-${PLUGIN_ROOT}/worker}"
 readonly PACKAGE_RELEASE=1
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -315,6 +316,7 @@ build_rpm() {
         --define "pkg_version ${rpm_version}" \
         --define "pkg_release ${PACKAGE_RELEASE}" \
         --define "payload_dir ${payload}" \
+        --define "plugin_root ${PLUGIN_ROOT}" \
         --define "presto_jar_dir ${PRESTO_JAR_DIR}" \
         --define "velox_so_dir ${VELOX_SO_DIR}" \
         --target "${rpm_arch}" \
