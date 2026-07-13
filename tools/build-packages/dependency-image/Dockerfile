@@ -8,7 +8,7 @@ ARG HOST_CA_ENV=/usr/local/share/clp-plugin-presto-connector/use-host-ca.sh
 # When available, expose the host CA bundle only to networked build steps via
 # tool-specific environment variables. This supports local corporate builds
 # without baking host CA certificates into the final image.
-COPY tools/build-packages/dependency-image/use-host-ca.sh ${HOST_CA_ENV}
+COPY tools/build-packages/internal/ca-trust/container.sh ${HOST_CA_ENV}
 
 # Install OS packages missing from the manylinux base image.
 # dnf talks to libcurl directly and ignores CURL_CA_BUNDLE/SSL_CERT_FILE, so

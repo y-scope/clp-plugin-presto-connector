@@ -17,6 +17,9 @@ on:
       - "taskfiles/**"
       - "tools/build-packages/build-dependency-image.sh"
       - "tools/build-packages/dependency-image/**"
+      - "tools/build-packages/internal/ca-trust/container.sh"
+      - "tools/build-packages/internal/ca-trust/host.sh"
+      - "tools/build-packages/internal/host/**"
       - "tools/yscope-dev-utils"
   workflow_call:
     outputs:
@@ -51,7 +54,7 @@ jobs:
       - name: "Resolve dependency image"
         id: "image"
         run: |-
-          source tools/build-packages/dependency-image/utils.sh
+          source tools/build-packages/internal/host/build-env.sh
           build_env_hash=$(derive_build_env_hash)
           image_repo="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           image=$(image_ref "${image_repo}" "${IMAGE_NAME}" "${build_env_hash}")
@@ -121,7 +124,7 @@ jobs:
           IMAGE: "${{needs.plan.outputs.image}}"
           ARCH: "${{matrix.arch}}"
         run: |-
-          source tools/build-packages/dependency-image/utils.sh
+          source tools/build-packages/internal/host/build-env.sh
           output="--push"
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             output="--load"

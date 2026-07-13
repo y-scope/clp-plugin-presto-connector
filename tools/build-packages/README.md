@@ -11,7 +11,7 @@ The artifacts are built on `manylinux_2_28` (glibc 2.28) and target common Linux
 
 The package build needs Velox C++ dependencies, JDK 17, go-task, and packaging tools. CI provides these through a hash-tagged **build-env image** based on `manylinux_2_28`.
 
-The image is tagged as `env-<hash>`. The hash covers the dependency-image directory and context filtering, taskfiles, and `tools/yscope-dev-utils`, including relevant uncommitted inputs and executable modes. The tag identifies those source and configuration inputs; it is not a digest of upstream images because the base image currently uses the mutable `manylinux_2_28:latest` tag.
+The image is tagged as `env-<hash>`. The hash covers the repository inputs that affect its contents: the dependency-image Dockerfile and context filtering, the host-side image-build recipe, taskfiles, the container CA helper, and `tools/yscope-dev-utils`. The tag identifies those source and configuration inputs; it is not a digest of upstream images because the base image currently uses the mutable `manylinux_2_28:latest` tag.
 
 `internal/container/build-artifacts.sh` runs inside the build-env image and performs the actual package build. Local users should run `build-packages.sh`, which resolves the image and invokes the container-side script.
 
@@ -31,9 +31,11 @@ The top-level CMake build tree is ephemeral, while Task-installed C/C++ dependen
 
 `build-packages.sh` also initializes submodules on the host before launching Docker. All arguments are forwarded to the container-side build; run `./tools/build-packages/build-packages.sh --help` for the supported options.
 
+For corporate TLS environments, local builds stage the host CA bundle as temporary PEM and Java PKCS#12 trust stores, then mount them read-only into the package container. Cleanup removes both stores after packaging; neither enters image layers, persistent caches, or generated packages. See the [CA-trust documentation](internal/ca-trust/README.md) for the design, configuration, and extension API.
+
 ### Container privileges and file ownership
 
-The package build container runs as root so it can use the root-owned dependencies installed in the image. The requested host output directory is not mounted into the container; the host process copies completed packages out of temporary staging.
+The package build container runs as root so it can use the root-owned dependencies installed in the image. It receives the generated CA trust stores through a read-only mount and does not write certificate material. The requested host output directory is not mounted into the container; the host process copies completed packages out of temporary staging.
 
 ### Build-env image resolution
 
@@ -99,7 +101,7 @@ cp -a clp-plugin-presto-connector-*-linux-*/<coordinator|worker>. /<plugin-direc
 3. run `internal/container/build-artifacts.sh` inside that image for `amd64` and `arm64`
 4. upload `.deb`, `.rpm`, and `.tar.gz` artifacts for each architecture
 
-Local and CI package builds share `internal/container/build-artifacts.sh`. Local builds use `build-packages.sh` to resolve the image, initialize submodules, copy final artifacts into the host output directory, and configure persistent caches under `.cache/`. GitHub Actions invokes the container-side script directly inside its build-env job container.
+Local and CI package builds share `internal/container/build-artifacts.sh`. Local builds use `build-packages.sh` to resolve the image, initialize submodules, configure temporary system and Java trust, copy final artifacts into the host output directory, and configure persistent caches under `.cache/`. GitHub Actions invokes the container-side script directly inside its build-env job container.
 
 ## Troubleshooting
 
@@ -128,8 +130,9 @@ The published image reference is `ghcr.io/<repo>/build-env:env-<hash>`. When a h
 
 Host-only support code is split by responsibility:
 
+* `internal/ca-trust/host.sh` exposes sourceable staging functions for the host CA bundle and each generated format. The Java PKCS#12 implementation lives under `internal/ca-trust/generators/java-pkcs12/`.
 * `internal/build-cache/host.sh` prepares persistent cache directories, while `internal/build-cache/container.sh` configures build tools to consume them.
-* `dependency-image/utils.sh` derives the build-env hash, formats its image reference, and drives `docker buildx` for the image resolver and dependency-image workflow.
+* `internal/host/build-env.sh` derives the build-env hash, formats its image reference, and drives `docker buildx`. It is used by the image resolver and dependency-image workflow; it sources `internal/ca-trust/host.sh` and uses it when building an image.
 
 ## Package build flow
 

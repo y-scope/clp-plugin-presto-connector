@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# Shared dependency-image helpers for tag derivation and Docker builds.
-# Callers decide whether to use a local image, pull from GHCR, or build.
+# Host-side helpers for build-env image identity and Docker builds.
 
 if [[ "${_BUILD_ENV_SH_LOADED:-}" == "1" ]]; then
     return 0
@@ -10,7 +9,10 @@ readonly _BUILD_ENV_SH_LOADED=1
 
 _BUILD_ENV_HOST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 readonly _BUILD_ENV_HOST_DIR
-_REPO_ROOT="$(cd "${_BUILD_ENV_HOST_DIR}/../../.." &>/dev/null && pwd)"
+# shellcheck source=tools/build-packages/internal/ca-trust/host.sh
+source "${_BUILD_ENV_HOST_DIR}/../ca-trust/host.sh"
+
+_REPO_ROOT="$(cd "${_BUILD_ENV_HOST_DIR}/../../../.." &>/dev/null && pwd)"
 readonly _REPO_ROOT
 
 # Keep local builds working when the checkout lacks initialized submodules.
@@ -44,6 +46,8 @@ derive_build_env_hash() (
         "taskfile.yaml"
         "taskfiles"
         "tools/build-packages/dependency-image"
+        "tools/build-packages/internal/ca-trust/container.sh"
+        "tools/build-packages/internal/host/build-env.sh"
         "tools/yscope-dev-utils"
     )
 
@@ -86,33 +90,6 @@ derive_build_env_hash() (
         | cut -c1-16
 )
 
-# Stages the host CA bundle into the temporary Docker build context.
-#
-# Args: <destination-path>
-_stage_host_ca_bundle() {
-    local dest="${1:?_stage_host_ca_bundle requires a destination path}"
-    local ca_bundle_candidates=(
-        "${SSL_CERT_FILE:-}"
-        /etc/ssl/certs/ca-certificates.crt
-        /etc/pki/tls/certs/ca-bundle.crt
-        /etc/ssl/cert.pem
-    )
-
-    local src
-    for src in "${ca_bundle_candidates[@]}"; do
-        [[ -f "${src}" && -s "${src}" ]] || continue
-        echo >&2 "==> Staging host CA bundle: ${src} -> ${dest}"
-        if ! cp "${src}" "${dest}"; then
-            echo >&2 "ERROR: failed to stage host CA bundle: ${src}"
-            return 1
-        fi
-        return 0
-    done
-
-    echo >&2 "==> No host CA bundle found; continuing without host CA context."
-    return 1
-}
-
 # Builds the build-env image and writes build progress to stderr.
 #
 # Args:
@@ -144,7 +121,7 @@ build_image() {
         trap 'rm -rf "${ca_stage}"' EXIT
 
         local ca_bundle="${ca_stage}/host-ca"
-        _stage_host_ca_bundle "${ca_bundle}" || : > "${ca_bundle}"
+        stage_host_ca_bundle "${ca_bundle}"
         _ensure_build_env_submodules
 
         # A named context avoids BuildKit's 500 KiB secret limit while the
