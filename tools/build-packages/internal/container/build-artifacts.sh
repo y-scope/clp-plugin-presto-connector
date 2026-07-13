@@ -3,8 +3,8 @@
 # Build the Java coordinator and C++ worker plugins, assemble one install tree,
 # and emit the same files as .deb, .rpm, and relocatable .tar.gz artifacts.
 #
-# CI runs this container-side implementation inside the build-env image. See
-# tools/build-packages/README.md for the overall packaging flow.
+# This is the container-side implementation used by local and CI builds. See
+# tools/build-packages/README.md for the entry points and overall flow.
 
 set -o errexit
 set -o nounset
@@ -37,7 +37,7 @@ Options:
                  VER must start with a digit and use [0-9A-Za-z.+~-]
   --help         Show this help
 
-See tools/build-packages/README.md for CI usage and package-build details.
+See tools/build-packages/README.md for the recommended local entry point.
 EOF
 }
 
@@ -80,6 +80,15 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
     export JAVA_HOME="${javac_path%/bin/javac}"
 fi
 
+maven_opts="${MAVEN_OPTS:-}"
+if [[ -n "${MAVEN_USER_HOME:-}" ]]; then
+    # MAVEN_USER_HOME also caches the Maven Wrapper distribution, which is
+    # separate from Maven's local artifact repository.
+    mkdir -p "${MAVEN_USER_HOME}/repository"
+    [[ -n "${maven_opts}" ]] && maven_opts+=" "
+    maven_opts+="-Dmaven.repo.local=${MAVEN_USER_HOME}/repository"
+fi
+
 # ── Resolve architecture ──────────────────────────────────────────────────────
 
 # Debian and tarball names use amd64/arm64; RPM uses x86_64/aarch64.
@@ -92,6 +101,7 @@ esac
 pkg_specs_dir="${src}/tools/build-packages/package-specs"
 project_build_dir="${CLP_PLUGIN_BUILD_DIR:-${src}/build}"
 velox_build_dir="${project_build_dir}/velox-connector"
+fetchcontent_base_dir="${FETCHCONTENT_BASE_DIR:-${velox_build_dir}/_deps}"
 build_root="${src}/build/packaging"
 payload="${build_root}/payload"
 artifacts=()
@@ -121,13 +131,14 @@ echo "    -> ${so_file}"
 
 # The worker build fetches Presto, including its Maven wrapper. Reuse that
 # wrapper to read this project's version and build its Java plugin.
-presto_src="${velox_build_dir}/_deps/presto_native_execution-src"
+presto_src="${fetchcontent_base_dir}/presto_native_execution-src"
 maven_wrapper="${presto_src}/mvnw"
 [[ -x "${maven_wrapper}" ]] \
     || die "expected Maven wrapper not found or not executable at ${maven_wrapper}"
 
 run_maven() {
     MAVEN_PROJECTBASEDIR="${presto_src}" \
+    MAVEN_OPTS="${maven_opts}" \
         "${maven_wrapper}" -f "${src}/presto-connector/pom.xml" "$@"
 }
 

@@ -1,5 +1,6 @@
 .git
 .task
+.cache
 build
 **/target
 packages
