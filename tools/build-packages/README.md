@@ -11,7 +11,7 @@ The artifacts are built on `manylinux_2_28` (glibc 2.28) and target common Linux
 
 The package build needs Velox C++ dependencies, JDK 17, go-task, and packaging tools. CI provides these through a hash-tagged **build-env image** based on `manylinux_2_28`.
 
-The image is tagged as `env-<hash>`. The hash covers the repository inputs that affect its contents, including the dependency-image Dockerfile and workflow, the image resolver, taskfiles, and `tools/yscope-dev-utils`. The tag identifies those source and configuration inputs; it is not a digest of upstream images because the base image currently uses the mutable `manylinux_2_28:latest` tag.
+The image is tagged as `env-<hash>`. The hash covers the dependency-image directory and context filtering, taskfiles, and `tools/yscope-dev-utils`, including relevant uncommitted inputs and executable modes. The tag identifies those source and configuration inputs; it is not a digest of upstream images because the base image currently uses the mutable `manylinux_2_28:latest` tag.
 
 `internal/container/build-artifacts.sh` runs inside the build-env image and performs the actual package build. Local users should run `build-packages.sh`, which resolves the image and invokes the container-side script.
 
@@ -45,10 +45,10 @@ The package build container runs as root so it can use the root-owned dependenci
 
 ## Prerequisites
 
-For local Linux builds through `build-packages.sh`:
+For local Linux and macOS builds through `build-packages.sh`:
 
 * Docker with buildx, usable by the invoking user without `sudo`
-* git and `sha256sum`
+* git and either `sha256sum` or `shasum`
 * about 10 GB of free disk for the build-env image
 * roughly 1 GiB of memory per available processor for a clean local image build
 

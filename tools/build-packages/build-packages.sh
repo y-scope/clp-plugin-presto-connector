@@ -3,7 +3,7 @@
 # User-facing entry point for packaging. Resolves the build-env image, then runs
 # internal/container/build-artifacts.sh inside it.
 #
-# Requires: docker (with buildx), git, sha256sum.
+# Requires: docker (with buildx), git, and sha256sum or shasum.
 
 set -o errexit
 set -o nounset
@@ -111,7 +111,10 @@ docker run --rm \
         umask 0022
         echo "==> Running the package build as root..."
         exec bash tools/build-packages/internal/container/build-artifacts.sh "$@"
-    ' bash --output /output "${build_args[@]}"
+    ' bash --output /output "${build_args[@]+"${build_args[@]}"}"
 
 echo "==> Copying package artifacts to ${output_dir}..."
-cp --remove-destination "${artifact_stage}"/* "${output_dir}/"
+for artifact in "${artifact_stage}"/*; do
+    rm -f -- "${output_dir}/$(basename -- "${artifact}")"
+    cp -- "${artifact}" "${output_dir}/"
+done

@@ -10,7 +10,7 @@
 #   docker run --rm -v "$(pwd):/src" -w /src "${image}" \
 #       task velox-connector:build-with-installed-deps
 #
-# Requires: docker (with buildx), git, sha256sum.
+# Requires: docker (with buildx), git, and sha256sum or shasum.
 
 set -o errexit
 set -o nounset
@@ -71,7 +71,7 @@ main() {
     fi
 
     echo >&2 "    docker pull failed; will build from scratch. Pull error:"
-    printf '%s\n' "${pull_err}" | sed 's/^/      /' >&2
+    printf '%s\n' "${pull_err}" | sed >&2 's/^/      /'
 
     echo >&2 "==> Image not available — building from scratch..."
     build_image "${image}" "${platform}" "--load"
