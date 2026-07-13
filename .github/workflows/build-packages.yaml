@@ -1,0 +1,150 @@
+# Builds CLP Presto connector packages for amd64 and arm64.
+#
+# Flow:
+#   resolve-version         use the input version or derive it from pom.xml
+#   build-dependency-image  ensure the hash-tagged build-env image exists
+#   build                   build .deb / .rpm / .tar.gz artifacts per architecture
+#
+# See tools/build-packages/README.md for package-build details.
+
+name: "build-packages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version override (derived from presto-connector/pom.xml when blank)"
+        required: false
+        default: ""
+  push:
+    paths:
+      - ".dockerignore"
+      - ".github/workflows/build-packages.yaml"
+      - ".github/workflows/build-dependency-image.yaml"
+      - "presto-connector/**"
+      - "taskfile.yaml"
+      - "taskfiles/**"
+      - "tools/build-packages/**"
+      - "tools/yscope-dev-utils"
+      - "velox-connector/**"
+      # Markdown files don't change the artifact, so skip rebuilds on documentation-only changes.
+      - "!**/*.md"
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+  cancel-in-progress: true
+
+permissions:
+  contents: "read"
+
+jobs:
+  resolve-version:
+    runs-on: "ubuntu-24.04"
+    outputs:
+      version: "${{steps.version.outputs.version}}"
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+
+      - name: "Resolve package version"
+        id: "version"
+        env:
+          INPUT_VERSION: "${{inputs.version || ''}}"
+        run: |-
+          version="${INPUT_VERSION}"
+          if [[ -z "${version}" ]]; then
+            if ! version=$(
+              mvn --quiet --file presto-connector/pom.xml \
+                help:evaluate \
+                -Dexpression=project.version \
+                -DforceStdout
+            ); then
+              echo "::error::Failed to derive project.version with Maven"
+              exit 1
+            fi
+            if [[ -z "${version}" ]]; then
+              echo "::error::Maven returned an empty project.version"
+              exit 1
+            fi
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Package version: ${version}"
+
+  build-dependency-image:
+    uses: "./.github/workflows/build-dependency-image.yaml"
+    permissions:
+      contents: "read"
+      packages: "write"
+
+  build:
+    needs: ["build-dependency-image", "resolve-version"]
+    permissions:
+      contents: "read"
+      packages: "read"
+    strategy:
+      # Build both architectures so one failure does not hide the other result.
+      fail-fast: false
+      matrix:
+        include:
+          - arch: "amd64"
+            runner: "ubuntu-24.04"
+          - arch: "arm64"
+            runner: "ubuntu-24.04-arm"
+    runs-on: "${{matrix.runner}}"
+    timeout-minutes: 120
+    env:
+      VERSION: "${{needs.resolve-version.outputs.version}}"
+    # Run package steps inside the build-env image, which provides Velox deps,
+    # JDK 17, go-task, and packaging tools.
+    container:
+      image: "${{needs.build-dependency-image.outputs.image}}"
+      credentials:
+        username: "${{github.actor}}"
+        password: "${{secrets.GITHUB_TOKEN}}"
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+        with:
+          # Required because taskfiles include shared utilities from the submodule.
+          submodules: true
+
+      - name: "Build packages"
+        id: "packages"
+        shell: "bash"
+        run: |-
+          bash tools/build-packages/internal/container/build-artifacts.sh --version "${VERSION}"
+
+          shopt -s nullglob
+          for extension in deb rpm tar.gz; do
+            artifact_files=(packages/clp-plugin-presto-connector*."${extension}")
+            if (( ${#artifact_files[@]} != 1 )); then
+              echo "::error::Expected exactly one .${extension} artifact, found ${#artifact_files[@]}"
+              exit 1
+            fi
+            printf '%s_filename=%s\n' \
+              "${extension//./_}" "${artifact_files[0]##*/}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: "Upload deb package"
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
+        with:
+          name: "${{steps.packages.outputs.deb_filename}}"
+          path: "packages/${{steps.packages.outputs.deb_filename}}"
+          if-no-files-found: "error"
+          retention-days: 14
+
+      - name: "Upload rpm package"
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
+        with:
+          name: "${{steps.packages.outputs.rpm_filename}}"
+          path: "packages/${{steps.packages.outputs.rpm_filename}}"
+          if-no-files-found: "error"
+          retention-days: 14
+
+      - name: "Upload tarball"
+        uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"  # v6.0.0
+        with:
+          name: "${{steps.packages.outputs.tar_gz_filename}}"
+          path: "packages/${{steps.packages.outputs.tar_gz_filename}}"
+          if-no-files-found: "error"
+          retention-days: 14

@@ -38,4 +38,8 @@ one of the tasks in the table below.
 | `lint:check-yaml`  | Runs the YAML linters.                   |
 | `lint:fix-yaml`    | Runs the YAML linters and fixes issues.  |
 
+## Building installable packages
+
+For details about the `.deb`, `.rpm`, and `.tar.gz` artifacts built in CI, see [tools/build-packages/README.md](tools/build-packages/README.md).
+
 [Task]: https://taskfile.dev

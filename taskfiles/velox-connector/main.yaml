@@ -13,8 +13,17 @@ vars:
 tasks:
   build:
     deps:
-      - "generate"
+      - "deps:install-all"
     cmds:
+      - task: "build-with-installed-deps"
+
+  build-with-installed-deps:
+    desc: Builds the connector using dependencies already installed in G_DEPS_CPP_DIR.
+    preconditions:
+      - sh: "test -f '{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake'"
+        msg: "Installed dependency settings not found; run velox-connector:deps:install-all first."
+    cmds:
+      - task: "generate"
       - task: "utils:cmake:build"
         vars:
           BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
@@ -25,8 +34,6 @@ tasks:
 
   generate:
     internal: true
-    deps:
-      - "deps:install-all"
     cmds:
       - task: "utils:cmake:generate"
         vars:
