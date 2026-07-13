@@ -40,6 +40,6 @@ one of the tasks in the table below.
 
 ## Building installable packages
 
-For details about the `.deb`, `.rpm`, and `.tar.gz` artifacts built in CI, see [tools/build-packages/README.md](tools/build-packages/README.md).
+To build `.deb`, `.rpm`, and `.tar.gz` artifacts of the plugin locally, see [tools/build-packages/README.md](tools/build-packages/README.md).
 
 [Task]: https://taskfile.dev

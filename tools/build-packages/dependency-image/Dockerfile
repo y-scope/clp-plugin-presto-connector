@@ -20,7 +20,7 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
         dnf_sslcacert_opt="--setopt=sslcacert=${HOST_CA_BUNDLE}"; \
     fi \
  && dnf install -y --setopt=install_weak_deps=False ${dnf_sslcacert_opt} \
-        dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
+        ccache dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
         libunwind-devel ninja-build openssl-devel patchelf python3-pip rpm-build \
  && dnf clean all
 
