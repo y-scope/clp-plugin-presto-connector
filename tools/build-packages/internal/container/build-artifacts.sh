@@ -124,7 +124,7 @@ prepare_paths
 # The caller initializes submodules. Reuse the dependency installations and
 # CMake settings already in the build-env image instead of rebuilding them.
 echo "==> Building velox-connector .so with image-installed dependencies..."
-task --concurrency 1 -d "${src}" velox-connector:build-with-installed-deps
+task -d "${src}" velox-connector:build-with-installed-deps
 so_file="${velox_build_dir}/libclp-plugin-velox-connector.so"
 [[ -f "${so_file}" ]] || die "expected .so not found at ${so_file}"
 echo "    -> ${so_file}"
