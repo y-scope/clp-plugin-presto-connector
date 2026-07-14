@@ -208,17 +208,18 @@ bundle_velox_shared_libraries() {
     local bundled_dir="${payload}${VELOX_SO_DIR}/lib"
     mkdir -p "${bundled_dir}"
 
-    # `ldd` lists every library needed to load the plugin. Bundle third-party
-    # entries so the payload does not rely on distro-specific OpenSSL/libcurl
-    # versions. Leave core C/C++ runtimes and the loader to the target system;
-    # build-container copies may be incompatible with its glibc.
+    # `ldd` lists everything the plugin needs at runtime.
+    # Bundle third-party libs from that list so the package is not bound to the
+    # target distro's OpenSSL/libcurl revision. Do not bundle core runtime libs
+    # (`libc`, `libstdc++`, etc.) or the dynamic loader, because those are
+    # provided by the target OS and should match its own ABI/format.
     local system_libs=(
         linux-vdso libc libm libmvec libanl libutil libnsl
         libpthread libdl librt libresolv 'libstdc\+\+' libgcc_s
     )
-    # Loader names include a platform component before `.so`, for example
-    # `ld-linux-x86-64.so.2`, so match them separately. Musl entries are
-    # defensive; published packages target glibc-based distributions.
+    # Match loader names separately because they include a platform suffix, e.g.
+    # `ld-linux-x86-64.so.2`. Musl names are kept for defensive filtering, even
+    # though we publish for glibc-based Linux.
     local ld_loaders=(ld-linux ld-musl 'libc\.musl')
 
     # Combine the names above into one "skip" pattern. It matches the complete
