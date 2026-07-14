@@ -111,8 +111,10 @@ prepare_paths
 
 # ── Build the C++ worker plugin ───────────────────────────────────────────────
 
-# The caller initializes submodules. Reuse the dependency installations and
-# CMake settings already in the build-env image instead of rebuilding them.
+# This is usually invoked by tools/build-packages/build-packages.sh (local entrypoint)
+# or .github/workflows/build-packages.yaml (CI), both of which initialize submodules
+# before calling here. Reuse the dependency installations and CMake settings already
+# present in the build-env image instead of rebuilding them.
 echo "==> Building velox-connector .so with image-installed dependencies..."
 task -d "${src}" velox-connector:build-with-installed-deps
 so_file="${velox_build_dir}/libclp-plugin-velox-connector.so"
