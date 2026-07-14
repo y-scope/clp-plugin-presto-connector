@@ -47,6 +47,20 @@ require_value() {
     [[ -n "${2:-}" ]] || die "$1 requires a value"
 }
 
+prepare_paths() {
+    # Ensure output path is absolute, and keep it outside staging.
+    mkdir -p "${output_dir}"
+    output_dir="$(cd "${output_dir}" && pwd)"
+    # `build_root` is temporary staging and must stay separate from output.
+    if [[ "${output_dir}" == "${build_root}" || "${output_dir}" == "${build_root}/"* ]]; then
+        die "--output must not be ${build_root} or one of its subdirectories"
+    fi
+
+    # Recreate staging so files left by an earlier build cannot enter this one.
+    rm -rf "${build_root}"
+    mkdir -p "${build_root}"
+}
+
 validate_package_version() {
     local candidate="$1"
     [[ "${candidate}" =~ ^[0-9][0-9A-Za-z.+~-]*$ ]] \
@@ -103,16 +117,7 @@ build_root="${src}/build/packaging"
 payload="${build_root}/payload"
 artifacts=()
 
-mkdir -p "${output_dir}"
-output_dir="$(cd "${output_dir}" && pwd)"
-# build_root is recreated below, so final output must live outside it.
-if [[ "${output_dir}" == "${build_root}" || "${output_dir}" == "${build_root}/"* ]]; then
-    die "--output must not be ${build_root} or one of its subdirectories"
-fi
-
-# Recreate staging so files left by an earlier build cannot enter new packages.
-rm -rf "${build_root}"
-mkdir -p "${build_root}"
+prepare_paths
 
 # ── Build the C++ worker plugin ───────────────────────────────────────────────
 
