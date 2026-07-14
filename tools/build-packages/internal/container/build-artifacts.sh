@@ -172,10 +172,10 @@ echo ""
 echo "==> Building presto-connector .jar via fetched mvnw..."
 run_maven clean package -DskipTests -B
 
-# Select the main plugin JAR, excluding optional source and documentation JARs.
+# Select the main plugin JAR. Use a version-like suffix so source/javadoc JARs
+# (which end in `-sources.jar`/`-javadoc.jar`) are skipped.
 jar_file=$(find "${src}/presto-connector/target" -maxdepth 1 \
-    -name 'clp-plugin-presto-connector-*.jar' \
-    ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+    -name 'clp-plugin-presto-connector-[0-9]*.jar' \
     -print -quit)
 [[ -f "${jar_file}" ]] \
     || die "expected .jar not found in presto-connector/target/"
