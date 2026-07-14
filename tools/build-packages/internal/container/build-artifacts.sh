@@ -197,11 +197,10 @@ bundle_velox_shared_libraries() {
     local bundled_dir="${payload}${VELOX_SO_DIR}/lib"
     mkdir -p "${bundled_dir}"
 
-    # `ldd` lists everything the plugin needs at runtime.
-    # Bundle third-party libs from that list so the package is not bound to the
-    # target distro's OpenSSL/libcurl revision. Do not bundle core runtime libs
-    # (`libc`, `libstdc++`, etc.) or the dynamic loader, because those are
-    # provided by the target OS and should match its own ABI/format.
+    # `ldd` lists every shared library the plugin needs at runtime.
+    # Keep all third-party deps in the package to avoid relying on distro versions,
+    # but do not bundle platform/runtime libraries (`libc`, `libstdc++`, etc.) or
+    # the dynamic loader. Those must come from the target OS.
     local system_libs=(
         linux-vdso libc libm libmvec libanl libutil libnsl
         libpthread libdl librt libresolv 'libstdc\+\+' libgcc_s
