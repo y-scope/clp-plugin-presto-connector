@@ -18,9 +18,6 @@ readonly PLUGIN_ROOT="${PLUGIN_ROOT:-/opt/clp-plugin-presto-connector}"
 readonly PRESTO_JAR_DIR="${PRESTO_JAR_DIR:-${PLUGIN_ROOT}/coordinator}"
 readonly VELOX_SO_DIR="${VELOX_SO_DIR:-${PLUGIN_ROOT}/worker}"
 
-# Increment for packaging-only changes that keep the same connector version.
-readonly PACKAGE_RELEASE=1
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 show_help() {
@@ -295,9 +292,8 @@ find "${velox_so_install}/lib" -type f -exec chmod 0644 {} +
 # for RPM-based distributions, and .tar.gz for manual extraction.
 
 build_deb() {
-    local deb_version="${pkg_version_normalized}-${PACKAGE_RELEASE}"
     local staging="${build_root}/staging-deb"
-    local deb_file="${build_root}/clp-plugin-presto-connector_${deb_version}_${arch}.deb"
+    local deb_file="${build_root}/clp-plugin-presto-connector_${pkg_version_normalized}-1_${arch}.deb"
 
     # A .deb is a filesystem tree plus metadata in DEBIAN/control. Copy the
     # shared payload, then render this build's version and architecture.
@@ -319,7 +315,7 @@ build_deb() {
 build_rpm() {
     local rpm_version="${pkg_version_normalized}"
     local rpmbuild_dir="${build_root}/rpmbuild"
-    local rpm_filename="clp-plugin-presto-connector-${rpm_version}-${PACKAGE_RELEASE}.${rpm_arch}.rpm"
+    local rpm_filename="clp-plugin-presto-connector-${rpm_version}-1.${rpm_arch}.rpm"
     local rpm_file_out="${build_root}/${rpm_filename}"
 
     rm -rf "${rpmbuild_dir}"
@@ -335,7 +331,7 @@ build_rpm() {
     rpmbuild \
         --define "_topdir ${rpmbuild_dir}" \
         --define "pkg_version ${rpm_version}" \
-        --define "pkg_release ${PACKAGE_RELEASE}" \
+        --define "pkg_release 1" \
         --define "payload_dir ${payload}" \
         --define "plugin_root ${PLUGIN_ROOT}" \
         --define "presto_jar_dir ${PRESTO_JAR_DIR}" \
