@@ -123,21 +123,18 @@ echo "    -> ${so_file}"
 
 # ── Choose the package version ────────────────────────────────────────────────
 
-# Use this project's Maven wrapper so every build uses the same Maven version
-# without requiring Maven to be installed in the build image.
-maven_wrapper="${src}/presto-connector/mvnw"
-[[ -x "${maven_wrapper}" ]] \
-    || die "expected Maven wrapper not found or not executable at ${maven_wrapper}"
-
-run_maven() {
-    "${maven_wrapper}" -f "${src}/presto-connector/pom.xml" "$@"
-}
+# Use the Java module's Maven wrapper so every build uses the same Maven
+# version without requiring Maven to be installed in the build image.
 
 if [[ -z "${version}" ]]; then
     echo "==> Deriving version from presto-connector/pom.xml via mvnw..."
-    version=$(run_maven \
-        -q help:evaluate -Dexpression=project.version -DforceStdout) \
-        || die "mvnw help:evaluate failed"
+    version=$(
+        "${src}/presto-connector/mvnw" \
+            --file "${src}/presto-connector/pom.xml" \
+            --quiet help:evaluate \
+            -Dexpression=project.version \
+            -DforceStdout
+    ) || die "mvnw help:evaluate failed"
     [[ -n "${version}" ]] || die "derived project.version is empty"
 fi
 
@@ -156,8 +153,10 @@ echo ""
 
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
 
-echo "==> Building presto-connector .jar via project mvnw..."
-run_maven clean package -DskipTests -B
+echo "==> Building presto-connector .jar via module mvnw..."
+"${src}/presto-connector/mvnw" \
+    --file "${src}/presto-connector/pom.xml" \
+    clean package -DskipTests -B
 
 # Select the main plugin JAR. Use a version-like suffix so source/javadoc JARs
 # (which end in `-sources.jar`/`-javadoc.jar`) are skipped.
