@@ -189,10 +189,10 @@ prepend_runpath() {
 }
 
 # bundle_velox_shared_libraries <so-path>
-# Purpose:
+#
 #   Copy runtime dependency .so files needed by the built Velox plugin into the
-#   package payload so the plugin can run on systems with different OpenSSL/libcurl
-#   and related third-party library revisions.
+#   distribution package so the plugin can run on any systems with our pre-installed libraries such as 
+#   OpenSSL/libcurl are bundled in this function.
 # Assumptions:
 #   - <so-path> points to a successfully built plugin shared library.
 #   - `ldd` can inspect that library and return dependency lines in the
