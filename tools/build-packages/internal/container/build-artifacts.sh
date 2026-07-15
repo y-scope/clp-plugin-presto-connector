@@ -140,10 +140,6 @@ fi
 
 validate_package_version "${version}"
 
-# Normalize `1.0-rc1` to `1.0~rc1`: RPM forbids `-` in Version, and both
-# package managers sort `~` prereleases before the final release.
-pkg_version_normalized="${version//-/\~}"
-
 echo ""
 echo "==> CLP Plugin Presto Connector package build"
 echo "    Arch:    ${arch}"
@@ -289,9 +285,14 @@ find "${velox_so_install}/lib" -type f -exec chmod 0644 {} +
 # Reuse the staged files for all formats: .deb for Debian-based systems, .rpm
 # for RPM-based distributions, and .tar.gz for manual extraction.
 
+# Normalize `1.0-rc1` to `1.0~rc1`: RPM forbids `-` in Version, and both
+# package managers sort `~` prereleases before the final release.
+pkg_version_normalized="${version//-/\~}"
+
 build_deb() {
+    local deb_version="${pkg_version_normalized}-1"
     local staging="${build_root}/staging-deb"
-    local deb_file="${build_root}/clp-plugin-presto-connector_${pkg_version_normalized}-1_${arch}.deb"
+    local deb_file="${build_root}/clp-plugin-presto-connector_${deb_version}_${arch}.deb"
 
     # A .deb is a filesystem tree plus metadata in DEBIAN/control. Copy the
     # shared payload, then render this build's version and architecture.
