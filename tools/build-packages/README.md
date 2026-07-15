@@ -3,11 +3,9 @@
 This directory builds installable `.deb`, `.rpm`, and `.tar.gz` artifacts for the CLP
 Presto connector (coordinator + worker) on `amd64` and `arm64`.
 
-Local and CI packaging use the same container implementation:
-`tools/build-packages/internal/container/build-artifacts.sh`.
-
-- Local: `./tools/build-packages/build-packages.sh`
-- CI: `.github/workflows/build-packages.yaml`
+CI packaging runs `tools/build-packages/internal/container/build-artifacts.sh`
+through `.github/workflows/build-packages.yaml`. A follow-up adds a local
+entrypoint that reuses the same container implementation.
 
 Supported package version format: must start with a digit and use only
 `[0-9A-Za-z.+~-]`.
