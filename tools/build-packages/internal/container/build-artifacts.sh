@@ -123,16 +123,14 @@ echo "    -> ${so_file}"
 
 # ── Choose the package version ────────────────────────────────────────────────
 
-# The worker build fetches Presto, including its Maven wrapper. Reuse that
-# wrapper to read this project's version and build its Java plugin.
-presto_src="${velox_build_dir}/_deps/presto_native_execution-src"
-maven_wrapper="${presto_src}/mvnw"
+# Use this project's Maven wrapper so every build uses the same Maven version
+# without requiring Maven to be installed in the build image.
+maven_wrapper="${src}/presto-connector/mvnw"
 [[ -x "${maven_wrapper}" ]] \
     || die "expected Maven wrapper not found or not executable at ${maven_wrapper}"
 
 run_maven() {
-    MAVEN_PROJECTBASEDIR="${presto_src}" \
-        "${maven_wrapper}" -f "${src}/presto-connector/pom.xml" "$@"
+    "${maven_wrapper}" -f "${src}/presto-connector/pom.xml" "$@"
 }
 
 if [[ -z "${version}" ]]; then
@@ -158,7 +156,7 @@ echo ""
 
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
 
-echo "==> Building presto-connector .jar via fetched mvnw..."
+echo "==> Building presto-connector .jar via project mvnw..."
 run_maven clean package -DskipTests -B
 
 # Select the main plugin JAR. Use a version-like suffix so source/javadoc JARs

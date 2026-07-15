@@ -56,7 +56,7 @@ jobs:
           version="${INPUT_VERSION}"
           if [[ -z "${version}" ]]; then
             if ! version=$(
-              mvn --quiet --file presto-connector/pom.xml \
+              ./presto-connector/mvnw --quiet --file presto-connector/pom.xml \
                 help:evaluate \
                 -Dexpression=project.version \
                 -DforceStdout
