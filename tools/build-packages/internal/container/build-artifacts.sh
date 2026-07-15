@@ -193,16 +193,6 @@ prepend_runpath() {
 #   Copy runtime dependency .so files needed by the built Velox plugin into the
 #   distribution package so the plugin can run on any systems with our pre-installed libraries such as 
 #   OpenSSL/libcurl are bundled in this function.
-# Assumptions:
-#   - <so-path> points to a successfully built plugin shared library.
-#   - `ldd` can inspect that library and return dependency lines in the
-#     "<name> => <path>" form.
-#   - Files we skip (core runtime + loader libs) are available on the target OS;
-#     everything else can be safely bundled from this build image.
-# Side effects:
-#   - Creates ${payload}${VELOX_SO_DIR}/lib.
-#   - Copies dependency files there and updates global `missing` state for error
-#     handling.
 bundle_velox_shared_libraries() {
     local installed_so="$1"
     # Keep bundled dependencies in worker/lib beside the installed plugin.
