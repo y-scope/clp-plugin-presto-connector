@@ -2,4 +2,5 @@
 .task
 build
 **/target
+packages
 packages-*

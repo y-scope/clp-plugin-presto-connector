@@ -8,7 +8,7 @@
 # Example:
 #   image=$(tools/build-packages/build-dependency-image.sh)
 #   docker run --rm -v "$(pwd):/src" -w /src "${image}" \
-#       task velox-connector:build
+#       task velox-connector:build-with-installed-deps
 #
 # Requires: docker (with buildx), git, sha256sum.
 
