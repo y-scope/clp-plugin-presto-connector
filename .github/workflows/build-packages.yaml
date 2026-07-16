@@ -121,7 +121,8 @@ jobs:
           for extension in deb rpm tar.gz; do
             artifact_files=(packages/clp-plugin-presto-connector*."${extension}")
             if (( ${#artifact_files[@]} != 1 )); then
-              echo "::error::Expected exactly one .${extension} artifact, found ${#artifact_files[@]}"
+              echo "::error::Expected exactly one .${extension} artifact," \
+                "found ${#artifact_files[@]}"
               exit 1
             fi
             printf '%s_filename=%s\n' \
