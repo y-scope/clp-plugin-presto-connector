@@ -120,4 +120,4 @@ if ! compgen -G "${artifact_stage}/*" > /dev/null; then
     echo >&2 "ERROR: no package artifacts were produced under ${artifact_stage}"
     exit 1
 fi
-cp --remove-destination "${artifact_stage}"/* "${output_dir}/"
+cp -f "${artifact_stage}"/* "${output_dir}/"
