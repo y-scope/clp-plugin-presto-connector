@@ -100,22 +100,14 @@ docker run --rm \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
+    --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
+    --env "HOME=/tmp/clp-plugin-presto-connector-home" \
+    --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
     -w /repo \
     "${image}" \
-    bash -c '
-        set -o errexit
-        set -o nounset
-        set -o pipefail
-        export BUILD_CACHE_DIR=/repo/.cache
-        export HOME=/tmp/clp-plugin-presto-connector-home
-        export TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task
-        source tools/build-packages/internal/build-cache/container.sh
-        mkdir -p "${HOME}" "${TASK_TEMP_DIR}"
-        umask 0022
-        echo "==> Running the package build as host user $(id -u):$(id -g)..."
-        exec bash tools/build-packages/internal/container/build-artifacts.sh "$@"
-    ' bash --output /output ${build_args[@]+"${build_args[@]}"}
+    bash /repo/tools/build-packages/internal/container/build-artifacts.sh \
+    --output /output ${build_args[@]+"${build_args[@]}"}
 
 echo "==> Copying package artifacts to ${output_dir}..."
 # Fail clearly when the build produced no artifacts, instead of passing a

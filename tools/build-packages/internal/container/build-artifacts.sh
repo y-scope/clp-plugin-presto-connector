@@ -12,6 +12,16 @@ set -o pipefail
 
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." &>/dev/null && pwd)"
 
+# Local builds (invoked via build-packages.sh) set BUILD_CACHE_DIR so the build
+# cache is wired up and HOME/TASK_TEMP_DIR point at writable scratch space for
+# the non-root container user. CI invokes this script directly without those,
+# so the cache and scratch setup here is local-only.
+if [[ -n "${BUILD_CACHE_DIR:-}" ]]; then
+    umask 0022
+    mkdir -p "${HOME}" "${TASK_TEMP_DIR}"
+    source "${src}/tools/build-packages/internal/build-cache/container.sh"
+fi
+
 # Destination paths used by .deb and .rpm. Environment overrides support a
 # non-default install layout; the tarball remains relocatable.
 readonly PLUGIN_ROOT="${PLUGIN_ROOT:-/opt/clp-plugin-presto-connector}"
