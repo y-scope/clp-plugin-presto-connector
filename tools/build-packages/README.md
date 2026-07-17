@@ -23,11 +23,10 @@ Default outputs are written to `./packages`.
 task package
 ```
 
-This is a thin wrapper over `./tools/build-packages/build-packages.sh`, which
-resolves the build-env image and runs the build inside it. Forward flags with
-`--`, e.g. `task package -- --output DIR --version VER` (or pass them directly
-to the script). `--output DIR` and `--version VER` override the output directory
-and package version (otherwise derived from `presto-connector/pom.xml`).
+A thin wrapper over `./tools/build-packages/build-packages.sh` (call that
+directly if `go-task` isn't installed). Both accept `--output DIR` and
+`--version VER`; with the task, put `--` before the flags:
+`task package -- --output DIR`.
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
