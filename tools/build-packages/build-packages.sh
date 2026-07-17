@@ -91,9 +91,12 @@ prepare_build_cache "${src}/.cache" "${image_hash}"
 host_uid=$(id -u)
 host_gid=$(id -g)
 
-# Use a stable container checkout path so cached CMake state does not embed the
-# host checkout path. HOME and Task scratch data remain in the disposable
-# container.
+# Run as the host user so staged files and artifacts aren't root-owned. Bind the
+# repo at a stable /repo path so cached CMake state doesn't embed the host
+# checkout path. The --env flags below wire the build cache and point HOME /
+# TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
+# write to the image's defaults); build-artifacts.sh activates that setup only
+# when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \

@@ -16,6 +16,10 @@ src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." &>/dev/null && pwd)"
 # cache is wired up and HOME/TASK_TEMP_DIR point at writable scratch space for
 # the non-root container user. CI invokes this script directly without those,
 # so the cache and scratch setup here is local-only.
+#
+# Contract: build-packages.sh passes BUILD_CACHE_DIR, BUILD_CACHE_KEY,
+# CLP_PLUGIN_BUILD_DIR, HOME, and TASK_TEMP_DIR as --env flags. This block
+# wires up the cache + scratch dirs only when BUILD_CACHE_DIR is present.
 if [[ -n "${BUILD_CACHE_DIR:-}" ]]; then
     umask 0022
     mkdir -p "${HOME}" "${TASK_TEMP_DIR}"
