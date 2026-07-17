@@ -39,5 +39,5 @@ root-owned files, while `packages/` is owned by the invoking user.
 
 ### Prerequisites
 
-Docker with buildx (usable without `sudo`), git, `sha256sum`, and ~10 GB free
-disk for the build-env image.
+Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
+~10 GB free disk for the build-env image.

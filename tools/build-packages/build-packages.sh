@@ -3,7 +3,7 @@
 # User-facing entry point for packaging. Resolves the build-env image, then runs
 # internal/container/build-artifacts.sh inside it.
 #
-# Requires: docker (with buildx), git, sha256sum.
+# Requires: docker (with buildx), git, and sha256sum or shasum.
 
 set -o errexit
 set -o nounset
