@@ -19,6 +19,7 @@ prepare_build_cache() {
     local cache_dir="$1"
     local cache_key="$2"
     mkdir -p \
+        "${cache_dir}/build/${cache_key}" \
         "${cache_dir}/ccache" \
         "${cache_dir}/fetchcontent/${cache_key}" \
         "${cache_dir}/maven"

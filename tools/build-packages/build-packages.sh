@@ -81,22 +81,26 @@ if [[ "${image_hash}" == "${image}" ]]; then
     exit 1
 fi
 
-# Keep root-owned container output in temporary staging, then copy it to the
-# requested directory as the invoking host user.
+# Keep container output in temporary staging, then copy it to the requested
+# directory after the build succeeds.
 stage_dir=$(mktemp -d)
 trap 'rm -rf "${stage_dir}"' EXIT
 artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
+host_uid=$(id -u)
+host_gid=$(id -g)
 
 # Use a stable container checkout path so cached CMake state does not embed the
 # host checkout path. HOME and Task scratch data remain in the disposable
 # container.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
+    --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
+    --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
     -w /repo \
     "${image}" \
     bash -c '
@@ -109,9 +113,9 @@ docker run --rm \
         source tools/build-packages/internal/build-cache/container.sh
         mkdir -p "${HOME}" "${TASK_TEMP_DIR}"
         umask 0022
-        echo "==> Running the package build as root..."
+        echo "==> Running the package build as host user $(id -u):$(id -g)..."
         exec bash tools/build-packages/internal/container/build-artifacts.sh "$@"
-    ' bash --output /output ${build_args[@]+"${build_args[@]}"}
+    ' bash --output /output "${build_args[@]}"
 
 echo "==> Copying package artifacts to ${output_dir}..."
 # Fail clearly when the build produced no artifacts, instead of passing a

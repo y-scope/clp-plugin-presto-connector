@@ -16,6 +16,7 @@ if [ -n "${BUILD_CACHE_DIR:-}" ]; then
     export MAVEN_USER_HOME="${MAVEN_USER_HOME:-${BUILD_CACHE_DIR}/maven}"
 
     mkdir -p \
+        "${BUILD_CACHE_DIR}/build/${BUILD_CACHE_KEY}" \
         "${CCACHE_DIR}" \
         "${FETCHCONTENT_BASE_DIR}" \
         "${MAVEN_USER_HOME}"

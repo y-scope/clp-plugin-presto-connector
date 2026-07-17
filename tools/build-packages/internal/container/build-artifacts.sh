@@ -112,7 +112,7 @@ esac
 pkg_specs_dir="${src}/tools/build-packages/package-specs"
 project_build_dir="${CLP_PLUGIN_BUILD_DIR:-${src}/build}"
 velox_build_dir="${project_build_dir}/velox-connector"
-build_root="${src}/build/packaging"
+build_root="${project_build_dir}/packaging"
 payload="${build_root}/payload"
 artifacts=()
 
@@ -120,9 +120,9 @@ prepare_paths
 
 # ── Build the C++ worker plugin ───────────────────────────────────────────────
 
-# The CI workflow initializes submodules before invoking this script. Reuse the
-# dependency installations and CMake settings already present in the build-env
-# image instead of rebuilding them.
+# The local entrypoint and CI workflow initialize submodules before invoking
+# this script. Reuse the dependency installations and CMake settings already
+# present in the build-env image instead of rebuilding them.
 echo "==> Building velox-connector .so with image-installed dependencies..."
 task -d "${src}" velox-connector:build-with-installed-deps
 so_file="${velox_build_dir}/libclp-plugin-velox-connector.so"
@@ -137,8 +137,7 @@ echo "    -> ${so_file}"
 if [[ -z "${version}" ]]; then
     echo "==> Deriving version from presto-connector/pom.xml via mvnw..."
     version=$(
-        MAVEN_OPTS="${maven_opts}" \
-        "${src}/presto-connector/mvnw" \
+        MAVEN_OPTS="${maven_opts}" "${src}/presto-connector/mvnw" \
             --file "${src}/presto-connector/pom.xml" \
             --quiet help:evaluate \
             -Dexpression=project.version \
@@ -159,8 +158,7 @@ echo ""
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
 
 echo "==> Building presto-connector .jar via module mvnw..."
-MAVEN_OPTS="${maven_opts}" \
-"${src}/presto-connector/mvnw" \
+MAVEN_OPTS="${maven_opts}" "${src}/presto-connector/mvnw" \
     --file "${src}/presto-connector/pom.xml" \
     clean package -DskipTests -B
 

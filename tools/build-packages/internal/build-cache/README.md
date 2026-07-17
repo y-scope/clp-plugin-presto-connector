@@ -8,12 +8,13 @@ Given a cache directory and key:
 
 ```text
 <cache-directory>/
+├── build/<cache-key>/
 ├── ccache/
 ├── fetchcontent/<cache-key>/
 └── maven/
 ```
 
-Maven and ccache are shared across keys. FetchContent holds generated CMake state and is isolated by a caller-provided key, such as a build-env hash.
+Maven and ccache are shared across keys. The project build and FetchContent hold generated state and are isolated by a caller-provided key, such as a build-env hash.
 
 ## Host API
 
