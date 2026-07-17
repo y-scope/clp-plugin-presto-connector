@@ -22,3 +22,11 @@ tasks:
     run: "once"
     cmds:
       - "mkdir -p '{{.G_BUILD_DIR}}'"
+
+  package:
+    desc: "Build .deb/.rpm/.tar.gz packages."
+    preconditions:
+      - sh: "command -v docker"
+        msg: "docker (with buildx) is required for local package builds."
+    cmds:
+      - "{{.ROOT_DIR}}/tools/build-packages/build-packages.sh {{.CLI_ARGS}}"

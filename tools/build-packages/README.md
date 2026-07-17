@@ -20,11 +20,14 @@ Default outputs are written to `./packages`.
 ## Local usage
 
 ```bash
-./tools/build-packages/build-packages.sh
+task package
 ```
 
-Use `--output DIR` and `--version VER` to override the output directory and
-package version (otherwise derived from `presto-connector/pom.xml`).
+This is a thin wrapper over `./tools/build-packages/build-packages.sh`, which
+resolves the build-env image and runs the build inside it. Forward flags with
+`--`, e.g. `task package -- --output DIR --version VER` (or pass them directly
+to the script). `--output DIR` and `--version VER` override the output directory
+and package version (otherwise derived from `presto-connector/pom.xml`).
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
