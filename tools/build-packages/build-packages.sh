@@ -115,7 +115,7 @@ docker run --rm \
         umask 0022
         echo "==> Running the package build as host user $(id -u):$(id -g)..."
         exec bash tools/build-packages/internal/container/build-artifacts.sh "$@"
-    ' bash --output /output "${build_args[@]}"
+    ' bash --output /output ${build_args[@]+"${build_args[@]}"}
 
 echo "==> Copying package artifacts to ${output_dir}..."
 # Fail clearly when the build produced no artifacts, instead of passing a
