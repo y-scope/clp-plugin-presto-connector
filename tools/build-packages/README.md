@@ -34,8 +34,7 @@ cache, this repository's GHCR package, or a local build, reusing the cached
 image on later runs.
 
 Build state is cached under `.cache/` (`maven/`, `ccache/`, and
-`fetchcontent/<hash>/`), shared across build-env revisions; see
-[internal/build-cache/README.md](internal/build-cache/README.md). The container
+`fetchcontent/<hash>/`), shared across build-env revisions. The container
 runs as root, so `.cache/`, `build/`, and `presto-connector/target/` may hold
 root-owned files, while `packages/` is owned by the invoking user.
 
