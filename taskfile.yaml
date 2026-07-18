@@ -26,7 +26,7 @@ tasks:
   package:
     desc: "Build .deb/.rpm/.tar.gz packages."
     preconditions:
-      - sh: "command -v docker"
+      - sh: "docker buildx version >/dev/null 2>&1"
         msg: "docker (with buildx) is required for local package builds."
     cmds:
-      - "{{.ROOT_DIR}}/tools/build-packages/build-packages.sh {{.CLI_ARGS}}"
+      - "'{{.ROOT_DIR}}/tools/build-packages/build-packages.sh' {{.CLI_ARGS}}"
