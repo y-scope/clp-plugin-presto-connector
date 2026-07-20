@@ -16,6 +16,12 @@ readonly _CA_TRUST_DIR
 readonly CA_TRUST_BUNDLE_FILENAME="ca-bundle.pem"
 readonly CA_TRUST_JAVA_STORE_FILENAME="truststore.p12"
 
+# In-container mount point for the staged trust directory. Callers bind-mount
+# the staging directory here and pass it as CA_TRUST_DIR so build-artifacts.sh /
+# container.sh consume the staged stores. Kept in host.sh so the path is defined
+# once on the host side rather than hardcoded by each caller.
+readonly CA_TRUST_CONTAINER_DIR="/run/ca-trust"
+
 # Stages the host CA bundle for a temporary Docker mount. Creates an empty
 # destination when the host has no CA bundle; returns nonzero only on an error.
 #

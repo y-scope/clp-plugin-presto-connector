@@ -31,7 +31,7 @@ stage_host_ca_bundle ./trust/ca-bundle.pem
 stage_java_pkcs12 ./trust/ca-bundle.pem ./trust/truststore.p12
 ```
 
-`stage_host_ca_bundle` uses `SSL_CERT_FILE` when it is set. Otherwise, it searches common Linux CA-bundle locations. `stage_java_pkcs12` runs the Java generator in a temporary container, so Java does not need to be installed on the host.
+`stage_host_ca_bundle` uses `SSL_CERT_FILE` when it is set. Otherwise, it searches common Linux CA-bundle locations. `stage_java_pkcs12` runs the Java generator in a temporary container, so Java does not need to be installed on the host. `host.sh` also exports `CA_TRUST_CONTAINER_DIR`, the conventional in-container mount point to bind the staging directory at and pass as `CA_TRUST_DIR`.
 
 ## Container API
 

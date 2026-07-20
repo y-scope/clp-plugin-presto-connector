@@ -109,21 +109,23 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
-# The trust stage is mounted read-only at /run/ca-trust and CA_TRUST_DIR tells
-# build-artifacts.sh to configure PEM env vars and the Java trust store; MAVEN_OPTS
-# is forwarded so ca-trust/container.sh can append the Java trust-store properties.
+# The trust stage is mounted read-only at CA_TRUST_CONTAINER_DIR (defined in
+# internal/ca-trust/host.sh) and CA_TRUST_DIR tells build-artifacts.sh to configure
+# PEM env vars and the Java trust store. MAVEN_OPTS is forwarded so any host-supplied
+# Maven options are preserved; ca-trust/container.sh appends the Java trust-store
+# properties to it.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
-    --mount "type=bind,src=${trust_stage},dst=/run/ca-trust,readonly" \
+    --mount "type=bind,src=${trust_stage},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
-    --env "CA_TRUST_DIR=/run/ca-trust" \
+    --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}" \
     --env MAVEN_OPTS \
     -w /repo \
     "${image}" \
