@@ -185,23 +185,3 @@ stage_java_pkcs12() (
         return 1
     fi
 )
-
-# Stages the conventional container CA-trust layout — a PEM CA bundle and a Java
-# PKCS#12 trust store — under <trust-dir>, using the filenames container.sh
-# consumes by default. Composes stage_host_ca_bundle and stage_java_pkcs12; the
-# caller owns the directory and its cleanup.
-#
-# Args: <trust-dir>
-stage_container_ca_trust() {
-    if (( $# != 1 )) || [[ -z "$1" ]]; then
-        echo >&2 "ERROR: stage_container_ca_trust requires a trust directory"
-        return 2
-    fi
-    local trust_dir="$1"
-    if ! mkdir -p "${trust_dir}"; then
-        echo >&2 "ERROR: failed to create trust directory: ${trust_dir}"
-        return 1
-    fi
-    stage_host_ca_bundle "${trust_dir}" || return $?
-    stage_java_pkcs12 "${trust_dir}" || return $?
-}

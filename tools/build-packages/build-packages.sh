@@ -95,7 +95,8 @@ prepare_build_cache "${src}/.cache" "${image_hash}"
 # in the container, cleaned up with stage_dir, never persisted.
 readonly TRUST_STAGE="${stage_dir}/trust"
 echo "==> Staging temporary container trust stores..."
-stage_container_ca_trust "${TRUST_STAGE}"
+stage_host_ca_bundle "${TRUST_STAGE}"
+stage_java_pkcs12 "${TRUST_STAGE}"
 
 host_uid=$(id -u)
 host_gid=$(id -g)

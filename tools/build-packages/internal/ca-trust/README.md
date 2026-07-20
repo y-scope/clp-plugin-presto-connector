@@ -29,9 +29,8 @@ docker run --rm \
     '
 ```
 
-`stage_container_ca_trust <trust-dir>` is a convenience wrapper that runs both
-steps. Use it when you need both stores; call the two functions individually to
-stage only the PEM bundle or only the Java store.
+Call `stage_host_ca_bundle` for the PEM bundle alone, `stage_java_pkcs12` for
+the Java store, or both when the build consumes each (as above).
 
 ## Host API (`host.sh`)
 
@@ -39,7 +38,6 @@ stage only the PEM bundle or only the Java store.
 |---|---|---|
 | `stage_host_ca_bundle` | `<trust-dir>` | Writes `<trust-dir>/${CA_TRUST_BUNDLE_FILENAME}` (`0444`). Uses `SSL_CERT_FILE` when set, else searches common Linux CA-bundle locations; creates an empty file if none is found. |
 | `stage_java_pkcs12` | `<trust-dir>` | Writes `<trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}` merging the JDK defaults with the staged bundle, via a temporary pinned-JDK container (`--network none`, host UID/GID). Run `stage_host_ca_bundle` first. Java need not be installed on the host. |
-| `stage_container_ca_trust` | `<trust-dir>` | Convenience wrapper: runs both steps above with the conventional filenames. |
 
 Constants: `CA_TRUST_BUNDLE_FILENAME` (`ca-bundle.pem`),
 `CA_TRUST_JAVA_STORE_FILENAME` (`truststore.p12`), and
