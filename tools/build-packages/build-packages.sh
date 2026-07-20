@@ -96,9 +96,9 @@ prepare_build_cache "${src}/.cache" "${image_hash}"
 # are mounted read-only into the container and cleaned up with stage_dir; they
 # never enter image layers, persistent caches, or generated packages. Staged
 # files are mode 0444 so the non-root container user can read them.
-trust_stage="${stage_dir}/trust"
+readonly TRUST_STAGE="${stage_dir}/trust"
 echo "==> Staging temporary container trust stores..."
-stage_container_ca_trust "${trust_stage}"
+stage_container_ca_trust "${TRUST_STAGE}"
 
 host_uid=$(id -u)
 host_gid=$(id -g)
@@ -119,7 +119,7 @@ docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
-    --mount "type=bind,src=${trust_stage},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
+    --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
