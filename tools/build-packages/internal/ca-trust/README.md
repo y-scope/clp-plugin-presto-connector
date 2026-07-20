@@ -16,7 +16,8 @@ source tools/build-packages/internal/ca-trust/host.sh
 
 trust_dir="$(mktemp -d)"
 trap 'rm -rf "${trust_dir}"' EXIT
-stage_container_ca_trust "${trust_dir}"          # writes ca-bundle.pem + truststore.p12 (mode 0444)
+stage_host_ca_bundle "${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"      # -> ca-bundle.pem (0444)
+stage_java_pkcs12 "${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}" "${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"  # -> truststore.p12 (0444)
 
 docker run --rm \
     --mount "type=bind,src=${trust_dir},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
@@ -28,17 +29,17 @@ docker run --rm \
     '
 ```
 
-`stage_container_ca_trust` is the one-call entry point. The lower-level
-`stage_host_ca_bundle` / `stage_java_pkcs12` are exposed in the API table below
-for a non-default layout; prefer `stage_container_ca_trust` otherwise.
+`stage_container_ca_trust <trust-dir>` is a convenience wrapper that runs both
+steps with the conventional filenames. Use the two calls above when you want to
+see or control each step; use the wrapper when you just want the default layout.
 
 ## Host API (`host.sh`)
 
 | Function | Args | Effect |
 |---|---|---|
-| `stage_container_ca_trust` | `<trust-dir>` | Writes `<trust-dir>/ca-bundle.pem` and `<trust-dir>/truststore.p12` (both `0444`). The one-call entry point. |
 | `stage_host_ca_bundle` | `<dest>` | Copies the host CA bundle to `<dest>` (`0444`). Uses `SSL_CERT_FILE` when set, else searches common Linux CA-bundle locations; creates an empty file if none is found. |
 | `stage_java_pkcs12` | `<input-bundle> <dest>` | Generates a PKCS#12 trust store merging the JDK defaults with `<input-bundle>`, via a temporary pinned-JDK container (`--network none`, host UID/GID). Java need not be installed on the host. |
+| `stage_container_ca_trust` | `<trust-dir>` | Convenience wrapper: runs both steps above with the conventional filenames, writing `<trust-dir>/ca-bundle.pem` and `<trust-dir>/truststore.p12` (`0444`). |
 
 Constants: `CA_TRUST_BUNDLE_FILENAME` (`ca-bundle.pem`),
 `CA_TRUST_JAVA_STORE_FILENAME` (`truststore.p12`), and
