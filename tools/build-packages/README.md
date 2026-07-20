@@ -43,12 +43,6 @@ root-owned files; any root-owned files in `.cache/`, `build/`, or
 `presto-connector/target/` are leftovers from earlier privileged or CI builds,
 while `packages/` is owned by the invoking user.
 
-### Host CA trust
-
-Local builds stage the host CA bundle and a Java PKCS#12 trust store so Maven reaches HTTPS repositories through corporate TLS gateways.
-Staged stores are temporary, never enter image layers, caches, or packages, and CI is unaffected (no `CA_TRUST_DIR`).
-See [internal/ca-trust/README.md](internal/ca-trust/README.md) for details.
-
 ### Prerequisites
 
 Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
