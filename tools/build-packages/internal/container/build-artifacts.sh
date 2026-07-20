@@ -3,14 +3,28 @@
 # Build the Java coordinator and C++ worker plugins, assemble one install tree,
 # and emit the same files as .deb, .rpm, and relocatable .tar.gz artifacts.
 #
-# CI runs this container-side implementation inside the build-env image. See
-# tools/build-packages/README.md for the overall packaging flow.
+# This is the container-side implementation used by local and CI builds. See
+# tools/build-packages/README.md for the entry points and overall flow.
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." &>/dev/null && pwd)"
+
+# Local builds (invoked via build-packages.sh) set BUILD_CACHE_DIR so the build
+# cache is wired up and HOME/TASK_TEMP_DIR point at writable scratch space for
+# the non-root container user. CI invokes this script directly without those,
+# so the cache and scratch setup here is local-only.
+#
+# Contract: build-packages.sh passes BUILD_CACHE_DIR, BUILD_CACHE_KEY,
+# CLP_PLUGIN_BUILD_DIR, HOME, and TASK_TEMP_DIR as --env flags. This block
+# wires up the cache + scratch dirs only when BUILD_CACHE_DIR is present.
+if [[ -n "${BUILD_CACHE_DIR:-}" ]]; then
+    umask 0022
+    mkdir -p "${HOME}" "${TASK_TEMP_DIR}"
+    source "${src}/tools/build-packages/internal/build-cache/container.sh"
+fi
 
 # Destination paths used by .deb and .rpm. Environment overrides support a
 # non-default install layout; the tarball remains relocatable.
@@ -34,7 +48,7 @@ Options:
                  VER must start with a digit and use [0-9A-Za-z.+~-]
   --help         Show this help
 
-See tools/build-packages/README.md for CI usage and package-build details.
+See tools/build-packages/README.md for the recommended local entry point.
 EOF
 }
 
@@ -91,6 +105,15 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
     export JAVA_HOME="${javac_path%/bin/javac}"
 fi
 
+maven_opts="${MAVEN_OPTS:-}"
+if [[ -n "${MAVEN_USER_HOME:-}" ]]; then
+    # MAVEN_USER_HOME also caches the Maven Wrapper distribution, which is
+    # separate from Maven's local artifact repository.
+    mkdir -p "${MAVEN_USER_HOME}/repository"
+    [[ -n "${maven_opts}" ]] && maven_opts+=" "
+    maven_opts+="-Dmaven.repo.local=${MAVEN_USER_HOME}/repository"
+fi
+
 # ── Resolve architecture ──────────────────────────────────────────────────────
 
 # Debian and tarball names use amd64/arm64; RPM uses x86_64/aarch64.
@@ -103,7 +126,7 @@ esac
 pkg_specs_dir="${src}/tools/build-packages/package-specs"
 project_build_dir="${CLP_PLUGIN_BUILD_DIR:-${src}/build}"
 velox_build_dir="${project_build_dir}/velox-connector"
-build_root="${src}/build/packaging"
+build_root="${project_build_dir}/packaging"
 payload="${build_root}/payload"
 artifacts=()
 
@@ -128,6 +151,7 @@ echo "    -> ${so_file}"
 if [[ -z "${version}" ]]; then
     echo "==> Deriving version from presto-connector/pom.xml via mvnw..."
     version=$(
+        MAVEN_OPTS="${maven_opts}" \
         "${src}/presto-connector/mvnw" \
             --file "${src}/presto-connector/pom.xml" \
             --quiet help:evaluate \
@@ -149,6 +173,7 @@ echo ""
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
 
 echo "==> Building presto-connector .jar via module mvnw..."
+MAVEN_OPTS="${maven_opts}" \
 "${src}/presto-connector/mvnw" \
     --file "${src}/presto-connector/pom.xml" \
     clean package -DskipTests -B

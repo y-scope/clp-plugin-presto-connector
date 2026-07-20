@@ -8,7 +8,10 @@ includes:
 
 vars:
   G_VELOX_CONNECTOR_BUILD_DIR: "{{.G_BUILD_DIR}}/velox-connector"
-  G_DEPS_CPP_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/deps/cpp"
+  DEFAULT_DEPS_CPP_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/deps/cpp"
+  G_DEPS_CPP_DIR: '{{.CLP_PLUGIN_DEPS_CPP_DIR | default .DEFAULT_DEPS_CPP_DIR}}'
+  DEFAULT_FETCHCONTENT_BASE_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}/_deps"
+  G_FETCHCONTENT_BASE_DIR: '{{.FETCHCONTENT_BASE_DIR | default .DEFAULT_FETCHCONTENT_BASE_DIR}}'
 
 tasks:
   build:
@@ -41,5 +44,6 @@ tasks:
           EXTRA_ARGS:
             - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS=\
                 {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
+            - "-DFETCHCONTENT_BASE_DIR={{.G_FETCHCONTENT_BASE_DIR}}"
             - "-DPRESTO_GIT_TAG={{.G_PRESTO_GIT_TAG}}"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"

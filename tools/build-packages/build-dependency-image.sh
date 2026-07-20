@@ -10,7 +10,7 @@
 #   docker run --rm -v "$(pwd):/src" -w /src "${image}" \
 #       task velox-connector:build-with-installed-deps
 #
-# Requires: docker (with buildx), git, sha256sum.
+# Requires: docker (with buildx), git, and sha256sum or shasum.
 
 set -o errexit
 set -o nounset

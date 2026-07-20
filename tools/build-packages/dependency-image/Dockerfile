@@ -20,7 +20,7 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
         dnf_sslcacert_opt="--setopt=sslcacert=${HOST_CA_BUNDLE}"; \
     fi \
  && dnf install -y --setopt=install_weak_deps=False ${dnf_sslcacert_opt} \
-        dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
+        ccache dpkg gettext git java-17-openjdk-devel libcurl-devel libevent-devel \
         libunwind-devel ninja-build openssl-devel patchelf python3-pip rpm-build \
  && dnf clean all
 
@@ -41,6 +41,7 @@ RUN --mount=type=bind,from=host-ca,source=host-ca,target=${HOST_CA_BUNDLE} \
 ENV PATH=/opt/go-task/bin:${PATH}
 
 ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
+ENV CLP_PLUGIN_DEPS_CPP_DIR=/opt/clp-plugin-presto-connector/build/velox-connector/deps/cpp
 ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 
 # Build one dependency at a time to avoid excessive memory usage from parallel builds.

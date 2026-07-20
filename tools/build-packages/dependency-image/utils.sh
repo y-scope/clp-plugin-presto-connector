@@ -32,15 +32,23 @@ _BUILD_ENV_HASH_INPUTS=(
 
 # Computes the 16-hex-char hash used in the image tag.
 #
-# Requires: git, sha256sum
+# Requires: git, and either sha256sum (Linux) or shasum -a 256 (macOS).
 derive_build_env_hash() {
     (
         cd "${_REPO_ROOT}" || exit
         ensure_yscope_dev_utils_submodule >&2
+
+        # macOS ships `shasum` rather than `sha256sum`; pick whichever exists.
+        # Both emit the same `<hash>  <file>` format, so the pipeline is unchanged.
+        local sha256_cmd=(sha256sum)
+        if ! command -v sha256sum &>/dev/null; then
+            sha256_cmd=(shasum -a 256)
+        fi
+
         git ls-files -z --recurse-submodules -- "${_BUILD_ENV_HASH_INPUTS[@]}" \
             | LC_ALL=C sort -z  \
-            | xargs -0 sha256sum \
-            | sha256sum \
+            | xargs -0 "${sha256_cmd[@]}" \
+            | "${sha256_cmd[@]}" \
             | cut -c1-16
     )
 }

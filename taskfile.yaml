@@ -7,7 +7,7 @@ includes:
 
 vars:
   DEFAULT_CLP_PLUGIN_BUILD_DIR: "{{.ROOT_DIR}}/build"
-  G_BUILD_DIR: '{{env "CLP_PLUGIN_BUILD_DIR" | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}'
+  G_BUILD_DIR: '{{.CLP_PLUGIN_BUILD_DIR | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}'
 
 tasks:
   clean:
@@ -22,3 +22,11 @@ tasks:
     run: "once"
     cmds:
       - "mkdir -p '{{.G_BUILD_DIR}}'"
+
+  package:
+    desc: "Build .deb/.rpm/.tar.gz packages."
+    preconditions:
+      - sh: "docker buildx version >/dev/null 2>&1"
+        msg: "docker (with buildx) is required for local package builds."
+    cmds:
+      - "'{{.ROOT_DIR}}/tools/build-packages/build-packages.sh' {{.CLI_ARGS}}"
