@@ -91,11 +91,8 @@ artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
 
-# Stage temporary CA trust stores for the container build: the host PEM CA
-# bundle and a Java PKCS#12 trust store merging the JDK defaults with it. Both
-# are mounted read-only into the container and cleaned up with stage_dir; they
-# never enter image layers, persistent caches, or generated packages. Staged
-# files are mode 0444 so the non-root container user can read them.
+# Stage temporary CA trust stores (host PEM bundle + Java PKCS#12); read-only
+# in the container, cleaned up with stage_dir, never persisted.
 readonly TRUST_STAGE="${stage_dir}/trust"
 echo "==> Staging temporary container trust stores..."
 stage_container_ca_trust "${TRUST_STAGE}"
@@ -109,11 +106,9 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
-# The trust stage is mounted read-only at CA_TRUST_CONTAINER_DIR (defined in
-# internal/ca-trust/host.sh) and CA_TRUST_DIR tells build-artifacts.sh to configure
-# PEM env vars and the Java trust store. MAVEN_OPTS is forwarded so any host-supplied
-# Maven options are preserved; ca-trust/container.sh appends the Java trust-store
-# properties to it.
+# CA_TRUST_DIR points build-artifacts.sh at the read-only trust mount
+# (CA_TRUST_CONTAINER_DIR, from ca-trust/host.sh); MAVEN_OPTS forwards host
+# Maven options, with the Java trust-store props appended by container.sh.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
