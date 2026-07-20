@@ -56,13 +56,14 @@ CA_TRUST_DIR=/trusted
 source tools/build-packages/internal/ca-trust/container.sh
 ```
 
-It reads `ca-bundle.pem` and `truststore.p12` from `CA_TRUST_DIR`. When the PEM
-bundle is non-empty it exports `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`, `PIP_CERT`,
-`REQUESTS_CA_BUNDLE`, and `SSL_CERT_FILE`. It configures Java from
-`truststore.p12`, appending `-Djavax.net.ssl.trustStore*` to `MAVEN_OPTS`
-(preserving any caller-supplied value); if the store is missing or unreadable it
-errors. A no-op when `CA_TRUST_DIR` is unset, so CI builds that don't mount a
-trust directory are unaffected.
+It reads `ca-bundle.pem` from `CA_TRUST_DIR` and `truststore.p12` when present.
+When the PEM bundle is non-empty it exports `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`,
+`PIP_CERT`, `REQUESTS_CA_BUNDLE`, and `SSL_CERT_FILE`. When `truststore.p12` is
+present it configures Java from it, appending `-Djavax.net.ssl.trustStore*` to
+`MAVEN_OPTS` (preserving any caller-supplied value); an empty or unreadable store
+errors. PEM-only staging (no `truststore.p12`) skips Java configuration. A
+no-op when `CA_TRUST_DIR` is unset, so CI builds that don't mount a trust
+directory are unaffected.
 
 The caller owns and cleans up the staging directory; the scripts never modify
 the host or container trust stores, only the staged snapshot.
