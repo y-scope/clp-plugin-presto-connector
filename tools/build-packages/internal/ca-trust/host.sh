@@ -22,24 +22,29 @@ readonly CA_TRUST_JAVA_STORE_FILENAME="truststore.p12"
 # once on the host side rather than hardcoded by each caller.
 readonly CA_TRUST_CONTAINER_DIR="/run/ca-trust"
 
-# Stages the host CA bundle for a temporary Docker mount. Creates an empty
-# destination when the host has no CA bundle; returns nonzero only on an error.
+# Stages the host CA bundle at <trust-dir>/${CA_TRUST_BUNDLE_FILENAME} for a
+# temporary Docker mount. Creates an empty file when the host has no CA bundle;
+# returns nonzero only on an error.
 #
-# Args: <destination-path>
+# Args: <trust-dir>
 stage_host_ca_bundle() {
     if (( $# != 1 )) || [[ -z "$1" ]]; then
-        echo >&2 "ERROR: stage_host_ca_bundle requires a destination path"
+        echo >&2 "ERROR: stage_host_ca_bundle requires a trust directory"
         return 2
     fi
-    local dest="$1"
-    if [[ -L "${dest}" || ( -e "${dest}" && ! -f "${dest}" ) ]]; then
-        echo >&2 "ERROR: host CA bundle destination is not a regular file: ${dest}"
+    local trust_dir="$1"
+    if [[ -L "${trust_dir}" || ( -e "${trust_dir}" && ! -d "${trust_dir}" ) ]]; then
+        echo >&2 "ERROR: stage_host_ca_bundle target is not a directory: ${trust_dir}"
         return 1
     fi
-    local dest_dir
-    dest_dir="$(dirname "${dest}")"
-    if ! mkdir -p "${dest_dir}"; then
-        echo >&2 "ERROR: failed to create host CA bundle directory: ${dest_dir}"
+    if ! mkdir -p "${trust_dir}"; then
+        echo >&2 "ERROR: failed to create trust directory: ${trust_dir}"
+        return 1
+    fi
+    trust_dir="$(cd "${trust_dir}" &>/dev/null && pwd)" || return
+    local dest="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
+    if [[ -L "${dest}" || ( -e "${dest}" && ! -f "${dest}" ) ]]; then
+        echo >&2 "ERROR: host CA bundle destination is not a regular file: ${dest}"
         return 1
     fi
     local source_path=""
@@ -76,8 +81,8 @@ stage_host_ca_bundle() {
     fi
 
     local staged_bundle
-    if ! staged_bundle="$(mktemp "${dest_dir}/.ca-bundle.XXXXXX")"; then
-        echo >&2 "ERROR: failed to create temporary host CA bundle in: ${dest_dir}"
+    if ! staged_bundle="$(mktemp "${trust_dir}/.ca-bundle.XXXXXX")"; then
+        echo >&2 "ERROR: failed to create temporary host CA bundle in: ${trust_dir}"
         return 1
     fi
     if [[ -n "${source_path}" ]]; then
@@ -104,41 +109,34 @@ stage_host_ca_bundle() {
     fi
 }
 
-# Stages a Java PKCS#12 trust store containing the selected JDK's default
-# certificates plus those from an input CA bundle.
+# Stages a Java PKCS#12 trust store at <trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}
+# containing the selected JDK's default certificates plus those from the bundle
+# at <trust-dir>/${CA_TRUST_BUNDLE_FILENAME}. Run stage_host_ca_bundle first.
 #
-# Args: <input-ca-bundle> <destination-path>
+# Args: <trust-dir>
 # The subshell keeps the cleanup trap local to this invocation.
 stage_java_pkcs12() (
-    if (( $# != 2 )) || [[ -z "$1" || -z "$2" ]]; then
-        echo >&2 "ERROR: stage_java_pkcs12 requires an input bundle and destination path"
+    if (( $# != 1 )) || [[ -z "$1" ]]; then
+        echo >&2 "ERROR: stage_java_pkcs12 requires a trust directory"
         return 2
     fi
 
-    local input_bundle="$1"
-    local dest="$2"
+    local trust_dir="$1"
+    if [[ -L "${trust_dir}" || ( -e "${trust_dir}" && ! -d "${trust_dir}" ) ]]; then
+        echo >&2 "ERROR: stage_java_pkcs12 target is not a directory: ${trust_dir}"
+        return 1
+    fi
+    trust_dir="$(cd "${trust_dir}" &>/dev/null && pwd)" || return
+    local input_bundle="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
+    local dest="${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"
     if [[ ! -f "${input_bundle}" || ! -r "${input_bundle}" ]]; then
         echo >&2 "ERROR: input CA bundle is not a readable regular file: ${input_bundle}"
         return 1
     fi
-    local input_dir
-    input_dir="$(cd "$(dirname "${input_bundle}")" &>/dev/null && pwd)" || return
-    input_bundle="${input_dir}/$(basename "${input_bundle}")"
     if [[ -L "${dest}" || ( -e "${dest}" && ! -f "${dest}" ) ]]; then
         echo >&2 "ERROR: Java PKCS#12 destination is not a regular file: ${dest}"
         return 1
     fi
-
-    local output_dir
-    output_dir="$(dirname "${dest}")"
-    if ! mkdir -p "${output_dir}"; then
-        echo >&2 "ERROR: failed to create Java PKCS#12 directory: ${output_dir}"
-        return 1
-    fi
-    output_dir="$(cd "${output_dir}" &>/dev/null && pwd)" || return
-    local output_name
-    output_name="$(basename "${dest}")"
-    dest="${output_dir}/${output_name}"
     if [[ "${input_bundle}" == "${dest}" ]] \
             || [[ -e "${dest}" && "${input_bundle}" -ef "${dest}" ]]; then
         echo >&2 "ERROR: input CA bundle and Java PKCS#12 destination must differ"
@@ -154,8 +152,8 @@ stage_java_pkcs12() (
     local container_output="${container_output_dir}/truststore.p12"
     local generator_stage=""
     trap '[[ -z "${generator_stage}" ]] || rm -rf "${generator_stage}"' EXIT
-    if ! generator_stage="$(mktemp -d "${output_dir}/.java-pkcs12.XXXXXX")"; then
-        echo >&2 "ERROR: failed to create private Java PKCS#12 staging directory in: ${output_dir}"
+    if ! generator_stage="$(mktemp -d "${trust_dir}/.java-pkcs12.XXXXXX")"; then
+        echo >&2 "ERROR: failed to create private Java PKCS#12 staging directory in: ${trust_dir}"
         return 1
     fi
     local staged_trust_store
@@ -189,13 +187,11 @@ stage_java_pkcs12() (
 )
 
 # Stages the conventional container CA-trust layout — a PEM CA bundle and a Java
-# PKCS#12 trust store — under the given directory, using the filenames container.sh
+# PKCS#12 trust store — under <trust-dir>, using the filenames container.sh
 # consumes by default. Composes stage_host_ca_bundle and stage_java_pkcs12; the
 # caller owns the directory and its cleanup.
 #
 # Args: <trust-dir>
-# Produces <trust-dir>/${CA_TRUST_BUNDLE_FILENAME} and
-# <trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}, both mode 0444.
 stage_container_ca_trust() {
     if (( $# != 1 )) || [[ -z "$1" ]]; then
         echo >&2 "ERROR: stage_container_ca_trust requires a trust directory"
@@ -206,8 +202,6 @@ stage_container_ca_trust() {
         echo >&2 "ERROR: failed to create trust directory: ${trust_dir}"
         return 1
     fi
-    local ca_bundle="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
-    local java_trust_store="${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"
-    stage_host_ca_bundle "${ca_bundle}" || return $?
-    stage_java_pkcs12 "${ca_bundle}" "${java_trust_store}" || return $?
+    stage_host_ca_bundle "${trust_dir}" || return $?
+    stage_java_pkcs12 "${trust_dir}" || return $?
 }
