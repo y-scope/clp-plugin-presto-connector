@@ -126,7 +126,10 @@ stage_java_pkcs12() (
         echo >&2 "ERROR: stage_java_pkcs12 target is not a directory: ${trust_dir}"
         return 1
     fi
-    trust_dir="$(cd "${trust_dir}" &>/dev/null && pwd)" || return
+    trust_dir="$(cd "${trust_dir}" &>/dev/null && pwd)" || {
+        echo >&2 "ERROR: stage_java_pkcs12 cannot enter trust directory: $1"
+        return 1
+    }
     local input_bundle="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
     local dest="${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"
     if [[ ! -f "${input_bundle}" || ! -r "${input_bundle}" ]]; then
