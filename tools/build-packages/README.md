@@ -37,9 +37,11 @@ Build state is cached under `.cache/` (`maven/`, `ccache/`,
 `fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),
 shared across build-env revisions. `.cache/build/<hash>/` is the container's
 build output directory and is distinct from the repository's separate top-level
-`build/` directory used by non-container local dev builds. The container
-runs as root, so `.cache/`, `build/`, and `presto-connector/target/` may hold
-root-owned files, while `packages/` is owned by the invoking user.
+`build/` directory used by non-container local dev builds. The local wrapper
+runs the container with the invoking host UID/GID, so it does not create
+root-owned files; any root-owned files in `.cache/`, `build/`, or
+`presto-connector/target/` are leftovers from earlier privileged or CI builds,
+while `packages/` is owned by the invoking user.
 
 ### Prerequisites
 
