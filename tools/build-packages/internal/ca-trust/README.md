@@ -28,13 +28,9 @@ docker run --rm \
     '
 ```
 
-`stage_container_ca_trust` is the one-call entry point. To stage the formats
-separately or under non-default names, call the lower-level functions directly:
-
-```bash
-stage_host_ca_bundle ./ca-bundle.pem
-stage_java_pkcs12 ./ca-bundle.pem ./truststore.p12
-```
+`stage_container_ca_trust` is the one-call entry point. The lower-level
+`stage_host_ca_bundle` / `stage_java_pkcs12` are exposed in the API table below
+for a non-default layout; prefer `stage_container_ca_trust` otherwise.
 
 ## Host API (`host.sh`)
 
