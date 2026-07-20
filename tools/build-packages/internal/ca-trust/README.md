@@ -6,9 +6,10 @@ an image or persisting them in layers, caches, or artifacts.
 
 ## Quick start
 
-On the host, stage the trust stores and bind-mount them into the build
-container; in the container, point `CA_TRUST_DIR` at the mount and source
-`container.sh`.
+On the host, stage the PEM CA bundle. Bind-mount it writable into the build
+container, and in the container set `CA_TRUST_DIR` to that mount point, then
+source `container.sh`. The Java PKCS#12 trust store is generated in-container
+into the same directory, alongside the bundle.
 
 ```bash
 # Host side
@@ -16,36 +17,33 @@ source tools/build-packages/internal/ca-trust/host.sh
 
 CA_TRUST_HOST_DIR="$(mktemp -d)"
 trap 'rm -rf "${CA_TRUST_HOST_DIR}"' EXIT
-stage_host_ca_bundle "${CA_TRUST_HOST_DIR}"      # -> ${CA_TRUST_HOST_DIR}/ca-bundle.pem (0444)
-stage_java_pkcs12 "${CA_TRUST_HOST_DIR}"         # -> ${CA_TRUST_HOST_DIR}/truststore.p12 (0444)
+stage_host_ca_bundle "${CA_TRUST_HOST_DIR}"   # -> ${CA_TRUST_HOST_DIR}/ca-bundle.pem (0444)
 
 docker run --rm \
-    --mount "type=bind,src=${CA_TRUST_HOST_DIR},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
+    --mount "type=bind,src=${CA_TRUST_HOST_DIR},dst=${CA_TRUST_CONTAINER_DIR}" \
     --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}" \
     --env MAVEN_OPTS \
     <image> bash -c '
         source /repo/tools/build-packages/internal/ca-trust/container.sh
-        # ... run the build; curl/git/pip/Maven now use the staged stores
+        # ... run the build; curl/git/pip/Maven now use the host CAs
     '
 ```
 
-Call `stage_host_ca_bundle` for the PEM bundle alone, `stage_java_pkcs12` for
-the Java store, or both when the build consumes each (as above).
+Only the PEM bundle is staged on the host; the Java trust store is generated
+inside the container, which already has a JDK for the build. The generated store
+is written to the same writable bind mount (not the container's writable
+overlay), so it never lands on the overlay and cannot be retained by
+`docker commit`. The caller cleans up the staging directory.
 
 ## Host API (`host.sh`)
 
 | Function | Args | Effect |
 |---|---|---|
 | `stage_host_ca_bundle` | `<trust-dir>` | Writes `<trust-dir>/${CA_TRUST_BUNDLE_FILENAME}` (`0444`). Uses `SSL_CERT_FILE` when set, else searches common Linux CA-bundle locations; creates an empty file if none is found. |
-| `stage_java_pkcs12` | `<trust-dir>` | Writes `<trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}` merging the JDK defaults with the staged bundle, via a temporary pinned-JDK container (`--network none`, host UID/GID). Run `stage_host_ca_bundle` first. Java need not be installed on the host. |
 
-Constants: `CA_TRUST_BUNDLE_FILENAME` (`ca-bundle.pem`),
-`CA_TRUST_JAVA_STORE_FILENAME` (`truststore.p12`), and
-`CA_TRUST_CONTAINER_DIR` (`/run/ca-trust`, the conventional in-container mount
-point to bind the staging directory at and pass as `CA_TRUST_DIR`).
-
-Env override: `CA_TRUST_JAVA_PKCS12_GENERATOR_IMAGE` selects a different
-generator image for `stage_java_pkcs12`.
+Constants: `CA_TRUST_BUNDLE_FILENAME` (`ca-bundle.pem`) and
+`CA_TRUST_CONTAINER_DIR` (`/run/ca-trust`, the in-container mount point for the
+staged trust directory, passed as `CA_TRUST_DIR`).
 
 ## Container API (`container.sh`)
 
@@ -56,21 +54,32 @@ CA_TRUST_DIR=/trusted
 source tools/build-packages/internal/ca-trust/container.sh
 ```
 
-It reads `ca-bundle.pem` from `CA_TRUST_DIR` and `truststore.p12` when present.
-When the PEM bundle is non-empty it exports `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`,
-`PIP_CERT`, `REQUESTS_CA_BUNDLE`, and `SSL_CERT_FILE`. When `truststore.p12` is
-present it configures Java from it, appending `-Djavax.net.ssl.trustStore*` to
-`MAVEN_OPTS` (preserving any caller-supplied value); an empty or unreadable store
-errors. PEM-only staging (no `truststore.p12`) skips Java configuration. A
-no-op when `CA_TRUST_DIR` is unset, so CI builds that don't mount a trust
-directory are unaffected.
+It reads `ca-bundle.pem` from `CA_TRUST_DIR`. When the bundle is non-empty it
+exports `CURL_CA_BUNDLE`, `GIT_SSL_CAINFO`, `PIP_CERT`, `REQUESTS_CA_BUNDLE`,
+and `SSL_CERT_FILE`. When the bundle is non-empty and `keytool` is available it
+also generates a PKCS#12 trust store from the bundle via
+`generators/java-pkcs12/generate.sh`, writes it to `${CA_TRUST_DIR}/truststore.p12`,
+and appends `-Djavax.net.ssl.trustStore*` to `MAVEN_OPTS` (preserving any
+caller-supplied value).
 
-The caller owns and cleans up the staging directory; the scripts never modify
-the host or container trust stores, only the staged snapshot.
+**Persistence contract:** `CA_TRUST_DIR` must be a writable host bind-mount or
+tmpfs, not the container's writable overlay. `container.sh` verifies this with
+`findmnt` and refuses (with an error) to write to the overlay, since a file there
+would be retained by `docker commit`. If `findmnt` is unavailable it warns but
+proceeds. A generation failure errors.
+
+Java configuration is skipped when the bundle is empty or `keytool` is absent
+(PEM-only). A no-op when `CA_TRUST_DIR` is unset, so CI builds that don't mount a
+trust directory are unaffected.
+
+The caller owns and cleans up the staging directory; the scripts never modify the
+host or container trust stores, only the staged bundle. The generated PKCS#12
+store is a per-build file in the caller's staging directory, removed when the
+caller cleans up.
 
 ## Extensibility
 
-Add a backend under `generators/` when a tool needs a trust format that can't
-consume the PEM bundle directly. Keep host discovery and lifecycle in
-`host.sh`; keep format-specific conversion in the backend. See
+Add a backend under `generators/` when a trust format can't consume the PEM
+bundle directly. Keep host discovery and lifecycle in `host.sh`; keep
+format-specific conversion in the backend, run in-container. See
 `generators/java-pkcs12/README.md`.

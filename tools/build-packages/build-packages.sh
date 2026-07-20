@@ -91,12 +91,14 @@ artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
 
-# Stage temporary CA trust stores (host PEM bundle + Java PKCS#12); read-only
-# in the container, cleaned up with stage_dir, never persisted.
+# Stage the host CA bundle (PEM) for a temporary Docker mount, mounted writable
+# so container.sh can write the Java PKCS#12 trust store it generates back into
+# the same directory alongside the bundle. Cleaned up with stage_dir, never
+# persisted. The PKCS#12 store is written to this bind mount (not the
+# container's writable overlay) so docker commit cannot retain it.
 readonly TRUST_STAGE="${stage_dir}/trust"
-echo "==> Staging temporary container trust stores..."
+echo "==> Staging temporary container CA trust bundle..."
 stage_host_ca_bundle "${TRUST_STAGE}"
-stage_java_pkcs12 "${TRUST_STAGE}"
 
 host_uid=$(id -u)
 host_gid=$(id -g)
@@ -107,15 +109,18 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
-# CA_TRUST_DIR points build-artifacts.sh at the read-only trust mount
-# (CA_TRUST_CONTAINER_DIR, from ca-trust/host.sh); MAVEN_OPTS forwards host
-# Maven options, with the Java trust-store props appended by container.sh.
+# CA_TRUST_DIR points build-artifacts.sh at the trust mount
+# (CA_TRUST_CONTAINER_DIR, from ca-trust/host.sh) holding the staged PEM bundle;
+# container.sh generates the PKCS#12 trust store back into it. The mount is
+# writable but off the container's overlay (a host bind mount), so the store is
+# not retained by docker commit. MAVEN_OPTS forwards host Maven options, with the
+# Java trust-store props appended by container.sh.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
-    --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
+    --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \

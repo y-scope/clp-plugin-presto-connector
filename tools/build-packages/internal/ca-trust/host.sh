@@ -7,19 +7,16 @@ if [[ "${_CA_TRUST_HOST_SH_LOADED:-}" == "1" ]]; then
 fi
 readonly _CA_TRUST_HOST_SH_LOADED=1
 
-_CA_TRUST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-readonly _CA_TRUST_DIR
-
-# Conventional staged filenames. These match the defaults in container.sh so a
-# caller that mounts the trust directory and sets CA_TRUST_DIR gets both stores
-# consumed without overriding HOST_CA_BUNDLE / HOST_CA_JAVA_TRUST_STORE.
+# Conventional staged filename for the host CA bundle. container.sh reads it
+# from CA_TRUST_DIR by this name (HOST_CA_BUNDLE) and generates the Java
+# PKCS#12 trust store in-container from it.
 readonly CA_TRUST_BUNDLE_FILENAME="ca-bundle.pem"
-readonly CA_TRUST_JAVA_STORE_FILENAME="truststore.p12"
 
 # In-container mount point for the staged trust directory. Callers bind-mount
-# the staging directory here and pass it as CA_TRUST_DIR so build-artifacts.sh /
-# container.sh consume the staged stores. Kept in host.sh so the path is defined
-# once on the host side rather than hardcoded by each caller.
+# the staging directory here (writable) and pass it as CA_TRUST_DIR so
+# build-artifacts.sh / container.sh consume the staged PEM bundle and write the
+# generated Java PKCS#12 trust store back into it. Kept in host.sh so the path
+# is defined once on the host side rather than hardcoded by each caller.
 readonly CA_TRUST_CONTAINER_DIR="/run/ca-trust"
 
 # Copies <src> to <dest>, dropping any certificate whose validity period has
@@ -146,83 +143,3 @@ stage_host_ca_bundle() {
         return 1
     fi
 }
-
-# Stages a Java PKCS#12 trust store at <trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}
-# containing the selected JDK's default certificates plus those from the bundle
-# at <trust-dir>/${CA_TRUST_BUNDLE_FILENAME}. Run stage_host_ca_bundle first.
-#
-# Args: <trust-dir>
-# The subshell keeps the cleanup trap local to this invocation.
-stage_java_pkcs12() (
-    if (( $# != 1 )) || [[ -z "$1" ]]; then
-        echo >&2 "ERROR: stage_java_pkcs12 requires a trust directory"
-        return 2
-    fi
-
-    local trust_dir="$1"
-    if [[ -L "${trust_dir}" || ( -e "${trust_dir}" && ! -d "${trust_dir}" ) ]]; then
-        echo >&2 "ERROR: stage_java_pkcs12 target is not a directory: ${trust_dir}"
-        return 1
-    fi
-    trust_dir="$(cd "${trust_dir}" &>/dev/null && pwd)" || {
-        echo >&2 "ERROR: stage_java_pkcs12 cannot enter trust directory: $1"
-        return 1
-    }
-    local input_bundle="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
-    local dest="${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"
-    if [[ ! -f "${input_bundle}" || ! -r "${input_bundle}" ]]; then
-        echo >&2 "ERROR: input CA bundle is not a readable regular file: ${input_bundle}"
-        return 1
-    fi
-    if [[ -L "${dest}" || ( -e "${dest}" && ! -f "${dest}" ) ]]; then
-        echo >&2 "ERROR: Java PKCS#12 destination is not a regular file: ${dest}"
-        return 1
-    fi
-    if [[ "${input_bundle}" == "${dest}" ]] \
-            || [[ -e "${dest}" && "${input_bundle}" -ef "${dest}" ]]; then
-        echo >&2 "ERROR: input CA bundle and Java PKCS#12 destination must differ"
-        return 1
-    fi
-
-    local generator_dir
-    generator_dir="$(cd "${_CA_TRUST_DIR}/generators/java-pkcs12" &>/dev/null && pwd)" || return
-    local generator_image="${CA_TRUST_JAVA_PKCS12_GENERATOR_IMAGE:-docker.io/library/eclipse-temurin:17.0.19_10-jdk-jammy@sha256:723151f3fc88ca2060153ee08ab8dbbea7983d6ed6f2622fe440acf178737c94}"
-    local container_assets="/opt/clp-trust-store"
-    local container_input="/run/secrets/host-ca"
-    local container_output_dir="/tmp/clp-java-trust"
-    local container_output="${container_output_dir}/truststore.p12"
-    local generator_stage=""
-    trap '[[ -z "${generator_stage}" ]] || rm -rf "${generator_stage}"' EXIT
-    if ! generator_stage="$(mktemp -d "${trust_dir}/.java-pkcs12.XXXXXX")"; then
-        echo >&2 "ERROR: failed to create private Java PKCS#12 staging directory in: ${trust_dir}"
-        return 1
-    fi
-    local staged_trust_store
-    staged_trust_store="${generator_stage}/truststore.p12"
-    # Use the host identity so bind-mounted output remains owned by the caller.
-    if ! docker run --rm \
-        --network none \
-        --user "$(id -u):$(id -g)" \
-        --entrypoint bash \
-        --mount "type=bind,src=${generator_dir},dst=${container_assets},readonly" \
-        --mount "type=bind,src=${input_bundle},dst=${container_input},readonly" \
-        --mount "type=bind,src=${generator_stage},dst=${container_output_dir}" \
-        "${generator_image}" \
-        "${container_assets}/generate.sh" "${container_input}" "${container_output}"; then
-        echo >&2 "ERROR: failed to generate Java PKCS#12 trust store"
-        return 1
-    fi
-    if [[ ! -s "${staged_trust_store}" ]]; then
-        echo >&2 "ERROR: Java PKCS#12 generator produced no output: ${dest}"
-        return 1
-    fi
-    # Publish only a complete, read-only trust store.
-    if ! chmod 0444 "${staged_trust_store}"; then
-        echo >&2 "ERROR: failed to set Java PKCS#12 permissions: ${dest}"
-        return 1
-    fi
-    if ! mv -f "${staged_trust_store}" "${dest}"; then
-        echo >&2 "ERROR: failed to replace Java PKCS#12 trust store: ${dest}"
-        return 1
-    fi
-)
