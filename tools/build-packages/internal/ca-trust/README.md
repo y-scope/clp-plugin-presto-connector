@@ -14,7 +14,7 @@ container; in the container, point `CA_TRUST_DIR` at the mount and source
 # Host side
 source tools/build-packages/internal/ca-trust/host.sh
 
-readonly TRUST_DIR="$(mktemp -d)"
+TRUST_DIR="$(mktemp -d)"
 trap 'rm -rf "${TRUST_DIR}"' EXIT
 stage_host_ca_bundle "${TRUST_DIR}"      # -> ${TRUST_DIR}/ca-bundle.pem (0444)
 stage_java_pkcs12 "${TRUST_DIR}"         # -> ${TRUST_DIR}/truststore.p12 (0444)
