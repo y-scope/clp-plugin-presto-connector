@@ -97,12 +97,8 @@ prepare_build_cache "${src}/.cache" "${image_hash}"
 # never enter image layers, persistent caches, or generated packages. Staged
 # files are mode 0444 so the non-root container user can read them.
 trust_stage="${stage_dir}/trust"
-ca_bundle="${trust_stage}/ca-bundle.pem"
-java_trust_store="${trust_stage}/truststore.p12"
-mkdir -p "${trust_stage}"
 echo "==> Staging temporary container trust stores..."
-stage_host_ca_bundle "${ca_bundle}"
-stage_java_pkcs12 "${ca_bundle}" "${java_trust_store}"
+stage_container_ca_trust "${trust_stage}"
 
 host_uid=$(id -u)
 host_gid=$(id -g)

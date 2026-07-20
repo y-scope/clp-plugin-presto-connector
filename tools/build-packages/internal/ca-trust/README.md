@@ -16,11 +16,17 @@ The scripts do not modify either the host or container trust store. The staged f
 
 ## Host API
 
-Source `host.sh`, then stage the formats needed by the container:
+Source `host.sh`, then stage the conventional layout for a container build with one call:
 
 ```bash
 source tools/build-packages/internal/ca-trust/host.sh
 
+stage_container_ca_trust ./trust
+```
+
+This creates `./trust/ca-bundle.pem` and `./trust/truststore.p12` (the filenames `container.sh` consumes by default). To stage the formats individually or under different names, call the lower-level functions directly:
+
+```bash
 stage_host_ca_bundle ./trust/ca-bundle.pem
 stage_java_pkcs12 ./trust/ca-bundle.pem ./trust/truststore.p12
 ```

@@ -10,6 +10,12 @@ readonly _CA_TRUST_HOST_SH_LOADED=1
 _CA_TRUST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 readonly _CA_TRUST_DIR
 
+# Conventional staged filenames. These match the defaults in container.sh so a
+# caller that mounts the trust directory and sets CA_TRUST_DIR gets both stores
+# consumed without overriding HOST_CA_BUNDLE / HOST_CA_JAVA_TRUST_STORE.
+readonly CA_TRUST_BUNDLE_FILENAME="ca-bundle.pem"
+readonly CA_TRUST_JAVA_STORE_FILENAME="truststore.p12"
+
 # Stages the host CA bundle for a temporary Docker mount. Creates an empty
 # destination when the host has no CA bundle; returns nonzero only on an error.
 #
@@ -175,3 +181,27 @@ stage_java_pkcs12() (
         return 1
     fi
 )
+
+# Stages the conventional container CA-trust layout — a PEM CA bundle and a Java
+# PKCS#12 trust store — under the given directory, using the filenames container.sh
+# consumes by default. Composes stage_host_ca_bundle and stage_java_pkcs12; the
+# caller owns the directory and its cleanup.
+#
+# Args: <trust-dir>
+# Produces <trust-dir>/${CA_TRUST_BUNDLE_FILENAME} and
+# <trust-dir>/${CA_TRUST_JAVA_STORE_FILENAME}, both mode 0444.
+stage_container_ca_trust() {
+    if (( $# != 1 )) || [[ -z "$1" ]]; then
+        echo >&2 "ERROR: stage_container_ca_trust requires a trust directory"
+        return 2
+    fi
+    local trust_dir="$1"
+    if ! mkdir -p "${trust_dir}"; then
+        echo >&2 "ERROR: failed to create trust directory: ${trust_dir}"
+        return 1
+    fi
+    local ca_bundle="${trust_dir}/${CA_TRUST_BUNDLE_FILENAME}"
+    local java_trust_store="${trust_dir}/${CA_TRUST_JAVA_STORE_FILENAME}"
+    stage_host_ca_bundle "${ca_bundle}" || return $?
+    stage_java_pkcs12 "${ca_bundle}" "${java_trust_store}" || return $?
+}
