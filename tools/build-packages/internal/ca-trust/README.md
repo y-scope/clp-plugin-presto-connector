@@ -14,13 +14,13 @@ container; in the container, point `CA_TRUST_DIR` at the mount and source
 # Host side
 source tools/build-packages/internal/ca-trust/host.sh
 
-TRUST_DIR="$(mktemp -d)"
-trap 'rm -rf "${TRUST_DIR}"' EXIT
-stage_host_ca_bundle "${TRUST_DIR}"      # -> ${TRUST_DIR}/ca-bundle.pem (0444)
-stage_java_pkcs12 "${TRUST_DIR}"         # -> ${TRUST_DIR}/truststore.p12 (0444)
+CA_TRUST_HOST_DIR="$(mktemp -d)"
+trap 'rm -rf "${CA_TRUST_HOST_DIR}"' EXIT
+stage_host_ca_bundle "${CA_TRUST_HOST_DIR}"      # -> ${CA_TRUST_HOST_DIR}/ca-bundle.pem (0444)
+stage_java_pkcs12 "${CA_TRUST_HOST_DIR}"         # -> ${CA_TRUST_HOST_DIR}/truststore.p12 (0444)
 
 docker run --rm \
-    --mount "type=bind,src=${TRUST_DIR},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
+    --mount "type=bind,src=${CA_TRUST_HOST_DIR},dst=${CA_TRUST_CONTAINER_DIR},readonly" \
     --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}" \
     --env MAVEN_OPTS \
     <image> bash -c '
