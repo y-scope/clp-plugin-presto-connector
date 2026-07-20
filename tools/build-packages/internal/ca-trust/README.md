@@ -69,7 +69,7 @@ the host or container trust stores, only the staged snapshot.
 
 ## Extensibility
 
-Add a backend under `generators/` when a tool needs a trust format the PEM
-bundle can't be consumed directly. Keep host discovery and lifecycle in
+Add a backend under `generators/` when a tool needs a trust format that can't
+consume the PEM bundle directly. Keep host discovery and lifecycle in
 `host.sh`; keep format-specific conversion in the backend. See
 `generators/java-pkcs12/README.md`.
