@@ -12,6 +12,8 @@ set -o pipefail
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
 # shellcheck source=tools/build-packages/internal/build-cache/host.sh
 source "${src}/tools/build-packages/internal/build-cache/host.sh"
+# shellcheck source=tools/build-packages/internal/ca-trust/host.sh
+source "${src}/tools/build-packages/internal/ca-trust/host.sh"
 
 show_help() {
     cat <<'EOF'
@@ -88,6 +90,20 @@ trap 'rm -rf "${stage_dir}"' EXIT
 artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
+
+# Stage temporary CA trust stores for the container build: the host PEM CA
+# bundle and a Java PKCS#12 trust store merging the JDK defaults with it. Both
+# are mounted read-only into the container and cleaned up with stage_dir; they
+# never enter image layers, persistent caches, or generated packages. Staged
+# files are mode 0444 so the non-root container user can read them.
+trust_stage="${stage_dir}/trust"
+ca_bundle="${trust_stage}/ca-bundle.pem"
+java_trust_store="${trust_stage}/truststore.p12"
+mkdir -p "${trust_stage}"
+echo "==> Staging temporary container trust stores..."
+stage_host_ca_bundle "${ca_bundle}"
+stage_java_pkcs12 "${ca_bundle}" "${java_trust_store}"
+
 host_uid=$(id -u)
 host_gid=$(id -g)
 
@@ -97,16 +113,22 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
+# The trust stage is mounted read-only at /run/ca-trust and CA_TRUST_DIR tells
+# build-artifacts.sh to configure PEM env vars and the Java trust store; MAVEN_OPTS
+# is forwarded so ca-trust/container.sh can append the Java trust-store properties.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
+    --mount "type=bind,src=${trust_stage},dst=/run/ca-trust,readonly" \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
+    --env "CA_TRUST_DIR=/run/ca-trust" \
+    --env MAVEN_OPTS \
     -w /repo \
     "${image}" \
     bash /repo/tools/build-packages/internal/container/build-artifacts.sh \
