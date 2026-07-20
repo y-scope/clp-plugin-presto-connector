@@ -22,6 +22,44 @@ readonly CA_TRUST_JAVA_STORE_FILENAME="truststore.p12"
 # once on the host side rather than hardcoded by each caller.
 readonly CA_TRUST_CONTAINER_DIR="/run/ca-trust"
 
+# Copies <src> to <dest>, dropping any certificate whose validity period has
+# already ended. A stale corporate CA bundle otherwise gets propagated
+# verbatim into CURL_CA_BUNDLE, where OpenSSL (unlike macOS's SecureTransport)
+# treats the file as the exclusive trust store: one expired cert anywhere in
+# it is enough to break TLS verification for any download whose chain happens
+# to rely on it, even though the destination server's own certificate is
+# fine. Falls back to a plain copy if openssl isn't on the host, so this never
+# becomes a new hard dependency.
+#
+# Args: <src> <dest>
+_stage_ca_bundle_without_expired_certs() {
+    local src="$1" dest="$2"
+    if ! command -v openssl &>/dev/null; then
+        cp "${src}" "${dest}"
+        return
+    fi
+
+    local total=0 dropped=0
+    local cert="" line
+    : > "${dest}"
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        cert+="${line}"$'\n'
+        if [[ "${line}" == "-----END CERTIFICATE-----" ]]; then
+            total=$((total + 1))
+            if printf '%s' "${cert}" | openssl x509 -noout -checkend 0 &>/dev/null; then
+                printf '%s' "${cert}" >> "${dest}"
+            else
+                dropped=$((dropped + 1))
+            fi
+            cert=""
+        fi
+    done < "${src}"
+
+    if (( dropped > 0 )); then
+        echo >&2 "==> Dropped ${dropped}/${total} expired certificate(s) from host CA bundle"
+    fi
+}
+
 # Stages the host CA bundle at <trust-dir>/${CA_TRUST_BUNDLE_FILENAME} for a
 # temporary Docker mount. Creates an empty file when the host has no CA bundle;
 # returns nonzero only on an error.
@@ -87,7 +125,7 @@ stage_host_ca_bundle() {
     fi
     if [[ -n "${source_path}" ]]; then
         echo >&2 "==> Staging host CA bundle: ${source_path} -> ${dest}"
-        if ! cp "${source_path}" "${staged_bundle}"; then
+        if ! _stage_ca_bundle_without_expired_certs "${source_path}" "${staged_bundle}"; then
             rm -f "${staged_bundle}"
             echo >&2 "ERROR: failed to stage host CA bundle: ${source_path}"
             return 1
