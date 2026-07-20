@@ -33,8 +33,11 @@ The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 cache, this repository's GHCR package, or a local build, reusing the cached
 image on later runs.
 
-Build state is cached under `.cache/` (`maven/`, `ccache/`, and
-`fetchcontent/<hash>/`), shared across build-env revisions. The container
+Build state is cached under `.cache/` (`maven/`, `ccache/`,
+`fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),
+shared across build-env revisions. `.cache/build/<hash>/` is the container's
+build output directory and is distinct from the repository's separate top-level
+`build/` directory used by non-container local dev builds. The container
 runs as root, so `.cache/`, `build/`, and `presto-connector/target/` may hold
 root-owned files, while `packages/` is owned by the invoking user.
 
