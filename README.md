@@ -2,6 +2,7 @@
 
 ## Requirements
 
+* JDK 17
 * [Task] >= 3.49.1
 
 ## Adding files
