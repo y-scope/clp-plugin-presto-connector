@@ -17,7 +17,7 @@ source tools/build-packages/internal/ca-trust/host.sh
 
 CA_TRUST_HOST_DIR="$(mktemp -d)"
 trap 'rm -rf "${CA_TRUST_HOST_DIR}"' EXIT
-stage_host_ca_bundle "${CA_TRUST_HOST_DIR}"   # -> ${CA_TRUST_HOST_DIR}/ca-bundle.pem (0444)
+stage_host_ca_bundle "${CA_TRUST_HOST_DIR}"  # creates ${CA_TRUST_HOST_DIR}/ca-bundle.pem, read-only
 
 docker run --rm \
     --mount "type=bind,src=${CA_TRUST_HOST_DIR},dst=${CA_TRUST_CONTAINER_DIR}" \
