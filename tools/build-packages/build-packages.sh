@@ -114,6 +114,7 @@ if (( with_ca_certs )); then
     trust_mount_args=(
         --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}"
         --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}"
+        --env "CA_TRUST_JVM=1"
     )
 fi
 

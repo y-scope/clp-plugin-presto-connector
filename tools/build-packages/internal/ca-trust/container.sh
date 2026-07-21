@@ -2,10 +2,12 @@
 
 # Container-side configuration for CA trust. Source it after setting
 # CA_TRUST_DIR to a writable mount of the staged trust directory, which must
-# contain ca-bundle.pem. The Java PKCS#12 trust store is generated here, inside
-# the container, from the PEM bundle using the container's own JDK (keytool) --
-# no separate generator container or host JDK is required -- and written back to
-# CA_TRUST_DIR alongside the bundle.
+# contain ca-bundle.pem. Set CA_TRUST_JVM=1 as well if the build runs on a JVM
+# (Maven, Gradle, ...) that needs its trust store configured: a Java PKCS#12
+# trust store is then generated here, inside the container, from the PEM
+# bundle using the container's own JDK (keytool) -- no separate generator
+# container or host JDK is required -- and written back to CA_TRUST_DIR
+# alongside the bundle.
 #
 # Persistence contract: CA_TRUST_DIR must be a writable host bind-mount (or
 # tmpfs), not the container's writable overlay. A file on the overlay is retained
@@ -27,12 +29,11 @@ if [[ -s "${HOST_CA_BUNDLE:-}" ]]; then
 fi
 
 # Generate a Java PKCS#12 trust store in-container from the staged PEM bundle and
-# point Maven at it. The store is written to CA_TRUST_DIR, which the caller must
-# mount writable and off the container's writable overlay (which `docker commit`
-# would retain). Skipped when the bundle is empty or keytool is unavailable, so
-# CI builds without a trust directory and PEM-only staging (empty bundle) are
-# unaffected.
-if [[ -s "${HOST_CA_BUNDLE:-}" ]] && command -v keytool &>/dev/null; then
+# point Maven at it. Opt-in via CA_TRUST_JVM=1, since not every caller of this
+# library runs on a JVM. Also skipped when the bundle is empty or keytool is
+# unavailable, so CI builds without a trust directory and PEM-only staging
+# (empty bundle) are unaffected.
+if [[ -n "${CA_TRUST_JVM:-}" ]] && [[ -s "${HOST_CA_BUNDLE:-}" ]] && command -v keytool &>/dev/null; then
     if ! mkdir -p "${CA_TRUST_DIR}"; then
         echo >&2 "ERROR: cannot create Java trust store dir: ${CA_TRUST_DIR}"
         return 1 2>/dev/null || exit 1
