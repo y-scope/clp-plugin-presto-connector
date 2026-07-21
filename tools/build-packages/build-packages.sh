@@ -23,11 +23,16 @@ User-facing entry point for packaging. Resolves the build-env image, then runs
 internal/container/build-artifacts.sh inside it.
 
 Options are forwarded to internal/container/build-artifacts.sh:
-  --output DIR   Output directory for built packages (default: ./packages)
-  --version VER  Override package version
-                 (default: derived from presto-connector/pom.xml)
-                 VER must start with a digit and use [0-9A-Za-z.+~-]
-  --help         Show this help
+  --output DIR      Output directory for built packages (default: ./packages)
+  --version VER     Override package version
+                     (default: derived from presto-connector/pom.xml)
+                     VER must start with a digit and use [0-9A-Za-z.+~-]
+  --with-ca-certs   Propagate the host's CA trust (PEM bundle + a generated
+                     Java PKCS#12 trust store) into the build container, for
+                     builds behind a corporate TLS gateway. Uses SSL_CERT_FILE
+                     when set, else searches common Linux CA-bundle locations.
+                     Off by default.
+  --help            Show this help
 
 See tools/build-packages/README.md for details.
 EOF
@@ -36,6 +41,7 @@ EOF
 # Resolve the output directory on the host before copying completed artifacts
 # into it. Other arguments are forwarded unchanged to build-artifacts.sh.
 output_dir="${src}/packages"
+with_ca_certs=0
 build_args=()
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -43,6 +49,10 @@ while [[ $# -gt 0 ]]; do
             [[ -n "${2:-}" ]] || { echo >&2 "ERROR: --output requires a value"; exit 1; }
             output_dir="$2"
             shift 2
+            ;;
+        --with-ca-certs)
+            with_ca_certs=1
+            shift
             ;;
         --help)
             show_help
@@ -91,14 +101,24 @@ artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
 
-# Stage the host CA bundle (PEM) for a temporary Docker mount, mounted writable
-# so container.sh can write the Java PKCS#12 trust store it generates back into
-# the same directory alongside the bundle. Cleaned up with stage_dir, never
-# persisted. The PKCS#12 store is written to this bind mount (not the
-# container's writable overlay) so docker commit cannot retain it.
-readonly TRUST_STAGE="${stage_dir}/trust"
-echo "==> Staging temporary container CA trust bundle..."
-stage_host_ca_bundle "${TRUST_STAGE}"
+# Only stage and mount the host CA trust bundle when --with-ca-certs is
+# passed: most builds aren't behind a corporate TLS gateway, and this keeps
+# the container's Maven/curl/git/pip trust untouched by default. When staged,
+# it's mounted writable so container.sh can write the Java PKCS#12 trust store
+# it generates back into the same directory alongside the bundle. Cleaned up
+# with stage_dir, never persisted. The PKCS#12 store is written to this bind
+# mount (not the container's writable overlay) so docker commit cannot retain
+# it.
+trust_mount_args=()
+if (( with_ca_certs )); then
+    readonly TRUST_STAGE="${stage_dir}/trust"
+    echo "==> Staging temporary container CA trust bundle..."
+    stage_host_ca_bundle "${TRUST_STAGE}"
+    trust_mount_args=(
+        --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}"
+        --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}"
+    )
+fi
 
 host_uid=$(id -u)
 host_gid=$(id -g)
@@ -109,24 +129,24 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
-# CA_TRUST_DIR points build-artifacts.sh at the trust mount
-# (CA_TRUST_CONTAINER_DIR, from ca-trust/host.sh) holding the staged PEM bundle;
-# container.sh generates the PKCS#12 trust store back into it. The mount is
-# writable but off the container's overlay (a host bind mount), so the store is
-# not retained by docker commit. MAVEN_OPTS forwards host Maven options, with the
-# Java trust-store props appended by container.sh.
+# trust_mount_args (populated above only when --with-ca-certs is passed) mounts
+# the staged PEM bundle at CA_TRUST_DIR (CA_TRUST_CONTAINER_DIR, from
+# ca-trust/host.sh) and points build-artifacts.sh at it; container.sh generates
+# the PKCS#12 trust store back into it. The mount is writable but off the
+# container's overlay (a host bind mount), so the store is not retained by
+# docker commit. MAVEN_OPTS forwards host Maven options, with the Java
+# trust-store props appended by container.sh when trust is staged.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
-    --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}" \
+    ${trust_mount_args[@]+"${trust_mount_args[@]}"} \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
-    --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}" \
     --env MAVEN_OPTS \
     -w /repo \
     "${image}" \
