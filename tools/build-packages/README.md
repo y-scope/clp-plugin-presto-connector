@@ -1,7 +1,8 @@
 # CLP Presto connector packaging
 
-This directory builds installable `.deb`, `.rpm`, and `.tar.gz` artifacts for the CLP
-Presto connector (coordinator + worker) on `amd64` and `arm64`.
+This directory builds installable `.deb`, `.rpm`, and `.tar.gz` artifacts, plus a busybox
+init-container installer image, for the CLP Presto connector (coordinator + worker) on
+`amd64` and `arm64`.
 
 CI packaging runs `tools/build-packages/internal/container/build-artifacts.sh`
 through `.github/workflows/build-packages.yaml`. Local builds use
@@ -56,6 +57,17 @@ task package
 ```
 
 A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). Both accept `--output DIR`, `--version VER`, and `--with-ca-certs`; with the task, put `--` before the flags: `task package -- --output DIR`.
+
+### Installer image
+
+`task package` also builds and loads a busybox init-container image that bundles both plugins. Its entrypoint copies each component into a mounted volume named by `COORDINATOR_PLUGIN_INSTALL_PATH` / `WORKER_PLUGIN_INSTALL_PATH` (set either or both):
+
+```bash
+docker run --rm -e WORKER_PLUGIN_INSTALL_PATH=/plugins -v "$(pwd)/plugins:/plugins" \
+  ghcr.io/y-scope/clp-plugin-presto-connector:<version>-<arch>
+```
+
+Run `build-installer-init-image.sh --help` to build it standalone from any package tarball.
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker

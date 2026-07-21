@@ -160,3 +160,16 @@ if ! compgen -G "${artifact_stage}/*" > /dev/null; then
     exit 1
 fi
 cp -f "${artifact_stage}"/* "${output_dir}/"
+
+# Build the busybox installer image as a fourth distribution channel, from the tarball this
+# run just produced. Source from artifact_stage (this run's fresh staging) rather than
+# output_dir, which may hold tarballs from earlier or other-arch builds.
+echo "==> Building busybox installer image..."
+shopt -s nullglob
+tarballs=("${artifact_stage}"/*.tar.gz)
+shopt -u nullglob
+if (( ${#tarballs[@]} != 1 )); then
+    echo >&2 "ERROR: expected exactly one .tar.gz in staging, found ${#tarballs[@]}"
+    exit 1
+fi
+"${src}/tools/build-packages/build-installer-init-image.sh" --tarball "${tarballs[0]}" --load
