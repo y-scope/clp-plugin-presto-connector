@@ -29,8 +29,8 @@ Only the PEM bundle is staged on the host; the Java trust store is generated ins
 
 ## Host API (`host.sh`)
 
-| Function | Args | Effect |
-|---|---|---|
+| Function               | Args          | Effect                                                                                                                                                                            |
+|------------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `stage_host_ca_bundle` | `<trust-dir>` | Writes `<trust-dir>/${CA_TRUST_BUNDLE_FILENAME}` (`0444`). Uses `SSL_CERT_FILE` when set, else searches common Linux CA-bundle locations; creates an empty file if none is found. |
 
 Constants: `CA_TRUST_BUNDLE_FILENAME` (`ca-bundle.pem`) and `CA_TRUST_CONTAINER_DIR` (`/run/ca-trust`, the in-container mount point for the staged trust directory, passed as `CA_TRUST_DIR`).
