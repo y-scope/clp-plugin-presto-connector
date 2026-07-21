@@ -1,0 +1,11 @@
+version: "3"
+
+tasks:
+  clean:
+    cmd: "./mvnw clean"
+
+  build:
+    cmd: "./mvnw package -DskipTests"
+
+  test:
+    cmd: "./mvnw test"
