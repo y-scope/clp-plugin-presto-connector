@@ -71,4 +71,9 @@ if [[ -s "${HOST_CA_BUNDLE:-}" ]] && command -v keytool &>/dev/null; then
     unset _host_ca_maven_opts _ca_trust_mount_target
 fi
 
+    _host_ca_maven_opts="${_host_ca_maven_opts} -Djavax.net.ssl.trustStorePassword=changeit"
+    export MAVEN_OPTS="${_host_ca_maven_opts}"
+    unset _host_ca_maven_opts _ca_trust_mount_target
+fi
+
 unset _ca_trust_dir
