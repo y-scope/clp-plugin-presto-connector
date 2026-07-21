@@ -23,10 +23,7 @@ Default outputs are written to `./packages`.
 task package
 ```
 
-A thin wrapper over `./tools/build-packages/build-packages.sh` (call that
-directly if `go-task` isn't installed). Both accept `--output DIR` and
-`--version VER`; with the task, put `--` before the flags:
-`task package -- --output DIR`.
+A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). Both accept `--output DIR`, `--version VER`, and `--with-ca-certs`; with the task, put `--` before the flags: `task package -- --output DIR`.
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker

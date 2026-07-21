@@ -12,6 +12,8 @@ set -o pipefail
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
 # shellcheck source=tools/build-packages/internal/build-cache/host.sh
 source "${src}/tools/build-packages/internal/build-cache/host.sh"
+# shellcheck source=tools/build-packages/internal/ca-trust/host.sh
+source "${src}/tools/build-packages/internal/ca-trust/host.sh"
 
 show_help() {
     cat <<'EOF'
@@ -21,11 +23,16 @@ User-facing entry point for packaging. Resolves the build-env image, then runs
 internal/container/build-artifacts.sh inside it.
 
 Options are forwarded to internal/container/build-artifacts.sh:
-  --output DIR   Output directory for built packages (default: ./packages)
-  --version VER  Override package version
-                 (default: derived from presto-connector/pom.xml)
-                 VER must start with a digit and use [0-9A-Za-z.+~-]
-  --help         Show this help
+  --output DIR      Output directory for built packages (default: ./packages)
+  --version VER     Override package version
+                     (default: derived from presto-connector/pom.xml)
+                     VER must start with a digit and use [0-9A-Za-z.+~-]
+  --with-ca-certs   Propagate the host's CA trust (PEM bundle + a generated
+                     Java PKCS#12 trust store) into the build container, for
+                     builds behind a corporate TLS gateway. Uses SSL_CERT_FILE
+                     when set, else searches common Linux CA-bundle locations.
+                     Off by default.
+  --help            Show this help
 
 See tools/build-packages/README.md for details.
 EOF
@@ -34,6 +41,7 @@ EOF
 # Resolve the output directory on the host before copying completed artifacts
 # into it. Other arguments are forwarded unchanged to build-artifacts.sh.
 output_dir="${src}/packages"
+with_ca_certs=0
 build_args=()
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,6 +49,10 @@ while [[ $# -gt 0 ]]; do
             [[ -n "${2:-}" ]] || { echo >&2 "ERROR: --output requires a value"; exit 1; }
             output_dir="$2"
             shift 2
+            ;;
+        --with-ca-certs)
+            with_ca_certs=1
+            shift
             ;;
         --help)
             show_help
@@ -88,6 +100,30 @@ trap 'rm -rf "${stage_dir}"' EXIT
 artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
+
+# Stage and mount the host CA bundle only when --with-ca-certs is passed (most
+# builds aren't behind a corporate TLS gateway). Mounted writable so
+# container.sh can write the generated Java PKCS#12 trust store back into the
+# same directory; cleaned up with stage_dir, never persisted or retained by
+# docker commit.
+trust_mount_args=()
+if (( with_ca_certs )); then
+    readonly TRUST_STAGE="${stage_dir}/trust"
+    echo "==> Staging temporary container CA trust bundle..."
+    stage_host_ca_bundle "${TRUST_STAGE}"
+    if [[ ! -f "${TRUST_STAGE}/ca-bundle.pem" \
+            || ! -r "${TRUST_STAGE}/ca-bundle.pem" \
+            || ! -s "${TRUST_STAGE}/ca-bundle.pem" ]]; then
+        echo >&2 "ERROR: --with-ca-certs did not produce a usable host CA bundle"
+        exit 1
+    fi
+    trust_mount_args=(
+        --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}"
+        --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}"
+        --env "CA_TRUST_JVM=1"
+    )
+fi
+
 host_uid=$(id -u)
 host_gid=$(id -g)
 
@@ -97,16 +133,20 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
+# trust_mount_args (built above) adds the CA trust mount and CA_TRUST_DIR env
+# var when --with-ca-certs was passed.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
     --mount "type=bind,src=${src},dst=/repo" \
     --mount "type=bind,src=${artifact_stage},dst=/output" \
+    ${trust_mount_args[@]+"${trust_mount_args[@]}"} \
     --env "BUILD_CACHE_KEY=${image_hash}" \
     --env "BUILD_CACHE_DIR=/repo/.cache" \
     --env "CLP_PLUGIN_BUILD_DIR=/repo/.cache/build/${image_hash}" \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
+    --env MAVEN_OPTS \
     -w /repo \
     "${image}" \
     bash /repo/tools/build-packages/internal/container/build-artifacts.sh \

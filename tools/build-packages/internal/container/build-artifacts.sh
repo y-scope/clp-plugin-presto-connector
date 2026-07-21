@@ -26,6 +26,16 @@ if [[ -n "${BUILD_CACHE_DIR:-}" ]]; then
     source "${src}/tools/build-packages/internal/build-cache/container.sh"
 fi
 
+# Local builds with --with-ca-certs pass CA_TRUST_DIR (a writable mount of the
+# staged host CA bundle; the Java PKCS#12 trust store is generated alongside
+# it). container.sh exports PEM env vars (CURL_CA_BUNDLE, SSL_CERT_FILE, ...)
+# and appends Java trust-store properties to MAVEN_OPTS so Maven downloads
+# through corporate TLS gateways. CI invokes this script directly without
+# CA_TRUST_DIR, so this is local-only. Sourced before MAVEN_OPTS is read below.
+if [[ -n "${CA_TRUST_DIR:-}" ]]; then
+    source "${src}/tools/build-packages/internal/ca-trust/container.sh"
+fi
+
 # Destination paths used by .deb and .rpm. Environment overrides support a
 # non-default install layout; the tarball remains relocatable.
 readonly PLUGIN_ROOT="${PLUGIN_ROOT:-/opt/clp-plugin-presto-connector}"
