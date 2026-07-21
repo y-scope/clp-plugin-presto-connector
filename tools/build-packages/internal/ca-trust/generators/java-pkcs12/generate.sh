@@ -96,13 +96,20 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
         if ! "${keytool}" -importcert -noprompt \
                 -alias "host-ca-${count}" -file "${cert_file}" \
                 -keystore "${output_trust_store}" -storetype PKCS12 -storepass "${STOREPASS}" \
-                >/dev/null 2>&1; then
-            echo >&2 "WARNING: failed to import certificate #${count} from bundle; skipping"
+                >/dev/null 2>"${work_dir}/import-cert.err"; then
+            echo >&2 "ERROR: failed to import certificate #${count} from bundle:"
+            cat >&2 "${work_dir}/import-cert.err"
+            exit 1
         fi
         count=$((count + 1))
         cert_buf=""
     fi
 done < "${input_bundle}"
+
+if (( count == 0 )); then
+    echo >&2 "ERROR: input bundle contains no complete PEM certificates: ${input_bundle}"
+    exit 1
+fi
 
 if [[ ! -s "${output_trust_store}" ]]; then
     echo >&2 "ERROR: generated trust store is empty: ${output_trust_store}"

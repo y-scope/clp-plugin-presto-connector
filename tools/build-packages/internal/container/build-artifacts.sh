@@ -26,12 +26,12 @@ if [[ -n "${BUILD_CACHE_DIR:-}" ]]; then
     source "${src}/tools/build-packages/internal/build-cache/container.sh"
 fi
 
-# Local builds also pass CA_TRUST_DIR (the read-only mount of the staged host
-# CA bundle and Java PKCS#12 trust store). container.sh exports PEM env vars
-# (CURL_CA_BUNDLE, SSL_CERT_FILE, ...) and appends Java trust-store properties
-# to MAVEN_OPTS so Maven downloads through corporate TLS gateways. CI invokes
-# this script directly without CA_TRUST_DIR, so this is local-only. Sourced
-# before MAVEN_OPTS is read below.
+# Local builds with --with-ca-certs pass CA_TRUST_DIR (a writable mount of the
+# staged host CA bundle; the Java PKCS#12 trust store is generated alongside
+# it). container.sh exports PEM env vars (CURL_CA_BUNDLE, SSL_CERT_FILE, ...)
+# and appends Java trust-store properties to MAVEN_OPTS so Maven downloads
+# through corporate TLS gateways. CI invokes this script directly without
+# CA_TRUST_DIR, so this is local-only. Sourced before MAVEN_OPTS is read below.
 if [[ -n "${CA_TRUST_DIR:-}" ]]; then
     source "${src}/tools/build-packages/internal/ca-trust/container.sh"
 fi

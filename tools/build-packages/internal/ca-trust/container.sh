@@ -14,11 +14,12 @@
 # by `docker commit`; a bind mount is not part of any committed image. This
 # script refuses to write to the overlay.
 
-_ca_trust_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-
-if [[ -n "${CA_TRUST_DIR:-}" ]]; then
-    HOST_CA_BUNDLE="${CA_TRUST_DIR}/ca-bundle.pem"
+if [[ -z "${CA_TRUST_DIR:-}" ]]; then
+    return 0 2>/dev/null || exit 0
 fi
+
+_ca_trust_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+HOST_CA_BUNDLE="${CA_TRUST_DIR}/ca-bundle.pem"
 
 if [[ -s "${HOST_CA_BUNDLE:-}" ]]; then
     export CURL_CA_BUNDLE="${HOST_CA_BUNDLE}"

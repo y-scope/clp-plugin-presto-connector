@@ -111,6 +111,12 @@ if (( with_ca_certs )); then
     readonly TRUST_STAGE="${stage_dir}/trust"
     echo "==> Staging temporary container CA trust bundle..."
     stage_host_ca_bundle "${TRUST_STAGE}"
+    if [[ ! -f "${TRUST_STAGE}/ca-bundle.pem" \
+            || ! -r "${TRUST_STAGE}/ca-bundle.pem" \
+            || ! -s "${TRUST_STAGE}/ca-bundle.pem" ]]; then
+        echo >&2 "ERROR: --with-ca-certs did not produce a usable host CA bundle"
+        exit 1
+    fi
     trust_mount_args=(
         --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}"
         --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}"
