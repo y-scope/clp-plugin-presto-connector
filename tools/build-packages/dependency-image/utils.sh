@@ -19,6 +19,24 @@ image_ref() {
     echo "$1/$2:env-$3"
 }
 
+# Derives this repo's GHCR namespace from its GitHub origin remote.
+image_repo_from_origin() {
+    local remote_url owner_repo
+    remote_url="$(git -C "${_REPO_ROOT}" remote get-url origin)"
+    case "${remote_url}" in
+        https://github.com/*) owner_repo="${remote_url#https://github.com/}" ;;
+        git@github.com:*) owner_repo="${remote_url#git@github.com:}" ;;
+        ssh://git@github.com/*) owner_repo="${remote_url#ssh://git@github.com/}" ;;
+        *)
+            echo >&2 "ERROR: can't derive GHCR image repo from origin remote: ${remote_url}"
+            echo >&2 "       Expected a github.com remote."
+            exit 1
+            ;;
+    esac
+    owner_repo="${owner_repo%.git}"
+    printf 'ghcr.io/%s\n' "$(printf '%s' "${owner_repo}" | tr '[:upper:]' '[:lower:]')"
+}
+
 # Inputs that should change the build-env image tag.
 _BUILD_ENV_HASH_INPUTS=(
     ".dockerignore"
