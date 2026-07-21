@@ -101,14 +101,11 @@ artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
 prepare_build_cache "${src}/.cache" "${image_hash}"
 
-# Only stage and mount the host CA trust bundle when --with-ca-certs is
-# passed: most builds aren't behind a corporate TLS gateway, and this keeps
-# the container's Maven/curl/git/pip trust untouched by default. When staged,
-# it's mounted writable so container.sh can write the Java PKCS#12 trust store
-# it generates back into the same directory alongside the bundle. Cleaned up
-# with stage_dir, never persisted. The PKCS#12 store is written to this bind
-# mount (not the container's writable overlay) so docker commit cannot retain
-# it.
+# Stage and mount the host CA bundle only when --with-ca-certs is passed (most
+# builds aren't behind a corporate TLS gateway). Mounted writable so
+# container.sh can write the generated Java PKCS#12 trust store back into the
+# same directory; cleaned up with stage_dir, never persisted or retained by
+# docker commit.
 trust_mount_args=()
 if (( with_ca_certs )); then
     readonly TRUST_STAGE="${stage_dir}/trust"
@@ -129,13 +126,8 @@ host_gid=$(id -g)
 # TASK_TEMP_DIR at disposable in-container scratch (the non-root user can't
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
-# trust_mount_args (populated above only when --with-ca-certs is passed) mounts
-# the staged PEM bundle at CA_TRUST_DIR (CA_TRUST_CONTAINER_DIR, from
-# ca-trust/host.sh) and points build-artifacts.sh at it; container.sh generates
-# the PKCS#12 trust store back into it. The mount is writable but off the
-# container's overlay (a host bind mount), so the store is not retained by
-# docker commit. MAVEN_OPTS forwards host Maven options, with the Java
-# trust-store props appended by container.sh when trust is staged.
+# trust_mount_args (built above) adds the CA trust mount and CA_TRUST_DIR env
+# var when --with-ca-certs was passed.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
