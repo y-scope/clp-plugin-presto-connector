@@ -2,25 +2,18 @@
 
 # Ensures the Presto Maven artifacts the connector builds against exist: clones Presto at
 # G_PRESTO_GIT_TAG (taskfiles/velox-connector/deps.yaml) and `mvn install`s the modules
-# the connector consumes, plus their reactor dependencies, into the local Maven
-# repository. presto.version in presto-connector/pom.xml must be that commit's own
-# version (this script dies on a mismatch) since its artifacts are published nowhere.
+# the connector consumes into the local Maven repository. presto.version in
+# presto-connector/pom.xml must be that commit's own version (this script dies on a
+# mismatch). Official releases (a purely numeric presto.version from the upstream Presto
+# repository) are on Maven Central, so this script exits without building anything.
 #
-# Official releases (a purely numeric presto.version from the upstream Presto repository)
-# are published to Maven Central, so this script exits without building anything.
+# Installs only the `provided`-scope modules by default (cheap: presto-common/presto-spi);
+# --with-test-deps adds the `test`-scope closure (expensive: most of Presto's reactor).
+# Builds that skip tests with -Dmaven.test.skip=true never need it.
 #
-# By default, only installs the `provided`-scope modules needed to compile presto-connector's
-# main sources (cheap: presto-common/presto-spi pull in a small reactor closure). Pass
-# --with-test-deps to also install the `test`-scope modules needed for its DistributedQueryRunner
-# integration tests (expensive: presto-tests/presto-main-base's own dependencies pull in most of
-# Presto's built-in connectors/plugins). Packaging/release builds should omit --with-test-deps and
-# build presto-connector with -Dmaven.test.skip=true, since they never compile test sources.
-#
-# A stamp file under the build directory records the installed commit, and the artifacts
-# the connector resolves must still exist in the effective local Maven repository, so
-# re-runs are no-ops until the pin moves or the repository is purged or replaced; --force
-# rebuilds regardless (e.g. after another Presto checkout's `mvn install` shadowed these
-# artifacts in the mutable local repository).
+# A stamp file plus an artifact-presence check make re-runs no-ops until the pin moves,
+# the repository is purged or replaced, or --with-test-deps asks for modules not yet
+# installed; --force rebuilds regardless.
 #
 # Respects CLP_PLUGIN_BUILD_DIR (default: <repo>/build) and MAVEN_OPTS. Requires: bash,
 # sed, git, curl (Maven wrapper + dependency downloads), a JDK.
