@@ -1,7 +1,7 @@
-# Validates that presto-connector/pom.xml dependency pins stay in sync with the Presto
-# commit this project is built against (G_PRESTO_GIT_TAG in taskfiles/velox-connector/deps.yaml).
-# See tools/presto-deps/validate-presto-dep-sync.py for what is checked; it fails with a
-# suggested value and never edits the pom.
+# Validates that this repository's dependency pins stay in sync with the Presto commit it
+# is built against (G_PRESTO_GIT_TAG in taskfiles/velox-connector/deps.yaml). See
+# tools/presto-deps/validate-presto-dep-sync.py for what is checked; it fails with a
+# suggested value and never edits anything.
 
 name: "validate-deps"
 

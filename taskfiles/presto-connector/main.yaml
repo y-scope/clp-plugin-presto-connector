@@ -27,6 +27,6 @@ tasks:
     cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh' --with-test-deps"
 
   validate-dep-sync:
-    desc: "Check that pom.xml dependency pins match what the pinned Presto commit ships."
+    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
     run: "once"
     cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"
