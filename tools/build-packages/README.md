@@ -17,6 +17,38 @@ Default outputs are written to `./packages`.
 `coordinator/` contains `clp-plugin-presto-connector.jar`; `worker/` contains
 `libclp-plugin-velox-connector.so` and bundled non-system runtime `.so` files.
 
+## Layout
+
+* `build-dependency-image.sh` — Resolves and prints the build-env image
+  reference; also usable standalone for one-off container runs.
+* `build-packages.sh` — Local entry point: resolves the build-env image,
+  prepares the build cache and CA trust, and runs the container-side build.
+* `dependency-image/` — Build-env image definition: the `Dockerfile`,
+  `utils.sh` (image-tag hash derivation and Docker build helpers, shared with
+  the `build-dependency-image` CI workflow), and `use-host-ca.sh` (exposes a
+  host CA bundle to the image's networked build steps).
+* `internal/` — Implementation used by the entry points and CI, not meant to
+  be invoked by users directly.
+  * `build-cache/` — Host/container script pair behind the persistent local
+    build cache: `host.sh` creates the `.cache/` layout (`ccache/` and
+    `maven/` shared across build-env revisions; `build/<key>/` and
+    `fetchcontent/<key>/` namespaced per revision), and `container.sh` points
+    ccache, CMake FetchContent, and Maven at it inside the container.
+    Local-only; CI builds run without it.
+  * `ca-trust/` — Reusable library for propagating host CA certificates into
+    containerized builds behind TLS-intercepting proxies without persisting
+    them in images, caches, or artifacts; see its
+    [README](internal/ca-trust/README.md). Expected to move into
+    `yscope-dev-utils` and be imported back from there.
+  * `container/` — `build-artifacts.sh`, the container-side implementation
+    shared by local and CI builds: validates dependency pins, builds the
+    worker plugin, provisions the pinned Presto commit's Maven artifacts and
+    builds the coordinator plugin, stages one payload (bundling the worker's
+    non-system runtime `.so` dependencies), and emits it as `.deb`, `.rpm`,
+    and relocatable `.tar.gz`.
+* `package-specs/` — `.deb` control-file template and `.rpm` spec consumed by
+  `build-artifacts.sh`.
+
 ## Local usage
 
 ```bash
