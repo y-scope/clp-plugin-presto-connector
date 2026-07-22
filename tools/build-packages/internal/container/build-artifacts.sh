@@ -142,13 +142,6 @@ artifacts=()
 
 prepare_paths
 
-# ── Provision Presto artifacts ────────────────────────────────────────────────
-
-# Ensure the pinned Presto commit's Maven artifacts exist (source-builds them once;
-# no-op while the stamp matches the pin).
-echo "==> Ensuring Presto Maven artifacts are available..."
-MAVEN_OPTS="${maven_opts}" "${src}/tools/presto-deps/install-presto-artifacts.sh"
-
 # ── Build the C++ worker plugin ───────────────────────────────────────────────
 
 # The CI workflow initializes submodules before invoking this script. Reuse the
@@ -188,6 +181,9 @@ echo "    Output:  ${output_dir}"
 echo ""
 
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
+
+echo "==> Ensuring Presto Maven artifacts are available..."
+MAVEN_OPTS="${maven_opts}" "${src}/tools/presto-deps/install-presto-artifacts.sh"
 
 echo "==> Building presto-connector .jar via module mvnw..."
 MAVEN_OPTS="${maven_opts}" \
