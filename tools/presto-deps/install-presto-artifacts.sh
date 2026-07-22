@@ -72,6 +72,15 @@ presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${velox_dep
 build_dir="${CLP_PLUGIN_BUILD_DIR:-${repo_root}/build}"
 stamp="${build_dir}/presto-artifacts.stamp"
 want="${presto_git_tag} ${presto_version}"
+mkdir -p "${build_dir}"
+
+# Serialize concurrent runs (they would race in the source checkout and the local Maven
+# repository). The kernel releases the lock when the script exits, however it exits; the
+# stamp check below runs under the lock, so a run that waited here sees a fresh stamp.
+if command -v flock &>/dev/null; then
+    exec 9>"${build_dir}/presto-artifacts.lock"
+    flock 9
+fi
 
 # The local Maven repository the build actually uses, honoring a -Dmaven.repo.local
 # override in MAVEN_OPTS (as the packaging container sets).
