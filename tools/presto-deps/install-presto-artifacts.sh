@@ -129,10 +129,11 @@ esac
 # or left incomplete; only skip the build when the artifacts the connector resolves exist.
 artifacts_present() {
     local group_dir="${maven_repo}/com/facebook/presto"
-    local artifact
+    local artifact prefix
     for artifact in ${PRESTO_MODULES//,/ }; do
-        [[ -f "${group_dir}/${artifact}/${presto_version}/${artifact}-${presto_version}.jar" ]] \
-            || return 1
+        # Maven needs each artifact's POM (for the dependency graph) as well as its JAR.
+        prefix="${group_dir}/${artifact}/${presto_version}/${artifact}-${presto_version}"
+        [[ -f "${prefix}.jar" && -f "${prefix}.pom" ]] || return 1
     done
     if (( with_test_deps )); then
         # presto-connector/pom.xml also resolves presto-main-base's test-jar classifier.
