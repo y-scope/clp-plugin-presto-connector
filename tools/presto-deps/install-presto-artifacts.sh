@@ -6,9 +6,11 @@
 # repository. presto.version in presto-connector/pom.xml must be that commit's own
 # version (this script dies on a mismatch) since its artifacts are published nowhere.
 #
-# A stamp file under the build directory records the installed commit, so re-runs are
-# no-ops until the pin moves; --force rebuilds regardless (e.g. after another Presto
-# checkout's `mvn install` shadowed these artifacts in the mutable local repository).
+# A stamp file under the build directory records the installed commit, and the artifacts
+# the connector resolves must still exist in the effective local Maven repository, so
+# re-runs are no-ops until the pin moves or the repository is purged or replaced; --force
+# rebuilds regardless (e.g. after another Presto checkout's `mvn install` shadowed these
+# artifacts in the mutable local repository).
 #
 # Respects CLP_PLUGIN_BUILD_DIR (default: <repo>/build) and MAVEN_OPTS. Requires: bash,
 # sed, git, curl (Maven wrapper + dependency downloads), a JDK.
@@ -71,7 +73,31 @@ build_dir="${CLP_PLUGIN_BUILD_DIR:-${repo_root}/build}"
 stamp="${build_dir}/presto-artifacts.stamp"
 want="${presto_git_tag} ${presto_version}"
 
-if (( !force )) && [[ -f "${stamp}" && "$(cat "${stamp}")" == "${want}" ]]; then
+# The local Maven repository the build actually uses, honoring a -Dmaven.repo.local
+# override in MAVEN_OPTS (as the packaging container sets).
+maven_repo="${HOME}/.m2/repository"
+case " ${MAVEN_OPTS:-}" in
+    *"-Dmaven.repo.local="*)
+        maven_repo="${MAVEN_OPTS#*-Dmaven.repo.local=}"
+        maven_repo="${maven_repo%%[[:space:]]*}"
+        ;;
+esac
+
+# The stamp alone can lie when the repository was purged, replaced (different MAVEN_OPTS),
+# or left incomplete; only skip the build when the artifacts the connector resolves exist.
+artifacts_present() {
+    local group_dir="${maven_repo}/com/facebook/presto"
+    local artifact
+    for artifact in ${PRESTO_MODULES//,/ }; do
+        [[ -f "${group_dir}/${artifact}/${presto_version}/${artifact}-${presto_version}.jar" ]] \
+            || return 1
+    done
+    local tests_jar="${group_dir}/presto-main-base/${presto_version}"
+    tests_jar+="/presto-main-base-${presto_version}-tests.jar"
+    [[ -f "${tests_jar}" ]]
+}
+
+if (( !force )) && [[ -f "${stamp}" && "$(cat "${stamp}")" == "${want}" ]] && artifacts_present; then
     echo "==> Presto ${presto_version} artifacts already installed from" \
         "${presto_git_tag:0:12} (use --force to rebuild)."
     exit 0
