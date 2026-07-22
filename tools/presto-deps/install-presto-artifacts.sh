@@ -6,6 +6,9 @@
 # repository. presto.version in presto-connector/pom.xml must be that commit's own
 # version (this script dies on a mismatch) since its artifacts are published nowhere.
 #
+# Official releases (a purely numeric presto.version from the upstream Presto repository)
+# are published to Maven Central, so this script exits without building anything.
+#
 # A stamp file under the build directory records the installed commit, and the artifacts
 # the connector resolves must still exist in the effective local Maven repository, so
 # re-runs are no-ops until the pin moves or the repository is purged or replaced; --force
@@ -68,6 +71,16 @@ presto_git_tag="$(sed -n 's|.*G_PRESTO_GIT_TAG: "\([^"]*\)".*|\1|p' "${velox_dep
 [[ -n "${presto_git_tag}" ]] || die "G_PRESTO_GIT_TAG not found in ${velox_deps_yaml}"
 presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${velox_deps_yaml}")"
 [[ -n "${presto_git_url}" ]] || die "G_PRESTO_GIT_URL not found in ${velox_deps_yaml}"
+
+# Official releases (a purely numeric version, e.g. 0.299, from the upstream Presto
+# repository) are published to Maven Central, so Maven resolves them without a source
+# build. Anything else -- a fork URL, or a version such as 0.299-SNAPSHOT, 0.299-uber,
+# or main -- is unpublished and must be built from source.
+if [[ "${presto_git_url}" == "https://github.com/prestodb/presto.git" \
+    && "${presto_version}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+    echo "==> Presto ${presto_version} is a published release; skipping the source build."
+    exit 0
+fi
 
 build_dir="${CLP_PLUGIN_BUILD_DIR:-${repo_root}/build}"
 stamp="${build_dir}/presto-artifacts.stamp"
