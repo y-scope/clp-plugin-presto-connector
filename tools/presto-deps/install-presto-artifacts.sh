@@ -9,6 +9,13 @@
 # Official releases (a purely numeric presto.version from the upstream Presto repository)
 # are published to Maven Central, so this script exits without building anything.
 #
+# By default, only installs the `provided`-scope modules needed to compile presto-connector's
+# main sources (cheap: presto-common/presto-spi pull in a small reactor closure). Pass
+# --with-test-deps to also install the `test`-scope modules needed for its DistributedQueryRunner
+# integration tests (expensive: presto-tests/presto-main-base's own dependencies pull in most of
+# Presto's built-in connectors/plugins). Packaging/release builds should omit --with-test-deps and
+# build presto-connector with -Dmaven.test.skip=true, since they never compile test sources.
+#
 # A stamp file under the build directory records the installed commit, and the artifacts
 # the connector resolves must still exist in the effective local Maven repository, so
 # re-runs are no-ops until the pin moves or the repository is purged or replaced; --force
@@ -27,9 +34,21 @@ repo_root="$(cd "${script_dir}/../.." &>/dev/null && pwd)"
 connector_pom="${repo_root}/presto-connector/pom.xml"
 velox_deps_yaml="${repo_root}/taskfiles/velox-connector/deps.yaml"
 
-# The modules the connector pom consumes; `-am` adds their reactor dependency closure,
-# which also covers every sibling module they depend on transitively.
-PRESTO_MODULES="presto-common,presto-spi,presto-parser,presto-main-base,presto-tests"
+# The modules presto-connector/pom.xml consumes at `provided` scope: needed to compile its
+# main sources, so every caller (packaging and testing alike) installs these.
+PRESTO_MODULES_MAIN="presto-common,presto-spi"
+
+# The modules presto-connector/pom.xml consumes at `test` scope (for its DistributedQueryRunner
+# integration tests). These pull in a much larger reactor dependency closure than the main
+# modules above (presto-tests/presto-main-base bundle several built-in connectors and plugins),
+# so only install them when tests will actually compile/run; a packaging/release build never
+# needs them since it builds presto-connector with -Dmaven.test.skip=true.
+PRESTO_MODULES_TEST="presto-analyzer,presto-parser,presto-main-base,presto-tests"
+
+# `-am` adds each requested module's reactor dependency closure, which also covers every
+# sibling module it depends on transitively.
+PRESTO_MODULES="${PRESTO_MODULES_MAIN}"
+with_test_deps=0
 
 show_help() {
     cat <<'EOF'
@@ -40,8 +59,11 @@ builds the pinned Presto commit (G_PRESTO_GIT_TAG) from source and installs the 
 modules into the local Maven repository, remembering the installed commit in a stamp file.
 
 Options:
-  --force   Rebuild and reinstall even when the stamp matches the pinned commit
-  --help    Show this help
+  --with-test-deps  Also install the modules needed to compile/run presto-connector's tests
+                     (presto-tests, presto-main-base, etc.). Skip this for packaging/release
+                     builds, which never compile test sources.
+  --force           Rebuild and reinstall even when the stamp matches the pinned commit
+  --help            Show this help
 EOF
 }
 
@@ -53,11 +75,16 @@ die() {
 force=0
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --with-test-deps) with_test_deps=1; shift ;;
         --force) force=1; shift ;;
         --help)  show_help; exit 0 ;;
         *) die "unknown option: $1 (use --help for usage)" ;;
     esac
 done
+
+if (( with_test_deps )); then
+    PRESTO_MODULES="${PRESTO_MODULES_MAIN},${PRESTO_MODULES_TEST}"
+fi
 
 [[ -f "${connector_pom}" ]] || die "connector pom not found: ${connector_pom}"
 presto_version="$(sed -n 's|.*<presto.version>\(.*\)</presto.version>.*|\1|p' \
@@ -114,9 +141,13 @@ artifacts_present() {
         [[ -f "${group_dir}/${artifact}/${presto_version}/${artifact}-${presto_version}.jar" ]] \
             || return 1
     done
-    local tests_jar="${group_dir}/presto-main-base/${presto_version}"
-    tests_jar+="/presto-main-base-${presto_version}-tests.jar"
-    [[ -f "${tests_jar}" ]]
+    if (( with_test_deps )); then
+        # presto-connector/pom.xml also resolves presto-main-base's test-jar classifier.
+        local tests_jar="${group_dir}/presto-main-base/${presto_version}"
+        tests_jar+="/presto-main-base-${presto_version}-tests.jar"
+        [[ -f "${tests_jar}" ]] || return 1
+    fi
+    return 0
 }
 
 if (( !force )) && [[ -f "${stamp}" && "$(cat "${stamp}")" == "${want}" ]] && artifacts_present; then
@@ -167,8 +198,12 @@ echo "==> Building and installing Presto modules [${PRESTO_MODULES}] and their r
     "dependencies (first run takes a while)..."
 (
     cd "${src_dir}"
+    # -DskipUI: presto-main-base's "ui" profile (on by default) pulls in presto-ui as a
+    # runtime-only dependency to bundle the web console; the connector never touches it, and
+    # building it here would drag in a yarn/npm frontend build for no benefit.
     ./mvnw -B -T 1C -pl "${PRESTO_MODULES}" -am install \
         -DskipTests \
+        -DskipUI \
         -Dair.check.skip-all=true \
         -Dmaven.javadoc.skip=true \
         -Dmaven.source.skip=true
