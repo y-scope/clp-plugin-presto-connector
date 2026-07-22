@@ -160,6 +160,18 @@
       <artifactId>presto-main-base</artifactId>
       <version>${presto.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <!-- Runtime-only dependency of presto-main-base's default-on "ui" profile, used only to
+             bundle the web console's static assets; the connector's tests never touch it, and it
+             isn't installed by tools/presto-deps/install-presto-artifacts.sh (built with
+             -DskipUI). Without this exclusion, resolving presto-main-base re-activates that
+             profile here (its activation is per-invocation, not baked into the installed POM)
+             and fails since presto-ui was never installed. -->
+        <exclusion>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-ui</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.facebook.presto</groupId>
@@ -167,6 +179,12 @@
       <version>${presto.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-ui</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.facebook.presto</groupId>
@@ -179,6 +197,14 @@
       <artifactId>presto-tests</artifactId>
       <version>${presto.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <!-- presto-tests -> presto-main -> presto-main-base re-activates the "ui" profile via a
+             separate transitive path from the exclusion above; see that comment. -->
+        <exclusion>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-ui</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.h2database</groupId>
