@@ -5,7 +5,15 @@ tasks:
     cmd: "./mvnw clean"
 
   build:
+    deps: ["install-presto-artifacts"]
     cmd: "./mvnw package -DskipTests"
 
   test:
+    deps: ["install-presto-artifacts"]
     cmd: "./mvnw test"
+
+  install-presto-artifacts:
+    desc: "Ensure the pinned Presto commit's Maven artifacts exist (source-builds them once;
+      no-op until the pin moves)."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh'"

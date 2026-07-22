@@ -54,10 +54,18 @@ if(PRESTO_GIT_TAG STREQUAL "")
     )
 endif()
 
+set(PRESTO_GIT_URL "" CACHE STRING "Git repository to fetch Presto from.")
+if(PRESTO_GIT_URL STREQUAL "")
+    message(FATAL_ERROR
+        "PRESTO_GIT_URL is not set. Build via `task velox-connector:build`, or set"
+        " PRESTO_GIT_URL when configuring CMake directly."
+    )
+endif()
+
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
     presto_native_execution
-    GIT_REPOSITORY    https://github.com/prestodb/presto.git
+    GIT_REPOSITORY    "${PRESTO_GIT_URL}"
     GIT_TAG           "${PRESTO_GIT_TAG}"
     GIT_SUBMODULES    "presto-native-execution/velox"
     GIT_SUBMODULES_RECURSE OFF

@@ -46,4 +46,5 @@ tasks:
                 {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
             - "-DFETCHCONTENT_BASE_DIR={{.G_FETCHCONTENT_BASE_DIR}}"
             - "-DPRESTO_GIT_TAG={{.G_PRESTO_GIT_TAG}}"
+            - "-DPRESTO_GIT_URL={{.G_PRESTO_GIT_URL}}"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"
