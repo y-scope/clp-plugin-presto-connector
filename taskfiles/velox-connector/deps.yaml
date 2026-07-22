@@ -6,13 +6,12 @@ includes:
 vars:
   G_DEPS_CPP_CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_DIR}}/cmake-settings"
 
-  # The Presto commit that the Velox connector is built against.
+  # The Presto commit that the connectors are built against, and the repository it is
+  # fetched from (used by CMake FetchContent and the tools/presto-deps/ scripts).
   #
   # NOTE: This reference is a commit that hasn't been included in a release yet, but contains the
   # functionality necessary to implement the Velox connector.
   G_PRESTO_GIT_TAG: "6e1942b72a9f32191dcd0ba49812f2ac96a25615"
-
-  # Where Presto is fetched from (CMake FetchContent and the tools/presto-deps/ scripts).
   G_PRESTO_GIT_URL: "https://github.com/prestodb/presto.git"
 
   # Library names (must match CMake package names for settings files)
