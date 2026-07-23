@@ -31,11 +31,7 @@ velox_deps_yaml="${repo_root}/taskfiles/velox-connector/deps.yaml"
 # main sources, so every caller (packaging and testing alike) installs these.
 PRESTO_MODULES_MAIN="presto-common,presto-spi"
 
-# The modules presto-connector/pom.xml consumes at `test` scope (for its DistributedQueryRunner
-# integration tests). These pull in a much larger reactor dependency closure than the main
-# modules above (presto-tests/presto-main-base bundle several built-in connectors and plugins),
-# so only install them when tests will actually compile/run; a packaging/release build never
-# needs them since it builds presto-connector with -Dmaven.test.skip=true.
+# The modules presto-connector/pom.xml consumes at `test` scope.
 PRESTO_MODULES_TEST="presto-analyzer,presto-parser,presto-main-base,presto-tests"
 
 # `-am` adds each requested module's reactor dependency closure, which also covers every
