@@ -280,8 +280,8 @@ def main() -> None:
         if not path.is_file():
             die("file not found: " + str(path))
     deps_yaml_text = VELOX_DEPS_YAML.read_text()
-    pin = deps_yaml_var("G_PRESTO_GIT_TAG", deps_yaml_text)
     git_url = deps_yaml_var("G_PRESTO_GIT_URL", deps_yaml_text)
+    pin = deps_yaml_var("G_PRESTO_GIT_TAG", deps_yaml_text)
 
     pom = parse_pom(CONNECTOR_POM.read_text(), str(CONNECTOR_POM))
     presto_src = presto_repo(pin, git_url)
