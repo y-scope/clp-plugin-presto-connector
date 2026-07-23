@@ -81,3 +81,24 @@ In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes
 architecture's build. Blank inputs — and push-triggered builds — auto-detect the
 runner's CPU. Changing `CPU_TARGET` re-runs the CMake configure, and the changed
 flags rebuild the affected objects.
+
+### Finding the right value
+
+Folly encodes the F14 ABI mode in a symbol name, so the Presto worker binary
+that will load the plugin can tell you directly:
+
+```bash
+nm -DC /path/to/presto_server | grep F14LinkCheck
+```
+
+| Symbol in the worker                 | Worker was built with | `CPU_TARGET` to use              |
+|--------------------------------------|-----------------------|----------------------------------|
+| `F14LinkCheck<(F14IntrinsicsMode)2>` | AVX2                  | `avx`                            |
+| `F14LinkCheck<(F14IntrinsicsMode)1>` | SSE / NEON only       | `sse` (x86_64), `aarch64` (arm64) |
+
+The same command on `libclp-plugin-velox-connector.so` shows the mode the
+plugin expects, as an undefined symbol the worker must provide; a mismatch
+fails at plugin load with an unresolved `F14LinkCheck<...>` error naming the
+expected mode. The F14 link check is the enforced part of the contract —
+matching the worker's full flag set is still the safe rule for the rest of the
+shared inline code.
