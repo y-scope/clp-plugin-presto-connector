@@ -26,6 +26,11 @@ on:
           auto-detect the runner's CPU"
         required: false
         default: ""
+      arm64_build_target:
+        description: "arm64 only: 'local' tunes for the runner's detected Neoverse core;
+          use only when the deployment hardware matches the runner (blank = generic armv8-a)"
+        required: false
+        default: ""
   push:
     paths:
       - ".dockerignore"
@@ -128,6 +133,7 @@ jobs:
           MATRIX_ARCH: "${{matrix.arch}}"
           AMD64_CPU_TARGET: "${{inputs.amd64_cpu_target || ''}}"
           ARM64_CPU_TARGET: "${{inputs.arm64_cpu_target || ''}}"
+          ARM64_BUILD_TARGET: "${{inputs.arm64_build_target || ''}}"
         run: |-
           # Select this architecture's target-CPU flags (blank auto-detects the runner's
           # CPU); see "Target-CPU flags" in tools/build-packages/README.md.
@@ -135,6 +141,7 @@ jobs:
             export CPU_TARGET="${AMD64_CPU_TARGET}"
           else
             export CPU_TARGET="${ARM64_CPU_TARGET}"
+            export ARM_BUILD_TARGET="${ARM64_BUILD_TARGET}"
           fi
 
           bash tools/build-packages/internal/container/build-artifacts.sh --version "${VERSION}"

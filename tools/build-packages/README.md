@@ -54,7 +54,10 @@ CMake configure derives its flags with the same `get_cxx_flags` helper Presto's
 own build uses, so both auto-detect the build machine's CPU by default.
 
 Set the `CPU_TARGET` environment variable to build for a different target than
-the build machine — pick the value the target Presto worker was built with:
+the build machine. It takes one of the keywords below — not raw compiler
+flags; the helper expands the keyword to the same flag set the worker's build
+uses (shown in the Flags column). Pick the value the target Presto worker was
+built with:
 
 | `CPU_TARGET` | Architecture   | Flags                                        |
 |--------------|----------------|----------------------------------------------|
@@ -64,9 +67,16 @@ the build machine — pick the value the target Presto worker was built with:
 | `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
 | `arm64`      | Apple Silicon  | `-mcpu=apple-m1+crc`                         |
 
-Note: with `CPU_TARGET=aarch64`, additionally setting `ARM_BUILD_TARGET=local`
-tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`)
-instead of the generic armv8-a baseline.
+Note: with `CPU_TARGET=aarch64` (or arm auto-detection), additionally setting
+`ARM_BUILD_TARGET=local` tunes for the build machine's detected Neoverse core
+(`-mcpu=neoverse-*`, including that core's architecture extensions) instead of
+the generic armv8-a baseline. Use it when the build machine's core matches the
+deployment hardware — e.g. when packaging directly on the production server or
+an identical machine; like `CPU_TARGET`, it's forwarded into the packaging
+container. Keep the generic baseline for artifacts that must run on unknown or
+mixed arm hardware: core-specific extensions crash (SIGILL) on other cores.
+The CMake configure logs the resolved flags (`Target-CPU flags (get_cxx_flags)`)
+so you can verify what a build used.
 
 Locally, set it on either build path (the package build forwards it into the
 container):
