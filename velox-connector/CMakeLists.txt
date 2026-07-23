@@ -9,18 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable -fPIC for all targets so STATIC libraries can be linked into a shared library.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Match the Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
-#
-# NOTE: We need to use the same compilation flags as the Presto worker or else `dlopen` might fail
-# in the worker; specifically because Folly's F14 hash table uses a different implementation
-# depending on the target machine's supported CPU-features, and ABI compatibility is enforced via
-# `F14LinkCheck<Mode>` (if the plugin and worker use different compilation flags, F14's ABI won't be
-# compatible between the two).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-    # Enable `-mavx2` only for x86_64 builds.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-endif()
-
 # ==============================================================================
 # Dependencies
 # ==============================================================================
@@ -65,6 +53,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(presto_native_execution)
 set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
+
+# Compile with the same target-CPU flags as the Presto worker, using the helper that Presto's own
+# build uses. Folly's F14 hash table bakes the enabled CPU features into its ABI and enforces a
+# match across the `dlopen` boundary via `F14LinkCheck<Mode>`, so a mismatch aborts the worker on
+# startup. Override with the `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream.
+execute_process(
+    COMMAND bash -c
+        "source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
+            && get_cxx_flags '$ENV{CPU_TARGET}'"
+    OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    COMMAND_ERROR_IS_FATAL ANY
+)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")
 
 # ==============================================================================
 # CLP
