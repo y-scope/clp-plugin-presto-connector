@@ -93,17 +93,8 @@ stamp="${build_dir}/presto-artifacts.stamp"
 want="${presto_git_tag} ${presto_version}"
 mkdir -p "${build_dir}"
 
-# Serialize concurrent runs. Task runs dependencies in parallel, so e.g.
-# `task presto-connector:build presto-connector:test` invokes this script twice at
-# once (via install-presto-artifacts and install-presto-artifacts-with-tests), and
-# two runs would race in the shared source checkout and local Maven repository.
-# The kernel drops the lock when the script exits, however it exits; the stamp
-# check below runs under the lock, so a run that waited here sees the stamp the
-# winning run just wrote and exits without rebuilding.
-if command -v flock &>/dev/null; then
-    exec 9>"${build_dir}/presto-artifacts.lock"
-    flock 9
-fi
+# NOTE: Concurrent runs aren't supported; they would race in the shared source
+# checkout and local Maven repository.
 
 # The local Maven repository the build actually uses, honoring a -Dmaven.repo.local
 # override in MAVEN_OPTS (as the packaging container sets).
