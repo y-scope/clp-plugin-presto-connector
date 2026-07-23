@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
-# ruff: noqa: D103, T201, S314, S607, C901, PLR0912, FURB188, UP006, UP021, UP022, UP035
-# ruff: noqa: UP045
-# D103/T201: compact CLI tool; the module docstring documents it. C901/PLR0912: main() is
-# a linear list of checks. S314/S607: trusted sources, git from PATH. FURB188/UP*: kept
-# compatible with Python 3.6, the packaging build-env container's interpreter.
+# ruff: noqa: D102, D103, T201, S314, S607, FURB188, UP006, UP021, UP022, UP035, UP045
+# D102/D103: compact CLI tool; the module docstring documents it. S314/S607: trusted
+# sources, git from PATH. FURB188/UP*: kept compatible with Python 3.6, the packaging
+# build-env container's interpreter.
 
 """
 Validates this repository's dependency pins against the Presto commit pinned by
@@ -39,22 +38,26 @@ BUILD_DIR = Path(os.environ.get("CLP_PLUGIN_BUILD_DIR", str(REPO_ROOT / "build")
 VELOX_SUBMODULE = "presto-native-execution/velox"
 
 # deps.yaml variable -> (file in the Velox tree, version-extraction pattern).
-RDM = "CMake/resolve_dependency_modules"
+VELOX_CMAKE_MODULES = "CMake/resolve_dependency_modules"
 VELOX_PINS = (
     ("G_DOUBLE_CONVERSION_VERSION", "CMakeLists.txt",
      r"find_package\(double-conversion\s+([\d.]+)\s+REQUIRED"),
-    ("G_FAST_FLOAT_VERSION", RDM + "/fastfloat.cmake",
+    ("G_FAST_FLOAT_VERSION", VELOX_CMAKE_MODULES + "/fastfloat.cmake",
      r'set\(VELOX_FASTFLOAT_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_FMT_VERSION", RDM + "/fmt.cmake", r'set\(VELOX_FMT_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_FOLLY_VERSION", RDM + "/folly/CMakeLists.txt",
+    ("G_FMT_VERSION", VELOX_CMAKE_MODULES + "/fmt.cmake",
+     r'set\(VELOX_FMT_VERSION\s+"?([^)"\s]+)"?\)'),
+    ("G_FOLLY_VERSION", VELOX_CMAKE_MODULES + "/folly/CMakeLists.txt",
      r'set\(VELOX_FOLLY_BUILD_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_GFLAGS_VERSION", RDM + "/gflags.cmake", r'set\(VELOX_GFLAGS_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_GLOG_VERSION", RDM + "/glog.cmake", r'set\(VELOX_GLOG_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_RE2_VERSION", RDM + "/re2.cmake", r'set\(VELOX_RE2_VERSION\s+"?([^)"\s]+)"?\)'),
-    ("G_XSIMD_VERSION", RDM + "/xsimd.cmake", r'set\(VELOX_XSIMD_VERSION\s+"?([^)"\s]+)"?\)'),
+    ("G_GFLAGS_VERSION", VELOX_CMAKE_MODULES + "/gflags.cmake",
+     r'set\(VELOX_GFLAGS_VERSION\s+"?([^)"\s]+)"?\)'),
+    ("G_GLOG_VERSION", VELOX_CMAKE_MODULES + "/glog.cmake",
+     r'set\(VELOX_GLOG_VERSION\s+"?([^)"\s]+)"?\)'),
+    ("G_RE2_VERSION", VELOX_CMAKE_MODULES + "/re2.cmake",
+     r'set\(VELOX_RE2_VERSION\s+"?([^)"\s]+)"?\)'),
+    ("G_XSIMD_VERSION", VELOX_CMAKE_MODULES + "/xsimd.cmake",
+     r'set\(VELOX_XSIMD_VERSION\s+"?([^)"\s]+)"?\)'),
 )
 
-STATE = {"checks": 0, "failures": 0}
 _COLORED = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 C_OK, C_FAIL, C_HDR, C_END = (
     ("\033[32m", "\033[31m", "\033[1m", "\033[0m") if _COLORED else ("", "", "", "")
@@ -69,46 +72,49 @@ class Pom(NamedTuple):
     label: str
 
 
+class Reporter:
+    """Prints per-pin results and counts how many checks ran and failed."""
+
+    def __init__(self) -> None:
+        self.checks = 0
+        self.failures = 0
+
+    def header(self, text: str) -> None:
+        print(C_HDR + text + C_END)
+
+    def ok(self, text: str) -> None:
+        self.checks += 1
+        print(f"  {C_OK}OK{C_END}   {text}")
+
+    def fail(self, text: str, suggestion: str) -> None:
+        self.checks += 1
+        self.failures += 1
+        print(f"  {C_FAIL}FAIL{C_END} {text}")
+        print("       Suggestion: " + suggestion)
+
+
 def die(message: str) -> NoReturn:
     print("ERROR: " + message, file=sys.stderr)
     sys.exit(1)
 
 
-def header(text: str) -> None:
-    print(C_HDR + text + C_END)
-
-
-def ok(text: str) -> None:
-    STATE["checks"] += 1
-    print(f"  {C_OK}OK{C_END}   {text}")
-
-
-def fail(text: str, suggestion: str) -> None:
-    STATE["checks"] += 1
-    STATE["failures"] += 1
-    print(f"  {C_FAIL}FAIL{C_END} {text}")
-    print("       Suggestion: " + suggestion)
-
-
-def run_git(cwd: Path, *args: str) -> Optional[str]:
-    result = subprocess.run(
+def _git(cwd: Path, *args: str) -> "subprocess.CompletedProcess":
+    return subprocess.run(
         ["git", "-C", str(cwd), *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         universal_newlines=True,
         check=False,
     )
+
+
+def run_git(cwd: Path, *args: str) -> Optional[str]:
+    result = _git(cwd, *args)
     return result.stdout.strip() if result.returncode == 0 else None
 
 
 def git_or_die(cwd: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(cwd), *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-        check=False,
-    )
+    result = _git(cwd, *args)
     if result.returncode != 0:
         die(f"git {' '.join(args)} failed in {cwd}: {result.stderr.strip()}")
     return result.stdout.strip()
@@ -148,12 +154,16 @@ def parse_pom(xml_text: str, label: str) -> Pom:
 
 def prop(pom: Pom, name: str) -> str:
     value = pom.props.get(name, "")
-    return value or die(f"property <{name}> not found in {pom.label}")
+    if not value:
+        die(f"property <{name}> not found in {pom.label}")
+    return value
 
 
 def deps_yaml_var(name: str, deps_yaml_text: str) -> str:
     match = re.search(rf'^\s*{re.escape(name)}: "([^"]*)"', deps_yaml_text, re.MULTILINE)
-    return match.group(1) if match else die(f"{name} not found in {VELOX_DEPS_YAML}")
+    if not match:
+        die(f"{name} not found in {VELOX_DEPS_YAML}")
+    return match.group(1)
 
 
 def presto_repo(pin: str, git_url: str) -> Path:
@@ -200,6 +210,71 @@ def velox_repo(presto: Path, pin: str) -> Tuple[str, Path]:
     return sha, shallow_repo(BUILD_DIR / "velox-src", match.group(1), sha)
 
 
+def check_presto_pins(report: Reporter, pom: Pom, presto: Pom, pin: str) -> None:
+    """Check pom.xml's Presto-synced pins against the pinned commit's root pom."""
+    report.header(f"Presto (presto@{pin[:12]}, {presto.version})")
+    for name, theirs in (
+        ("jackson.version", prop(presto, "dep.jackson.version")),
+        ("slice.version", prop(presto, "dep.slice.version")),
+    ):
+        ours = prop(pom, name)
+        if ours == theirs:
+            report.ok(f"{name}: {ours}")
+        else:
+            report.fail(f"{name}: pom.xml pins {ours} but presto@{pin[:9]} ships {theirs}",
+                        f"set <{name}> to {theirs} in presto-connector/pom.xml.")
+
+    # jackson-annotations sometimes publishes a 2-segment version paired with a 3-segment
+    # core/databind family (e.g. annotations 2.22 with core 2.22.0), so accept an exact
+    # match or a major.minor prefix match.
+    annotations = prop(pom, "jackson.annotations.version")
+    dep_jackson = prop(presto, "dep.jackson.version")
+    if annotations == dep_jackson or dep_jackson.startswith(annotations + "."):
+        report.ok("jackson.annotations.version: " + annotations)
+    else:
+        report.fail(f"jackson.annotations.version: pom.xml pins {annotations} but"
+                    f" presto@{pin[:9]} ships {dep_jackson}",
+                    f"set <jackson.annotations.version> to {dep_jackson} in"
+                    " presto-connector/pom.xml.")
+
+    # presto.version must be the pinned commit's own version; its unpublished artifacts
+    # are built from source by install-presto-artifacts.sh.
+    presto_version = prop(pom, "presto.version")
+    if presto_version == presto.version:
+        report.ok("presto.version: " + presto_version)
+    else:
+        report.fail(f"presto.version: pom.xml pins {presto_version} but presto@{pin[:9]} is"
+                    f" version {presto.version}",
+                    f"set <presto.version> to {presto.version} in presto-connector/pom.xml,"
+                    " then build its artifacts with"
+                    " tools/presto-deps/install-presto-artifacts.sh.")
+
+
+def check_velox_pins(
+    report: Reporter, presto_src: Path, pin: str, deps_yaml_text: str
+) -> None:
+    """Check deps.yaml's G_*_VERSION pins against the pinned commit's Velox submodule."""
+    sha, velox_src = velox_repo(presto_src, pin)
+    report.header(f"Velox (velox@{sha[:12]}, {VELOX_SUBMODULE} submodule)")
+    for deps_var, rel_path, pattern in VELOX_PINS:
+        match = re.search(pattern, git_show(velox_src, sha, rel_path))
+        if not match:
+            die(f"could not extract a version for {deps_var} from velox@{sha[:9]}"
+                f" {rel_path}; update VELOX_PINS")
+        ours, theirs = deps_yaml_var(deps_var, deps_yaml_text), match.group(1)
+        # Compare ignoring a leading "v" (deps.yaml and Velox differ in tag-prefix style);
+        # suggestions keep the prefix style deps.yaml already uses.
+        unv_ours = ours[1:] if ours.startswith("v") else ours
+        unv_theirs = theirs[1:] if theirs.startswith("v") else theirs
+        if unv_ours == unv_theirs:
+            report.ok(f"{deps_var}: {ours}")
+        else:
+            suggested = ("v" if ours.startswith("v") else "") + unv_theirs
+            report.fail(f"{deps_var}: deps.yaml pins {ours} but velox@{sha[:9]} (used by"
+                        f" presto@{pin[:9]}) resolves {theirs} ({rel_path})",
+                        f"set {deps_var} to {suggested} in taskfiles/velox-connector/deps.yaml.")
+
+
 def main() -> None:
     for path in (CONNECTOR_POM, VELOX_DEPS_YAML):
         if not path.is_file():
@@ -214,65 +289,14 @@ def main() -> None:
     if not presto.version:
         die("project version not found in " + presto.label)
 
-    header(f"Presto (presto@{pin[:12]}, {presto.version})")
-    for name, theirs in (
-        ("jackson.version", prop(presto, "dep.jackson.version")),
-        ("slice.version", prop(presto, "dep.slice.version")),
-    ):
-        ours = prop(pom, name)
-        if ours == theirs:
-            ok(f"{name}: {ours}")
-        else:
-            fail(f"{name}: pom.xml pins {ours} but presto@{pin[:9]} ships {theirs}",
-                 f"set <{name}> to {theirs} in presto-connector/pom.xml.")
+    report = Reporter()
+    check_presto_pins(report, pom, presto, pin)
+    check_velox_pins(report, presto_src, pin, deps_yaml_text)
 
-    # jackson-annotations sometimes publishes a 2-segment version paired with a 3-segment
-    # core/databind family (e.g. annotations 2.22 with core 2.22.0), so accept an exact
-    # match or a major.minor prefix match.
-    annotations = prop(pom, "jackson.annotations.version")
-    dep_jackson = prop(presto, "dep.jackson.version")
-    if annotations == dep_jackson or dep_jackson.startswith(annotations + "."):
-        ok("jackson.annotations.version: " + annotations)
-    else:
-        fail(f"jackson.annotations.version: pom.xml pins {annotations} but presto@{pin[:9]}"
-             f" ships {dep_jackson}",
-             f"set <jackson.annotations.version> to {dep_jackson} in presto-connector/pom.xml.")
-
-    # presto.version must be the pinned commit's own version; its unpublished artifacts
-    # are built from source by install-presto-artifacts.sh.
-    presto_version = prop(pom, "presto.version")
-    if presto_version == presto.version:
-        ok("presto.version: " + presto_version)
-    else:
-        fail(f"presto.version: pom.xml pins {presto_version} but presto@{pin[:9]} is"
-             f" version {presto.version}",
-             f"set <presto.version> to {presto.version} in presto-connector/pom.xml, then"
-             " build its artifacts with tools/presto-deps/install-presto-artifacts.sh.")
-
-    sha, velox_src = velox_repo(presto_src, pin)
-    header(f"Velox (velox@{sha[:12]}, {VELOX_SUBMODULE} submodule)")
-    for deps_var, rel_path, pattern in VELOX_PINS:
-        match = re.search(pattern, git_show(velox_src, sha, rel_path))
-        if not match:
-            die(f"could not extract a version for {deps_var} from velox@{sha[:9]}"
-                f" {rel_path}; update VELOX_PINS")
-        ours, theirs = deps_yaml_var(deps_var, deps_yaml_text), match.group(1)
-        # Compare ignoring a leading "v" (deps.yaml and Velox differ in tag-prefix style);
-        # suggestions keep the prefix style deps.yaml already uses.
-        unv_ours = ours[1:] if ours.startswith("v") else ours
-        unv_theirs = theirs[1:] if theirs.startswith("v") else theirs
-        if unv_ours == unv_theirs:
-            ok(f"{deps_var}: {ours}")
-        else:
-            suggested = ("v" if ours.startswith("v") else "") + unv_theirs
-            fail(f"{deps_var}: deps.yaml pins {ours} but velox@{sha[:9]} (used by"
-                 f" presto@{pin[:9]}) resolves {theirs} ({rel_path})",
-                 f"set {deps_var} to {suggested} in taskfiles/velox-connector/deps.yaml.")
-
-    if STATE["failures"]:
-        die(f"{STATE['failures']} of {STATE['checks']} dependency pins out of sync with"
+    if report.failures:
+        die(f"{report.failures} of {report.checks} dependency pins out of sync with"
             f" presto@{pin}. Update the files above to match the suggested versions.")
-    print(f"All {STATE['checks']} dependency pins are in sync with presto@{pin[:12]}.")
+    print(f"All {report.checks} dependency pins are in sync with presto@{pin[:12]}.")
 
 
 if __name__ == "__main__":
