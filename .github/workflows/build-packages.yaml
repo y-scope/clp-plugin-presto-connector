@@ -16,6 +16,16 @@ on:
         description: "Package version override (derived from presto-connector/pom.xml when blank)"
         required: false
         default: ""
+      amd64_cpu_target:
+        description: "amd64 target-CPU flags (Velox get_cxx_flags): avx, sse, or blank to
+          auto-detect the runner's CPU"
+        required: false
+        default: ""
+      arm64_cpu_target:
+        description: "arm64 target-CPU flags (Velox get_cxx_flags): aarch64, or blank to
+          auto-detect the runner's CPU"
+        required: false
+        default: ""
   push:
     paths:
       - ".dockerignore"
@@ -114,7 +124,19 @@ jobs:
       - name: "Build packages"
         id: "packages"
         shell: "bash"
+        env:
+          MATRIX_ARCH: "${{matrix.arch}}"
+          AMD64_CPU_TARGET: "${{inputs.amd64_cpu_target || ''}}"
+          ARM64_CPU_TARGET: "${{inputs.arm64_cpu_target || ''}}"
         run: |-
+          # Select this architecture's target-CPU flags (blank auto-detects the runner's
+          # CPU); see "Target-CPU flags" in tools/build-packages/README.md.
+          if [[ "${MATRIX_ARCH}" == "amd64" ]]; then
+            export CPU_TARGET="${AMD64_CPU_TARGET}"
+          else
+            export CPU_TARGET="${ARM64_CPU_TARGET}"
+          fi
+
           bash tools/build-packages/internal/container/build-artifacts.sh --version "${VERSION}"
 
           shopt -s nullglob

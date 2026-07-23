@@ -57,7 +57,8 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # Compile with the same target-CPU flags as the Presto worker, using the helper that Presto's own
 # build uses. Folly's F14 hash table bakes the enabled CPU features into its ABI and enforces a
 # match across the `dlopen` boundary via `F14LinkCheck<Mode>`, so a mismatch aborts the worker on
-# startup. Override with the `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream.
+# startup. Override with the `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as
+# upstream (see "Target-CPU flags" in tools/build-packages/README.md).
 execute_process(
     COMMAND bash -c
         "source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
