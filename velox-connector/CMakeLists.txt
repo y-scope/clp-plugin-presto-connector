@@ -67,6 +67,16 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY
 )
+# get_cxx_flags reports an unsupported selection as text with a zero exit status; catch it
+# here rather than letting it reach the compiler command line.
+if(NOT VELOX_TARGET_CPU_CXX_FLAGS MATCHES "^-")
+    message(FATAL_ERROR
+        "get_cxx_flags rejected CPU_TARGET='$ENV{CPU_TARGET}':"
+        " ${VELOX_TARGET_CPU_CXX_FLAGS} Valid values: avx, sse (x86_64), aarch64, arm64"
+        " (Apple Silicon), or unset to auto-detect the build machine's CPU."
+    )
+endif()
+message(STATUS "Target-CPU flags (get_cxx_flags): ${VELOX_TARGET_CPU_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")
 
 # ==============================================================================
