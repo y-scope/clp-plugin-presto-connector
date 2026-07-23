@@ -38,9 +38,9 @@
 
   <properties>
     <!-- Presto-synced dependency versions: must match the Presto commit pinned by
-         G_PRESTO_GIT_TAG; validated by tools/presto-deps/validate-presto-dep-sync.py. The
-         Presto artifacts are unpublished; tools/presto-deps/install-presto-artifacts.sh
-         builds them (the task build/test targets run it automatically). -->
+         G_PRESTO_GIT_TAG (taskfiles/velox-connector/deps.yaml). The Presto artifacts are
+         unpublished; tools/presto-deps/install-presto-artifacts.sh builds them (the task
+         build/test targets run it automatically). -->
     <jackson.version>2.18.6</jackson.version>
     <jackson.annotations.version>2.18.6</jackson.annotations.version>
     <presto.version>0.299-SNAPSHOT</presto.version>
