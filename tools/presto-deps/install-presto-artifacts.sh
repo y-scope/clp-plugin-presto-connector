@@ -93,9 +93,6 @@ stamp="${build_dir}/presto-artifacts.stamp"
 want="${presto_git_tag} ${presto_version}"
 mkdir -p "${build_dir}"
 
-# NOTE: Concurrent runs aren't supported; they would race in the shared source
-# checkout and local Maven repository.
-
 # The local Maven repository the build actually uses, honoring a -Dmaven.repo.local
 # override in MAVEN_OPTS (as the packaging container sets).
 maven_repo="${HOME}/.m2/repository"
