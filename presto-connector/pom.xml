@@ -37,13 +37,13 @@
   </scm>
 
   <properties>
-    <!-- Dependency versions that must stay in sync with Presto 0.297 -->
-    <jackson.version>2.22.0</jackson.version>
-    <!-- jackson-annotations publishes a 2-segment version (2.22) while
-         jackson-core/jackson-databind publish 2.22.0; the Jackson BOM pairs
-         annotations 2.22 with the 2.22.0 family. -->
-    <jackson.annotations.version>2.22</jackson.annotations.version>
-    <presto.version>0.297</presto.version>
+    <!-- Presto-synced dependency versions: must match the Presto commit pinned by
+         G_PRESTO_GIT_TAG (taskfiles/velox-connector/deps.yaml). The Presto artifacts are
+         unpublished; tools/presto-deps/install-presto-artifacts.sh builds them (the task
+         build/test targets run it automatically). -->
+    <jackson.version>2.18.6</jackson.version>
+    <jackson.annotations.version>2.18.6</jackson.annotations.version>
+    <presto.version>0.299-SNAPSHOT</presto.version>
     <slice.version>0.38</slice.version>
 
     <!-- Compile dependency versions -->
@@ -156,31 +156,6 @@
 
     <!-- Test -->
     <dependency>
-      <groupId>com.facebook.presto</groupId>
-      <artifactId>presto-main-base</artifactId>
-      <version>${presto.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.facebook.presto</groupId>
-      <artifactId>presto-main-base</artifactId>
-      <version>${presto.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.facebook.presto</groupId>
-      <artifactId>presto-parser</artifactId>
-      <version>${presto.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.facebook.presto</groupId>
-      <artifactId>presto-tests</artifactId>
-      <version>${presto.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
       <version>${h2.version}</version>
@@ -205,6 +180,70 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <profiles>
+    <profile>
+      <!-- These Presto test artifacts are unpublished and expensive to source-build (the
+           installer only provides them with its with-test-deps flag). Activation reuses
+           -Dmaven.test.skip (which, unlike -DskipTests, skips test-compile) so "skip tests"
+           and "skip test-only dependencies" stay a single decision. -->
+      <id>connector-tests</id>
+      <activation>
+        <property>
+          <name>!maven.test.skip</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-main-base</artifactId>
+          <version>${presto.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <!-- presto-ui belongs to presto-main-base's default-on "ui" profile (web-console
+                 assets); the installer builds Presto with -DskipUI, so it is never installed
+                 and resolving it would fail. -->
+            <exclusion>
+              <groupId>com.facebook.presto</groupId>
+              <artifactId>presto-ui</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-main-base</artifactId>
+          <version>${presto.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>com.facebook.presto</groupId>
+              <artifactId>presto-ui</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-parser</artifactId>
+          <version>${presto.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>com.facebook.presto</groupId>
+          <artifactId>presto-tests</artifactId>
+          <version>${presto.version}</version>
+          <scope>test</scope>
+          <exclusions>
+            <!-- presto-tests re-activates the "ui" profile through its own transitive path. -->
+            <exclusion>
+              <groupId>com.facebook.presto</groupId>
+              <artifactId>presto-ui</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 
   <build>
     <pluginManagement>

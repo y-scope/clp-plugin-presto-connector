@@ -182,11 +182,17 @@ echo ""
 
 # ── Build the Java coordinator plugin ─────────────────────────────────────────
 
+echo "==> Ensuring Presto Maven artifacts are available..."
+MAVEN_OPTS="${maven_opts}" "${src}/tools/presto-deps/install-presto-artifacts.sh"
+
 echo "==> Building presto-connector .jar via module mvnw..."
+# -Dmaven.test.skip=true (not just -DskipTests) so test sources never compile: this build only
+# installed presto-connector's `provided`-scope Presto artifacts above (see
+# install-presto-artifacts.sh), not the `test`-scope ones its tests need.
 MAVEN_OPTS="${maven_opts}" \
 "${src}/presto-connector/mvnw" \
     --file "${src}/presto-connector/pom.xml" \
-    clean package -DskipTests -B
+    clean package -Dmaven.test.skip=true -B
 
 # Select the main plugin JAR. Use a version-like suffix so source/javadoc JARs
 # (which end in `-sources.jar`/`-javadoc.jar`) are skipped.

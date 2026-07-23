@@ -46,18 +46,19 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}")
 # ==============================================================================
 include(FetchContent)
 
+set(PRESTO_GIT_URL "" CACHE STRING "Git repository to fetch Presto from.")
 set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
-if(PRESTO_GIT_TAG STREQUAL "")
+if(PRESTO_GIT_URL STREQUAL "" OR PRESTO_GIT_TAG STREQUAL "")
     message(FATAL_ERROR
-        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or set"
-        " PRESTO_GIT_TAG when configuring CMake directly."
+        "PRESTO_GIT_URL and PRESTO_GIT_TAG must be set. Build via"
+        " `task velox-connector:build`, or set them when configuring CMake directly."
     )
 endif()
 
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
     presto_native_execution
-    GIT_REPOSITORY    https://github.com/prestodb/presto.git
+    GIT_REPOSITORY    "${PRESTO_GIT_URL}"
     GIT_TAG           "${PRESTO_GIT_TAG}"
     GIT_SUBMODULES    "presto-native-execution/velox"
     GIT_SUBMODULES_RECURSE OFF

@@ -5,7 +5,21 @@ tasks:
     cmd: "./mvnw clean"
 
   build:
-    cmd: "./mvnw package -DskipTests"
+    deps: ["install-presto-artifacts"]
+    cmd: "./mvnw package -Dmaven.test.skip=true"
 
   test:
+    deps: ["install-presto-artifacts-with-tests"]
     cmd: "./mvnw test"
+
+  install-presto-artifacts:
+    desc: "Ensure the pinned Presto commit's Maven artifacts needed to compile presto-connector
+      exist (source-builds them once; no-op until the pin moves)."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh'"
+
+  install-presto-artifacts-with-tests:
+    desc: "Ensure the pinned Presto commit's Maven artifacts needed to compile and run
+      presto-connector's tests exist (source-builds them once; no-op until the pin moves)."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh' --with-test-deps"
