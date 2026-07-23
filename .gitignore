@@ -3,3 +3,4 @@
 /build/
 /packages/
 /presto-connector/target/
+__pycache__/
