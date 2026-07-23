@@ -144,8 +144,6 @@ prepare_paths
 
 # ── Validate dependency pins ──────────────────────────────────────────────────
 
-# Fail fast when dependency pins drift from the pinned Presto commit, before spending
-# time on the plugin builds. See tools/presto-deps/validate-presto-dep-sync.py.
 echo "==> Validating dependency pins against the pinned Presto commit..."
 "${src}/tools/presto-deps/validate-presto-dep-sync.py"
 
