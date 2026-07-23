@@ -27,8 +27,7 @@ repo_root="$(cd "${script_dir}/../.." &>/dev/null && pwd)"
 connector_pom="${repo_root}/presto-connector/pom.xml"
 velox_deps_yaml="${repo_root}/taskfiles/velox-connector/deps.yaml"
 
-# The modules presto-connector/pom.xml consumes at `provided` scope: needed to compile its
-# main sources, so every caller (packaging and testing alike) installs these.
+# The modules presto-connector/pom.xml consumes at `provided` scope.
 PRESTO_MODULES_MAIN="presto-common,presto-spi"
 
 # The modules presto-connector/pom.xml consumes at `test` scope.
