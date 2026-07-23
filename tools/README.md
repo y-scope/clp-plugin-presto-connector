@@ -26,11 +26,15 @@ against.
   each mismatch and fails; it never edits anything. Runs before the
   `presto-connector` and `velox-connector` builds (as task dependencies), in
   the packaging container, and in the `validate-deps` CI workflow.
-* `install-presto-artifacts.sh` — Builds the pinned Presto commit's Maven
-  artifacts from source and installs them into the local Maven repository when
-  the pin is unpublished (a fork URL or a suffixed version such as
-  `0.299-SNAPSHOT`); official releases are skipped since Maven resolves them
-  from Maven Central. Stamp-gated: a no-op until the pin moves. Runs before
+* `install-presto-artifacts.sh` — Source-builds the pinned Presto commit's
+  Maven artifacts into the local Maven repository when the pin is unpublished
+  (a fork URL or a suffixed version such as `0.299-SNAPSHOT`); official
+  releases resolve from Maven Central instead. Provisions only the jars the
+  Java coordinator plugin compiles against — the C++ worker plugin's
+  Presto/Velox headers come from CMake `FetchContent`, not from here.
+  Installs the `provided`-scope modules by default; `--with-test-deps` adds
+  the `test`-scope closure. Stamp-gated: a no-op until the pin moves, the
+  Maven repository changes, or `--force` is passed. Runs before
   `task presto-connector:build` / `test` and in the packaging container.
 
 ## `yscope-dev-utils/`
