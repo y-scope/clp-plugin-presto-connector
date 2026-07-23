@@ -44,3 +44,40 @@ while `packages/` is owned by the invoking user.
 
 Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
 ~10 GB free disk for the build-env image.
+
+## Target-CPU flags
+
+The worker plugin must be compiled with the same target-CPU flags as the Presto
+worker that loads it: Folly's F14 hash table bakes the enabled CPU features into
+its ABI and aborts the worker at plugin load on a mismatch. The velox-connector
+CMake configure derives its flags with the same `get_cxx_flags` helper Presto's
+own build uses, so both auto-detect the build machine's CPU by default.
+
+Set the `CPU_TARGET` environment variable to build for a different target than
+the build machine — pick the value the target Presto worker was built with:
+
+| `CPU_TARGET` | Architecture   | Flags                                        |
+|--------------|----------------|----------------------------------------------|
+| (blank)      | any            | Auto-detect the build machine's CPU          |
+| `avx`        | x86_64         | `-mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2`   |
+| `sse`        | x86_64         | `-msse4.2`                                   |
+| `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
+| `arm64`      | Apple Silicon  | `-mcpu=apple-m1+crc`                         |
+
+Note: with `CPU_TARGET=aarch64`, additionally setting `ARM_BUILD_TARGET=local`
+tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`)
+instead of the generic armv8-a baseline.
+
+Locally, set it on either build path (the package build forwards it into the
+container):
+
+```bash
+CPU_TARGET=sse task velox-connector:build  # dev build
+CPU_TARGET=sse task package                # package build
+```
+
+In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes
+`amd64_cpu_target` and `arm64_cpu_target` inputs, each applied to the matching
+architecture's build. Blank inputs — and push-triggered builds — auto-detect the
+runner's CPU. Changing `CPU_TARGET` re-runs the CMake configure, and the changed
+flags rebuild the affected objects.
