@@ -1,0 +1,42 @@
+# Validates that this repository's dependency pins stay in sync with the Presto commit it
+# is built against (G_PRESTO_GIT_TAG in taskfiles/velox-connector/deps.yaml). See
+# tools/presto-deps/validate-presto-dep-sync.py for what is checked; it fails with a
+# suggested value and never edits anything.
+
+name: "validate-deps"
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-deps.yaml"
+      - "presto-connector/pom.xml"
+      - "taskfiles/velox-connector/deps.yaml"
+      - "tools/presto-deps/validate-presto-dep-sync.py"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/validate-deps.yaml"
+      - "presto-connector/pom.xml"
+      - "taskfiles/velox-connector/deps.yaml"
+      - "tools/presto-deps/validate-presto-dep-sync.py"
+  workflow_dispatch:
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+  cancel-in-progress: true
+
+permissions:
+  contents: "read"
+
+jobs:
+  validate:
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: "Validate dependency pins against the pinned Presto commit"
+        run: "./tools/presto-deps/validate-presto-dep-sync.py"

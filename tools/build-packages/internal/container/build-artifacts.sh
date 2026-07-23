@@ -142,6 +142,11 @@ artifacts=()
 
 prepare_paths
 
+# ── Validate dependency pins ──────────────────────────────────────────────────
+
+echo "==> Validating dependency pins against the pinned Presto commit..."
+"${src}/tools/presto-deps/validate-presto-dep-sync.py"
+
 # ── Build the C++ worker plugin ───────────────────────────────────────────────
 
 # The CI workflow initializes submodules before invoking this script. Reuse the

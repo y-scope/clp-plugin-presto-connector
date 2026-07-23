@@ -15,11 +15,18 @@ tasks:
   install-presto-artifacts:
     desc: "Ensure the pinned Presto commit's Maven artifacts needed to compile presto-connector
       exist (source-builds them once; no-op until the pin moves)."
+    deps: ["validate-dep-sync"]
     run: "once"
     cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh'"
 
   install-presto-artifacts-with-tests:
     desc: "Ensure the pinned Presto commit's Maven artifacts needed to compile and run
       presto-connector's tests exist (source-builds them once; no-op until the pin moves)."
+    deps: ["validate-dep-sync"]
     run: "once"
     cmd: "'{{.ROOT_DIR}}/tools/presto-deps/install-presto-artifacts.sh' --with-test-deps"
+
+  validate-dep-sync:
+    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"

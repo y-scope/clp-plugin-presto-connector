@@ -176,7 +176,8 @@ verify_pinned_version() {
         | sed -n 's|.*<version>\(.*\)</version>.*|\1|p' | head -n1)"
     [[ "${ref_version}" == "${presto_version}" ]] \
         || die "presto.version ${presto_version} != ${ref_version} at" \
-            "presto@${presto_git_tag:0:12}; update presto-connector/pom.xml to match"
+            "presto@${presto_git_tag:0:12}; update presto-connector/pom.xml to match" \
+            "(tools/presto-deps/validate-presto-dep-sync.py reports the expected pins)"
 }
 
 install_presto_modules() {
