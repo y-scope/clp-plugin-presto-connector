@@ -1,12 +1,6 @@
 # Validates that this repository's dependency pins stay in sync with the Presto commit it
-# is built against (G_PRESTO_GIT_TAG in taskfile.yaml).
-#
-# tools/presto-deps/validate-presto-dep-sync.py prints an OK or FAIL line per pin. Each
-# FAIL names the out-of-sync pin, the version this repository uses, the version the
-# pinned Presto commit ships, and the value to change it to, e.g.:
-#   FAIL jackson.version: pom.xml pins 2.15.4 but presto@6e1942b72 ships 2.18.6
-#        Suggestion: set <jackson.version> to 2.18.6 in presto-connector/pom.xml.
-# The check only reports; fixing the pins is a manual edit.
+# is built against (G_PRESTO_GIT_TAG in taskfile.yaml). Each failure names the
+# out-of-sync pin with both versions and the suggested fix; nothing is edited.
 
 name: "validate-deps"
 
