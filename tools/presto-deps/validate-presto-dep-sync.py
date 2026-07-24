@@ -19,9 +19,8 @@ G_PRESTO_GIT_TAG (taskfile.yaml):
 Prints OK/FAIL per pin with a suggested value on failure and exits non-zero; never edits
 anything. Sources come from two clones under the build directory, populated with blobless
 shallow fetches on first use: presto-src (shared with install-presto-artifacts.sh) and
-velox-src (cloned from the submodule URL in Presto's own .gitmodules, unless presto-src
-already has the submodule checked out). Runs on Python 3.6+ (the packaging build-env
-container ships 3.6.8).
+velox-src (cloned from the submodule URL in Presto's own .gitmodules). Runs on
+Python 3.6+ (the packaging build-env container ships 3.6.8).
 """
 
 import os
@@ -33,46 +32,45 @@ from pathlib import Path
 from typing import Dict, NamedTuple, NoReturn, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT_TASKFILE = REPO_ROOT / "taskfile.yaml"
 BUILD_DIR = Path(os.environ.get("CLP_PLUGIN_BUILD_DIR", str(REPO_ROOT / "build")))
 
-_COLORED = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
-C_OK, C_FAIL, C_HDR, C_END = (
-    ("\033[32m", "\033[31m", "\033[1m", "\033[0m") if _COLORED else ("", "", "", "")
-)
 
-
-class Pom(NamedTuple):
-    """A parsed Maven pom: its properties, its own project version, and a display label."""
-
-    props: Dict[str, str]
-    version: Optional[str]
-    label: str
+# ── Output ────────────────────────────────────────────────────────────────────
 
 
 class Reporter:
     """Prints per-pin results and counts how many checks ran and failed."""
+
+    _COLORED = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    _GREEN, _RED, _BOLD, _RESET = (
+        ("\033[32m", "\033[31m", "\033[1m", "\033[0m") if _COLORED else ("", "", "", "")
+    )
 
     def __init__(self) -> None:
         self.checks = 0
         self.failures = 0
 
     def header(self, text: str) -> None:
-        print(C_HDR + text + C_END)
+        print(self._BOLD + text + self._RESET)
 
     def ok(self, text: str) -> None:
         self.checks += 1
-        print(f"  {C_OK}OK{C_END}   {text}")
+        print(f"  {self._GREEN}OK{self._RESET}   {text}")
 
     def fail(self, text: str, suggestion: str) -> None:
         self.checks += 1
         self.failures += 1
-        print(f"  {C_FAIL}FAIL{C_END} {text}")
+        print(f"  {self._RED}FAIL{self._RESET} {text}")
         print("       Suggestion: " + suggestion)
 
 
 def die(message: str) -> NoReturn:
     print("ERROR: " + message, file=sys.stderr)
     sys.exit(1)
+
+
+# ── Git helpers ───────────────────────────────────────────────────────────────
 
 
 def _git(cwd: Path, *args: str) -> "subprocess.CompletedProcess":
@@ -98,7 +96,12 @@ def git_or_die(cwd: Path, *args: str) -> str:
 
 
 def shallow_repo(directory: Path, git_url: str, commit: str) -> Path:
-    """Ensure a repo under the build dir contains `commit`, via a blobless shallow fetch."""
+    """
+    Ensure a repo under the build dir contains `commit`, fetching it when absent.
+
+    Blobless (--filter=blob:none) keeps the fetch small: git downloads commits and trees
+    up front, and each file's content on demand when it is first read.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     if not (directory / ".git").is_dir():
         git_or_die(directory, "init", "--quiet")
@@ -114,6 +117,17 @@ def git_show(repo: Path, commit: str, rel_path: str) -> str:
     return git_or_die(repo, "show", f"{commit}:{rel_path}")
 
 
+# ── File parsing ──────────────────────────────────────────────────────────────
+
+
+class Pom(NamedTuple):
+    """A parsed Maven pom: its properties, its own project version, and a display label."""
+
+    props: Dict[str, str]
+    version: Optional[str]
+    label: str
+
+
 def parse_pom(xml_text: str, label: str) -> Pom:
     try:
         root = ET.fromstring(xml_text)
@@ -121,6 +135,7 @@ def parse_pom(xml_text: str, label: str) -> Pom:
         die(f"failed to parse {label}: {error}")
     props, version = {}, None
     for child in root:
+        # ElementTree prefixes each tag with its XML namespace as "{uri}tag"; strip it.
         tag = child.tag.rsplit("}", 1)[-1]
         if tag == "properties":
             props = {p.tag.rsplit("}", 1)[-1]: (p.text or "").strip() for p in child}
@@ -143,7 +158,7 @@ def yaml_var(text: str, name: str, path: Path) -> str:
     return match.group(1)
 
 
-ROOT_TASKFILE = REPO_ROOT / "taskfile.yaml"
+# ── Pinned sources ────────────────────────────────────────────────────────────
 
 
 def presto_pin() -> Tuple[str, str]:
@@ -165,10 +180,18 @@ def presto_clone(git_url: str, pin: str) -> Path:
     return shallow_repo(BUILD_DIR / "presto-src", git_url, pin)
 
 
+# ── Checks ────────────────────────────────────────────────────────────────────
+
+
+def strip_v(version: str) -> str:
+    """Drop a leading "v" so versions compare across tag-prefix styles."""
+    return version[1:] if version.startswith("v") else version
+
+
 class Presto:
     """
     The pinned Presto commit (G_PRESTO_GIT_URL / G_PRESTO_GIT_TAG in taskfile.yaml): a
-    local repo containing it, its root pom, and the checks that keep
+    local clone containing it, its root pom, and the checks that keep
     presto-connector/pom.xml's Presto-synced pins matching that pom.
     """
 
@@ -177,30 +200,29 @@ class Presto:
     def __init__(self) -> None:
         if not self.CONNECTOR_POM.is_file():
             die("file not found: " + str(self.CONNECTOR_POM))
-        self.git_url, self.pin = presto_pin()
+        git_url, self.pin = presto_pin()
         self.connector_pom = parse_pom(self.CONNECTOR_POM.read_text(), str(self.CONNECTOR_POM))
-        self.repo = presto_clone(self.git_url, self.pin)
-        self.pom = parse_pom(
-            git_show(self.repo, self.pin, "pom.xml"), f"presto@{self.pin[:9]} pom.xml"
+        repo = presto_clone(git_url, self.pin)
+        self.root_pom = parse_pom(
+            git_show(repo, self.pin, "pom.xml"), f"presto@{self.pin[:9]} pom.xml"
         )
-        if not self.pom.version:
-            die("project version not found in " + self.pom.label)
+        if not self.root_pom.version:
+            die("project version not found in " + self.root_pom.label)
 
     def check(self, report: Reporter) -> None:
         """Check pom.xml's Presto-synced pins against the pinned commit's root pom."""
         pin = self.pin
-        pom = self.connector_pom
-        report.header(f"Presto (presto@{pin[:12]}, {self.pom.version})")
+        report.header(f"Presto (presto@{pin[:12]}, {self.root_pom.version})")
 
         # Presto manages third-party versions centrally in its root pom's
         # <dependencyManagement> (the dep.* properties); modules such as presto-spi
         # declare these dependencies without versions, so the root pom is the source of
         # truth for what the Presto runtime ships.
         for name, theirs in (
-            ("jackson.version", prop(self.pom, "dep.jackson.version")),
-            ("slice.version", prop(self.pom, "dep.slice.version")),
+            ("jackson.version", prop(self.root_pom, "dep.jackson.version")),
+            ("slice.version", prop(self.root_pom, "dep.slice.version")),
         ):
-            ours = prop(pom, name)
+            ours = prop(self.connector_pom, name)
             if ours == theirs:
                 report.ok(f"{name}: {ours}")
             else:
@@ -210,33 +232,34 @@ class Presto:
         # jackson-annotations sometimes publishes a 2-segment version paired with a
         # 3-segment core/databind family (e.g. annotations 2.22 with core 2.22.0), so
         # accept an exact match or a major.minor prefix match.
-        annotations = prop(pom, "jackson.annotations.version")
-        dep_jackson = prop(self.pom, "dep.jackson.version")
-        if annotations == dep_jackson or dep_jackson.startswith(annotations + "."):
-            report.ok("jackson.annotations.version: " + annotations)
+        ours = prop(self.connector_pom, "jackson.annotations.version")
+        theirs = prop(self.root_pom, "dep.jackson.version")
+        if ours == theirs or theirs.startswith(ours + "."):
+            report.ok("jackson.annotations.version: " + ours)
         else:
-            report.fail(f"jackson.annotations.version: pom.xml pins {annotations} but"
-                        f" presto@{pin[:9]} ships {dep_jackson}",
-                        f"set <jackson.annotations.version> to {dep_jackson} in"
+            report.fail(f"jackson.annotations.version: pom.xml pins {ours} but"
+                        f" presto@{pin[:9]} ships {theirs}",
+                        f"set <jackson.annotations.version> to {theirs} in"
                         " presto-connector/pom.xml.")
 
         # presto.version must be the pinned commit's own version; its unpublished
         # artifacts are built from source by install-presto-artifacts.sh.
-        presto_version = prop(pom, "presto.version")
-        if presto_version == self.pom.version:
-            report.ok("presto.version: " + presto_version)
+        ours = prop(self.connector_pom, "presto.version")
+        theirs = self.root_pom.version
+        if ours == theirs:
+            report.ok("presto.version: " + ours)
         else:
-            report.fail(f"presto.version: pom.xml pins {presto_version} but"
-                        f" presto@{pin[:9]} is version {self.pom.version}",
-                        f"set <presto.version> to {self.pom.version} in"
-                        " presto-connector/pom.xml, then build its artifacts with"
+            report.fail(f"presto.version: pom.xml pins {ours} but presto@{pin[:9]} is"
+                        f" version {theirs}",
+                        f"set <presto.version> to {theirs} in presto-connector/pom.xml,"
+                        " then build its artifacts with"
                         " tools/presto-deps/install-presto-artifacts.sh.")
 
 
 class Velox:
     """
     The Velox tree the pinned Presto commit builds with (its
-    presto-native-execution/velox submodule): a local repo containing it, and the checks
+    presto-native-execution/velox submodule): a local clone containing it, and the checks
     that keep deps.yaml's G_*_VERSION pins matching that tree.
     """
 
@@ -267,25 +290,18 @@ class Velox:
     def __init__(self) -> None:
         if not self.DEPS_YAML.is_file():
             die("file not found: " + str(self.DEPS_YAML))
-        self.deps_yaml_text = self.DEPS_YAML.read_text()
         git_url, self.presto_pin = presto_pin()
         self.sha, self.repo = self._resolve(presto_clone(git_url, self.presto_pin))
 
     def _resolve(self, presto_repo: Path) -> Tuple[str, Path]:
-        """Return the velox submodule commit and a local repo containing it."""
+        """Return the velox submodule commit and a local clone containing it."""
         pin = self.presto_pin
         # `git ls-tree` reads the submodule pin without the submodule being initialized.
         ls_tree = git_or_die(presto_repo, "ls-tree", pin, self.SUBMODULE)
         if not ls_tree:
             die(f"submodule {self.SUBMODULE} not found in presto@{pin[:9]}")
         sha = ls_tree.split()[2]
-        # An initialized submodule working tree at the right commit is directly usable.
-        sub = presto_repo / self.SUBMODULE
-        if (sub / ".git").exists() and (
-            run_git(sub, "cat-file", "-e", sha + "^{commit}") is not None
-        ):
-            return sha, sub
-        # Otherwise clone the submodule's upstream, taken from Presto's own .gitmodules.
+        # Clone the submodule's upstream, taken from Presto's own .gitmodules.
         gitmodules = git_show(presto_repo, pin, ".gitmodules")
         match = re.search(
             rf'\[submodule "{re.escape(self.SUBMODULE)}"\][^\[]*?url\s*=\s*(\S+)', gitmodules
@@ -297,27 +313,29 @@ class Velox:
     def check(self, report: Reporter) -> None:
         """Check deps.yaml's G_*_VERSION pins against the resolved Velox tree."""
         sha = self.sha
+        deps_yaml = self.DEPS_YAML.read_text()
         report.header(f"Velox (velox@{sha[:12]}, {self.SUBMODULE} submodule)")
         for deps_var, rel_path, pattern in self.PINS:
             match = re.search(pattern, git_show(self.repo, sha, rel_path))
             if not match:
                 die(f"could not extract a version for {deps_var} from velox@{sha[:9]}"
                     f" {rel_path}; update Velox.PINS")
-            ours = yaml_var(self.deps_yaml_text, deps_var, self.DEPS_YAML)
+            ours = yaml_var(deps_yaml, deps_var, self.DEPS_YAML)
             theirs = match.group(1)
-            # Compare ignoring a leading "v" (deps.yaml and Velox differ in tag-prefix
-            # style); suggestions keep the prefix style deps.yaml already uses.
-            unv_ours = ours[1:] if ours.startswith("v") else ours
-            unv_theirs = theirs[1:] if theirs.startswith("v") else theirs
-            if unv_ours == unv_theirs:
+            # deps.yaml and Velox differ in "v" tag-prefix style, so compare without it;
+            # suggestions keep the style deps.yaml already uses.
+            if strip_v(ours) == strip_v(theirs):
                 report.ok(f"{deps_var}: {ours}")
             else:
-                suggested = ("v" if ours.startswith("v") else "") + unv_theirs
+                suggested = ("v" if ours.startswith("v") else "") + strip_v(theirs)
                 report.fail(f"{deps_var}: deps.yaml pins {ours} but velox@{sha[:9]} (used"
                             f" by presto@{self.presto_pin[:9]}) resolves {theirs}"
                             f" ({rel_path})",
                             f"set {deps_var} to {suggested} in"
                             " taskfiles/velox-connector/deps.yaml.")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 
 def main() -> None:
