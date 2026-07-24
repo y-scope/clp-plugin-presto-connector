@@ -66,9 +66,17 @@ if(CPU_TARGET STREQUAL "" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64
     # silently produce an sse-only plugin that official presto-native images reject.
     set(CPU_TARGET "avx")
 endif()
+# The helper defaults ARM_BUILD_TARGET to "local" (tune for the build machine's arm core,
+# baking in that core's extensions); pin upstream's portable "common" instead so default
+# arm builds run on any armv8-a machine. ARM_BUILD_TARGET=local opts back in.
+set(ARM_BUILD_TARGET "$ENV{ARM_BUILD_TARGET}")
+if(ARM_BUILD_TARGET STREQUAL "")
+    set(ARM_BUILD_TARGET "common")
+endif()
 execute_process(
     COMMAND bash -c
-        "source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
+        "export ARM_BUILD_TARGET='${ARM_BUILD_TARGET}' \
+            && source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
             && get_cxx_flags '${CPU_TARGET}'"
     OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE

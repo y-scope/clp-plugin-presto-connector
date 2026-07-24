@@ -70,14 +70,17 @@ with:
 | `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
 | `arm64`      | Apple Silicon  | `-mcpu=apple-m1+crc`                         |
 
-Note: with `CPU_TARGET=aarch64` (or arm auto-detection), additionally setting
-`ARM_BUILD_TARGET=local` tunes for the build machine's detected Neoverse core
-(`-mcpu=neoverse-*`, including that core's architecture extensions) instead of
-the generic armv8-a baseline. Use it when the build machine's core matches the
-deployment hardware — e.g. when packaging directly on the production server or
-an identical machine; like `CPU_TARGET`, it's forwarded into the packaging
-container. Keep the generic baseline for artifacts that must run on unknown or
-mixed arm hardware: core-specific extensions crash (SIGILL) on other cores.
+Note: on arm (`CPU_TARGET=aarch64` or auto-detection), `ARM_BUILD_TARGET` picks
+between upstream's two arm build styles: `common` — the default, generic
+`-march=armv8-a+crc+crypto` that runs on any armv8-a machine — and `local`,
+which tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`,
+including that core's architecture extensions). Use `local` when the build
+machine's core matches the deployment hardware — e.g. when packaging directly
+on the production server or an identical machine; like `CPU_TARGET`, it's
+forwarded into the packaging container. Keep `common` for artifacts that must
+run on unknown or mixed arm hardware: core-specific extensions crash (SIGILL)
+on other cores. (Upstream's helper defaults to `local` when the variable is
+unset; our CMake configure pins `common` so default builds are portable.)
 The CMake configure logs the resolved flags (`Target-CPU flags (get_cxx_flags)`)
 so you can verify what a build used.
 

@@ -28,7 +28,8 @@ on:
         default: ""
       arm64_build_target:
         description: "arm64 only: 'local' tunes for the runner's detected Neoverse core;
-          use only when the deployment hardware matches the runner (blank = generic armv8-a)"
+          use only when the deployment hardware matches the runner (blank = 'common', the
+          portable armv8-a baseline)"
         required: false
         default: ""
   push:
