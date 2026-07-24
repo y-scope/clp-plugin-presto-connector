@@ -17,8 +17,8 @@ on:
         required: false
         default: ""
       amd64_cpu_target:
-        description: "amd64 target-CPU flags (Velox get_cxx_flags): avx, sse, or blank to
-          auto-detect the runner's CPU"
+        description: "amd64 target-CPU flags (Velox get_cxx_flags): avx, sse, or blank for
+          the official presto-native default (avx)"
         required: false
         default: ""
       arm64_cpu_target:
@@ -135,8 +135,9 @@ jobs:
           ARM64_CPU_TARGET: "${{inputs.arm64_cpu_target || ''}}"
           ARM64_BUILD_TARGET: "${{inputs.arm64_build_target || ''}}"
         run: |-
-          # Select this architecture's target-CPU flags (blank auto-detects the runner's
-          # CPU); see "Target-CPU flags" in tools/build-packages/README.md.
+          # Select this architecture's target-CPU flags (blank uses the official
+          # presto-native default); see "Target-CPU flags" in
+          # tools/build-packages/README.md.
           if [[ "${MATRIX_ARCH}" == "amd64" ]]; then
             export CPU_TARGET="${AMD64_CPU_TARGET}"
           else

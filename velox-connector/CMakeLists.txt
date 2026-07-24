@@ -59,10 +59,17 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # match across the `dlopen` boundary via `F14LinkCheck<Mode>`, so a mismatch aborts the worker on
 # startup. Override with the `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as
 # upstream (see "Target-CPU flags" in tools/build-packages/README.md).
+set(CPU_TARGET "$ENV{CPU_TARGET}")
+if(CPU_TARGET STREQUAL "" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
+    # Match Presto's official native builds (their Makefile defaults CPU_TARGET to "avx")
+    # rather than auto-detecting: on a build machine without AVX, auto-detection would
+    # silently produce an sse-only plugin that official presto-native images reject.
+    set(CPU_TARGET "avx")
+endif()
 execute_process(
     COMMAND bash -c
         "source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
-            && get_cxx_flags '$ENV{CPU_TARGET}'"
+            && get_cxx_flags '${CPU_TARGET}'"
     OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY
@@ -71,9 +78,10 @@ execute_process(
 # here rather than letting it reach the compiler command line.
 if(NOT VELOX_TARGET_CPU_CXX_FLAGS MATCHES "^-")
     message(FATAL_ERROR
-        "get_cxx_flags rejected CPU_TARGET='$ENV{CPU_TARGET}':"
+        "get_cxx_flags rejected CPU_TARGET='${CPU_TARGET}':"
         " ${VELOX_TARGET_CPU_CXX_FLAGS} Valid values: avx, sse (x86_64), aarch64, arm64"
-        " (Apple Silicon), or unset to auto-detect the build machine's CPU."
+        " (Apple Silicon), or unset for the default (avx on x86_64, matching official"
+        " presto-native builds; auto-detected elsewhere)."
     )
 endif()
 message(STATUS "Target-CPU flags (get_cxx_flags): ${VELOX_TARGET_CPU_CXX_FLAGS}")

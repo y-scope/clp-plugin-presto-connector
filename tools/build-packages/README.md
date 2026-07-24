@@ -51,17 +51,20 @@ The worker plugin must be compiled with the same target-CPU flags as the Presto
 worker that loads it: Folly's F14 hash table bakes the enabled CPU features into
 its ABI and aborts the worker at plugin load on a mismatch. The velox-connector
 CMake configure derives its flags with the same `get_cxx_flags` helper Presto's
-own build uses, so both auto-detect the build machine's CPU by default.
+own build uses. By default it targets what official presto-native builds ship
+(their Makefile defaults `CPU_TARGET` to `avx` on x86_64; arm builds use the
+generic `aarch64` baseline), so the plugin is compatible with the official
+presto-native images out of the box.
 
-Set the `CPU_TARGET` environment variable to build for a different target than
-the build machine. It takes one of the keywords below — not raw compiler
-flags; the helper expands the keyword to the same flag set the worker's build
-uses (shown in the Flags column). Pick the value the target Presto worker was
-built with:
+Set the `CPU_TARGET` environment variable to target a worker built with
+different flags. It takes one of the keywords below — not raw compiler flags;
+the helper expands the keyword to the same flag set the worker's build uses
+(shown in the Flags column). Pick the value the target Presto worker was built
+with:
 
 | `CPU_TARGET` | Architecture   | Flags                                        |
 |--------------|----------------|----------------------------------------------|
-| (blank)      | any            | Auto-detect the build machine's CPU          |
+| (blank)      | any            | Official presto-native default: `avx` on x86_64; auto-detect elsewhere (Linux arm → `aarch64`) |
 | `avx`        | x86_64         | `-mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2`   |
 | `sse`        | x86_64         | `-msse4.2`                                   |
 | `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
