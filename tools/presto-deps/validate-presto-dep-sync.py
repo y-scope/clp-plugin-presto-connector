@@ -143,6 +143,28 @@ def yaml_var(text: str, name: str, path: Path) -> str:
     return match.group(1)
 
 
+ROOT_TASKFILE = REPO_ROOT / "taskfile.yaml"
+
+
+def presto_pin() -> Tuple[str, str]:
+    """Return (git_url, commit) for the pinned Presto from the root taskfile."""
+    if not ROOT_TASKFILE.is_file():
+        die("file not found: " + str(ROOT_TASKFILE))
+    text = ROOT_TASKFILE.read_text()
+    return (
+        yaml_var(text, "G_PRESTO_GIT_URL", ROOT_TASKFILE),
+        yaml_var(text, "G_PRESTO_GIT_TAG", ROOT_TASKFILE),
+    )
+
+
+def presto_clone(git_url: str, pin: str) -> Path:
+    """
+    Return the Presto-side clone (shared with install-presto-artifacts.sh), fetching the
+    pinned commit into it when absent: whichever tool runs first seeds it for the others.
+    """
+    return shallow_repo(BUILD_DIR / "presto-src", git_url, pin)
+
+
 class Presto:
     """
     The pinned Presto commit (G_PRESTO_GIT_URL / G_PRESTO_GIT_TAG in taskfile.yaml): a
@@ -150,20 +172,14 @@ class Presto:
     presto-connector/pom.xml's Presto-synced pins matching that pom.
     """
 
-    TASKFILE = REPO_ROOT / "taskfile.yaml"
     CONNECTOR_POM = REPO_ROOT / "presto-connector" / "pom.xml"
 
     def __init__(self) -> None:
-        for path in (self.TASKFILE, self.CONNECTOR_POM):
-            if not path.is_file():
-                die("file not found: " + str(path))
-        taskfile_text = self.TASKFILE.read_text()
-        self.git_url = yaml_var(taskfile_text, "G_PRESTO_GIT_URL", self.TASKFILE)
-        self.pin = yaml_var(taskfile_text, "G_PRESTO_GIT_TAG", self.TASKFILE)
+        if not self.CONNECTOR_POM.is_file():
+            die("file not found: " + str(self.CONNECTOR_POM))
+        self.git_url, self.pin = presto_pin()
         self.connector_pom = parse_pom(self.CONNECTOR_POM.read_text(), str(self.CONNECTOR_POM))
-        # The Presto-side clone, shared with install-presto-artifacts.sh: whichever tool
-        # runs first fetches the pinned commit and the other reuses it.
-        self.repo = shallow_repo(BUILD_DIR / "presto-src", self.git_url, self.pin)
+        self.repo = presto_clone(self.git_url, self.pin)
         self.pom = parse_pom(
             git_show(self.repo, self.pin, "pom.xml"), f"presto@{self.pin[:9]} pom.xml"
         )
@@ -248,34 +264,34 @@ class Velox:
          r'set\(VELOX_XSIMD_VERSION\s+"?([^)"\s]+)"?\)'),
     )
 
-    def __init__(self, presto: Presto) -> None:
+    def __init__(self) -> None:
         if not self.DEPS_YAML.is_file():
             die("file not found: " + str(self.DEPS_YAML))
         self.deps_yaml_text = self.DEPS_YAML.read_text()
-        self.presto_pin = presto.pin
-        self.sha, self.repo = self._resolve(presto)
+        git_url, self.presto_pin = presto_pin()
+        self.sha, self.repo = self._resolve(presto_clone(git_url, self.presto_pin))
 
-    def _resolve(self, presto: Presto) -> Tuple[str, Path]:
+    def _resolve(self, presto_repo: Path) -> Tuple[str, Path]:
         """Return the velox submodule commit and a local repo containing it."""
+        pin = self.presto_pin
         # `git ls-tree` reads the submodule pin without the submodule being initialized.
-        ls_tree = git_or_die(presto.repo, "ls-tree", presto.pin, self.SUBMODULE)
+        ls_tree = git_or_die(presto_repo, "ls-tree", pin, self.SUBMODULE)
         if not ls_tree:
-            die(f"submodule {self.SUBMODULE} not found in presto@{presto.pin[:9]}")
+            die(f"submodule {self.SUBMODULE} not found in presto@{pin[:9]}")
         sha = ls_tree.split()[2]
         # An initialized submodule working tree at the right commit is directly usable.
-        sub = presto.repo / self.SUBMODULE
+        sub = presto_repo / self.SUBMODULE
         if (sub / ".git").exists() and (
             run_git(sub, "cat-file", "-e", sha + "^{commit}") is not None
         ):
             return sha, sub
         # Otherwise clone the submodule's upstream, taken from Presto's own .gitmodules.
-        gitmodules = git_show(presto.repo, presto.pin, ".gitmodules")
+        gitmodules = git_show(presto_repo, pin, ".gitmodules")
         match = re.search(
             rf'\[submodule "{re.escape(self.SUBMODULE)}"\][^\[]*?url\s*=\s*(\S+)', gitmodules
         )
         if not match:
-            die(f"no url for submodule {self.SUBMODULE} in presto@{presto.pin[:9]}"
-                " .gitmodules")
+            die(f"no url for submodule {self.SUBMODULE} in presto@{pin[:9]} .gitmodules")
         return sha, shallow_repo(BUILD_DIR / "velox-src", match.group(1), sha)
 
     def check(self, report: Reporter) -> None:
@@ -305,17 +321,15 @@ class Velox:
 
 
 def main() -> None:
+    _, pin = presto_pin()
     report = Reporter()
-    presto = Presto()
-    presto.check(report)
-    velox = Velox(presto)
-    velox.check(report)
+    Presto().check(report)
+    Velox().check(report)
 
     if report.failures:
         die(f"{report.failures} of {report.checks} dependency pins out of sync with"
-            f" presto@{presto.pin}. Update the files above to match the suggested"
-            " versions.")
-    print(f"All {report.checks} dependency pins are in sync with presto@{presto.pin[:12]}.")
+            f" presto@{pin}. Update the files above to match the suggested versions.")
+    print(f"All {report.checks} dependency pins are in sync with presto@{pin[:12]}.")
 
 
 if __name__ == "__main__":
