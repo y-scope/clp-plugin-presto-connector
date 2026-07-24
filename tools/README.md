@@ -15,14 +15,13 @@ one reproducible environment. Used by `task package` and the `build-packages` /
 ## `presto-deps/`
 
 Keeps the connector in lockstep with the Presto commit pinned by
-`G_PRESTO_GIT_TAG` in
-[taskfiles/velox-connector/deps.yaml](../taskfiles/velox-connector/deps.yaml),
-since that commit (not a published release) is what both connectors are built
-against.
+`G_PRESTO_GIT_TAG` in [taskfile.yaml](../taskfile.yaml), since that commit (not
+a published release) is what both connectors are built against.
 
 * `validate-presto-dep-sync.py` — Checks that the version pins in
-  `presto-connector/pom.xml` and the Velox dependency pins in `deps.yaml` match
-  the pinned Presto commit and its Velox tree. Prints a suggested value for
+  `presto-connector/pom.xml` and the Velox dependency pins in
+  `taskfiles/velox-connector/deps.yaml` match the pinned Presto commit and its
+  Velox tree. Prints a suggested value for
   each mismatch and fails; it never edits anything. Runs before the
   `presto-connector` and `velox-connector` builds (as task dependencies), in
   the packaging container, and in the `validate-deps` CI workflow.
