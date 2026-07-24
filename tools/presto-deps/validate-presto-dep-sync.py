@@ -17,10 +17,11 @@ G_PRESTO_GIT_TAG (taskfile.yaml):
   presto-native-execution/velox submodule tree (locations and patterns in Velox.PINS).
 
 Prints OK/FAIL per pin with a suggested value on failure and exits non-zero; never edits
-anything. Sources are read from an existing checkout at the pinned commit when one exists;
-otherwise blobless shallow clones (of G_PRESTO_GIT_URL and, for Velox, the submodule URL
-from Presto's own .gitmodules) are fetched under the build directory, where the installer
-reuses them. Runs on Python 3.6+ (the packaging build-env container ships 3.6.8).
+anything. Sources come from two clones under the build directory, populated with blobless
+shallow fetches on first use: presto-src (shared with install-presto-artifacts.sh) and
+velox-src (cloned from the submodule URL in Presto's own .gitmodules, unless presto-src
+already has the submodule checked out). Runs on Python 3.6+ (the packaging build-env
+container ships 3.6.8).
 """
 
 import os
@@ -160,42 +161,14 @@ class Presto:
         self.git_url = yaml_var(taskfile_text, "G_PRESTO_GIT_URL", self.TASKFILE)
         self.pin = yaml_var(taskfile_text, "G_PRESTO_GIT_TAG", self.TASKFILE)
         self.connector_pom = parse_pom(self.CONNECTOR_POM.read_text(), str(self.CONNECTOR_POM))
-        self.repo = self._local_repo()
+        # The Presto-side clone, shared with install-presto-artifacts.sh: whichever tool
+        # runs first fetches the pinned commit and the other reuses it.
+        self.repo = shallow_repo(BUILD_DIR / "presto-src", self.git_url, self.pin)
         self.pom = parse_pom(
             git_show(self.repo, self.pin, "pom.xml"), f"presto@{self.pin[:9]} pom.xml"
         )
         if not self.pom.version:
             die("project version not found in " + self.pom.label)
-
-    def _local_repo(self) -> Path:
-        """
-        Return a local git repo containing the pinned commit.
-
-        The candidates are checkouts this repository's own builds produce (CMake
-        FetchContent names a checkout "<declared name>-src", hence
-        presto_native_execution-src). They can hold checkouts from earlier pins, so none
-        is trusted without git confirming it contains the pinned commit. Otherwise the
-        installer's clone location is populated with a blobless shallow fetch, which
-        install-presto-artifacts.sh later reuses.
-        """
-        candidates = [
-            # The packaging build's FetchContent cache (tools/build-packages sets
-            # FETCHCONTENT_BASE_DIR under .cache/fetchcontent/<build-env hash>).
-            *sorted(
-                (REPO_ROOT / ".cache" / "fetchcontent").glob("*/presto_native_execution-src")
-            ),
-            # A dev build's FetchContent tree (taskfiles/velox-connector/main.yaml's
-            # default FETCHCONTENT_BASE_DIR).
-            BUILD_DIR / "velox-connector" / "_deps" / "presto_native_execution-src",
-            # install-presto-artifacts.sh's clone.
-            BUILD_DIR / "presto-src",
-        ]
-        for candidate in candidates:
-            if (candidate / ".git").exists() and (
-                run_git(candidate, "cat-file", "-e", self.pin + "^{commit}") is not None
-            ):
-                return candidate
-        return shallow_repo(BUILD_DIR / "presto-src", self.git_url, self.pin)
 
     def check(self, report: Reporter) -> None:
         """Check pom.xml's Presto-synced pins against the pinned commit's root pom."""

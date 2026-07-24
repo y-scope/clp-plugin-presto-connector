@@ -136,7 +136,8 @@ have_pinned_commit() {
     git -C "${src_dir}" cat-file -e "${presto_git_tag}^{commit}" 2>/dev/null
 }
 
-# Makes ${src_dir} a checkout of the pinned commit.
+# Makes ${src_dir} a checkout of the pinned commit. The clone is shared with
+# validate-presto-dep-sync.py, which may have already fetched the commit into it.
 checkout_pinned_presto() {
     mkdir -p "${src_dir}"
     if [[ ! -d "${src_dir}/.git" ]]; then
@@ -146,21 +147,6 @@ checkout_pinned_presto() {
     # Keep an existing clone's remote in sync when G_PRESTO_GIT_URL changes.
     git -C "${src_dir}" remote set-url origin "${presto_git_url}"
 
-    if ! have_pinned_commit; then
-        # Prefer copying the commit from a local checkout that already has it (e.g. the
-        # CMake FetchContent cache) over fetching it from the network again.
-        local candidate
-        for candidate in "${repo_root}"/.cache/fetchcontent/*/presto_native_execution-src \
-            "${build_dir}/velox-connector/_deps/presto_native_execution-src"; do
-            if git -C "${candidate}" cat-file -e "${presto_git_tag}^{commit}" 2>/dev/null \
-                && git -C "${src_dir}" fetch --quiet "${candidate}" "${presto_git_tag}" \
-                    2>/dev/null
-            then
-                echo "==> Copied presto@${presto_git_tag:0:12} from ${candidate}."
-                break
-            fi
-        done
-    fi
     if ! have_pinned_commit; then
         echo "==> Fetching presto@${presto_git_tag} from ${presto_git_url}..."
         git -C "${src_dir}" fetch --depth 1 origin "${presto_git_tag}"
