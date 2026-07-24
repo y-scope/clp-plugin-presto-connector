@@ -17,7 +17,7 @@ tasks:
   build:
     deps:
       - "deps:install-all"
-      - "validate-dep-sync"
+      - ":validate-dep-sync"
     cmds:
       - task: "build-with-installed-deps"
 
@@ -49,8 +49,3 @@ tasks:
             - "-DPRESTO_GIT_URL={{.G_PRESTO_GIT_URL}}"
             - "-DPRESTO_GIT_TAG={{.G_PRESTO_GIT_TAG}}"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"
-
-  validate-dep-sync:
-    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
-    run: "once"
-    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"

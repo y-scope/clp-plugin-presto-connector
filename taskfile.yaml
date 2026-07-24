@@ -38,3 +38,8 @@ tasks:
         msg: "docker (with buildx) is required for local package builds."
     cmds:
       - "'{{.ROOT_DIR}}/tools/build-packages/build-packages.sh' {{.CLI_ARGS}}"
+
+  validate-dep-sync:
+    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"
