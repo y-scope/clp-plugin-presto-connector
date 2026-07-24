@@ -70,8 +70,11 @@ with:
 | `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
 | `arm64`      | Apple Silicon  | `-mcpu=apple-m1+crc`                         |
 
-Note: on arm (`CPU_TARGET=aarch64` or auto-detection), `ARM_BUILD_TARGET` picks
-between upstream's two arm build styles: `common` — the default, generic
+Note: the two variables compose rather than compete. `CPU_TARGET` selects the
+architecture flag family; `ARM_BUILD_TARGET` is a modifier consulted only
+inside the arm family — with `avx`, `sse`, or `arm64` it has no effect. On arm
+(`CPU_TARGET=aarch64` or auto-detection), `ARM_BUILD_TARGET` picks between
+upstream's two arm build styles: `common` — the default, generic
 `-march=armv8-a+crc+crypto` that runs on any armv8-a machine — and `local`,
 which tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`,
 including that core's architecture extensions). Use `local` when the build
