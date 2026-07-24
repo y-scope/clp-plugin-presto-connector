@@ -2,7 +2,7 @@
 
 # Ensures the Presto Maven artifacts that presto-connector/pom.xml consumes exist in
 # the local Maven repository, building them from the pinned Presto commit
-# (G_PRESTO_GIT_TAG in taskfiles/velox-connector/deps.yaml) when they're unpublished.
+# (G_PRESTO_GIT_TAG in taskfile.yaml) when they're unpublished.
 # See tools/README.md for the full behavior and how this fits the build.
 #
 # Installs the `provided`-scope modules by default; --with-test-deps adds the test
@@ -18,7 +18,7 @@ set -o pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 repo_root="$(cd "${script_dir}/../.." &>/dev/null && pwd)"
 connector_pom="${repo_root}/presto-connector/pom.xml"
-velox_deps_yaml="${repo_root}/taskfiles/velox-connector/deps.yaml"
+root_taskfile="${repo_root}/taskfile.yaml"
 
 # The modules presto-connector/pom.xml consumes at `provided` scope.
 PRESTO_MODULES_MAIN="presto-common,presto-spi"
@@ -72,11 +72,11 @@ presto_version="$(sed -n 's|.*<presto.version>\(.*\)</presto.version>.*|\1|p' \
 
 # ── Ensure artifacts built from the pinned commit ─────────────────────────────
 
-[[ -f "${velox_deps_yaml}" ]] || die "velox-connector deps taskfile not found: ${velox_deps_yaml}"
-presto_git_tag="$(sed -n 's|.*G_PRESTO_GIT_TAG: "\([^"]*\)".*|\1|p' "${velox_deps_yaml}")"
-[[ -n "${presto_git_tag}" ]] || die "G_PRESTO_GIT_TAG not found in ${velox_deps_yaml}"
-presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${velox_deps_yaml}")"
-[[ -n "${presto_git_url}" ]] || die "G_PRESTO_GIT_URL not found in ${velox_deps_yaml}"
+[[ -f "${root_taskfile}" ]] || die "root taskfile not found: ${root_taskfile}"
+presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${root_taskfile}")"
+[[ -n "${presto_git_url}" ]] || die "G_PRESTO_GIT_URL not found in ${root_taskfile}"
+presto_git_tag="$(sed -n 's|.*G_PRESTO_GIT_TAG: "\([^"]*\)".*|\1|p' "${root_taskfile}")"
+[[ -n "${presto_git_tag}" ]] || die "G_PRESTO_GIT_TAG not found in ${root_taskfile}"
 
 # Official releases (a purely numeric version, e.g. 0.299, from the upstream Presto
 # repository) are published to Maven Central, so Maven resolves them without a source
