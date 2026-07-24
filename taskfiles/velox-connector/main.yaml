@@ -15,10 +15,9 @@ vars:
 
 tasks:
   build:
-    deps:
-      - "deps:install-all"
-      - ":validate-dep-sync"
     cmds:
+      - task: ":validate-dep-sync"
+      - task: "deps:install-all"
       - task: "build-with-installed-deps"
 
   build-with-installed-deps:
