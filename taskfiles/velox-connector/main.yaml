@@ -21,11 +21,6 @@ tasks:
     cmds:
       - task: "build-with-installed-deps"
 
-  validate-dep-sync:
-    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
-    run: "once"
-    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"
-
   build-with-installed-deps:
     desc: "Builds the connector using dependencies already installed in G_DEPS_CPP_DIR."
     preconditions:
@@ -54,3 +49,8 @@ tasks:
             - "-DPRESTO_GIT_URL={{.G_PRESTO_GIT_URL}}"
             - "-DPRESTO_GIT_TAG={{.G_PRESTO_GIT_TAG}}"
           SOURCE_DIR: "{{.ROOT_DIR}}/velox-connector"
+
+  validate-dep-sync:
+    desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
+    run: "once"
+    cmd: "'{{.ROOT_DIR}}/tools/presto-deps/validate-presto-dep-sync.py'"
