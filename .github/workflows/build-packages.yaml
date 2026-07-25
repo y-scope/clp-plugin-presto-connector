@@ -16,15 +16,20 @@ on:
         description: "Package version override (derived from presto-connector/pom.xml when blank)"
         required: false
         default: ""
-      cpu_target:
-        description: "CPU_TARGET for both builds (Velox get_cxx_flags keyword; blank = the
-          official presto-native defaults). Architecture-specific values fail the other
-          architecture's build."
+      amd64_cpu_target:
+        description: "amd64 CPU_TARGET (Velox get_cxx_flags): avx, sse, or blank for the
+          official presto-native default (avx)"
         required: false
         default: ""
-      arm_build_target:
-        description: "ARM_BUILD_TARGET (arm build only): 'local' tunes for the runner's
-          detected Neoverse core; blank = 'common', the portable armv8-a baseline"
+      arm64_cpu_target:
+        description: "arm64 CPU_TARGET (Velox get_cxx_flags): aarch64, or blank
+          (equivalent; arm has a single flag family)"
+        required: false
+        default: ""
+      arm64_build_target:
+        description: "arm64 ARM_BUILD_TARGET: 'local' tunes for the runner's detected
+          Neoverse core; use only when the deployment hardware matches the runner
+          (blank = 'common', the portable armv8-a baseline)"
         required: false
         default: ""
   push:
@@ -125,12 +130,21 @@ jobs:
       - name: "Build packages"
         id: "packages"
         shell: "bash"
-        # The inputs mirror the CPU_TARGET/ARM_BUILD_TARGET environment variables used by
-        # local builds; see "Target-CPU flags" in tools/build-packages/README.md.
         env:
-          CPU_TARGET: "${{inputs.cpu_target || ''}}"
-          ARM_BUILD_TARGET: "${{inputs.arm_build_target || ''}}"
+          MATRIX_ARCH: "${{matrix.arch}}"
+          AMD64_CPU_TARGET: "${{inputs.amd64_cpu_target || ''}}"
+          ARM64_CPU_TARGET: "${{inputs.arm64_cpu_target || ''}}"
+          ARM64_BUILD_TARGET: "${{inputs.arm64_build_target || ''}}"
         run: |-
+          # Apply this architecture's inputs (blank uses the official presto-native
+          # defaults); see "Target-CPU flags" in tools/build-packages/README.md.
+          if [[ "${MATRIX_ARCH}" == "amd64" ]]; then
+            export CPU_TARGET="${AMD64_CPU_TARGET}"
+          else
+            export CPU_TARGET="${ARM64_CPU_TARGET}"
+            export ARM_BUILD_TARGET="${ARM64_BUILD_TARGET}"
+          fi
+
           bash tools/build-packages/internal/container/build-artifacts.sh --version "${VERSION}"
 
           shopt -s nullglob

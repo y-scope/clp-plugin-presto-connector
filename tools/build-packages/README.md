@@ -97,14 +97,13 @@ CPU_TARGET=sse task velox-connector:build  # dev build
 CPU_TARGET=sse task package                # package build
 ```
 
-In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes the
-same two variables as inputs — `cpu_target` and `arm_build_target` — applied
-identically to both architectures' builds, exactly as a local build would apply
-the environment variables. An architecture-specific value (e.g. `sse`) fails the
-other architecture's build at configure; the matrix doesn't fail fast, so the
-matching architecture's packages still build. Blank inputs — and push-triggered
-builds — use the official presto-native defaults. Changing the flags re-runs the
-CMake configure, and the changed flags rebuild the affected objects.
+In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes
+per-architecture inputs — `amd64_cpu_target`, `arm64_cpu_target`, and
+`arm64_build_target` — each applied only to the matching architecture's build,
+so an input can never affect the other architecture. Blank inputs — and
+push-triggered builds — use the official presto-native defaults. Changing the
+flags re-runs the CMake configure, and the changed flags rebuild the affected
+objects.
 
 ### Finding the right value
 
