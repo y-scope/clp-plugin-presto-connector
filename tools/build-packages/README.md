@@ -95,11 +95,13 @@ CPU_TARGET=sse task velox-connector:build  # dev build
 CPU_TARGET=sse task package                # package build
 ```
 
-In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes
-`amd64_cpu_target` and `arm64_cpu_target` inputs, each applied to the matching
-architecture's build. Blank inputs — and push-triggered builds — auto-detect the
-runner's CPU. Changing `CPU_TARGET` re-runs the CMake configure, and the changed
-flags rebuild the affected objects.
+In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes one
+input per real per-architecture decision: `amd64_cpu_target` (x86's family
+choice, `avx` vs `sse`) and `arm64_build_target` (arm's tuning choice, `common`
+vs `local`); arm has no family choice — its only valid keyword, `aarch64`, is
+what blank resolves to. Blank inputs — and push-triggered builds — use the
+official presto-native defaults. Changing the flags re-runs the CMake configure,
+and the changed flags rebuild the affected objects.
 
 ### Finding the right value
 
