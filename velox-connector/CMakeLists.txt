@@ -73,11 +73,14 @@ set(ARM_BUILD_TARGET "$ENV{ARM_BUILD_TARGET}")
 if(ARM_BUILD_TARGET STREQUAL "")
     set(ARM_BUILD_TARGET "common")
 endif()
+# The values are passed as positional arguments so the shell never interprets them.
 execute_process(
     COMMAND bash -c
-        "export ARM_BUILD_TARGET='${ARM_BUILD_TARGET}' \
-            && source '${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh' \
-            && get_cxx_flags '${CPU_TARGET}'"
+        "export ARM_BUILD_TARGET=\"$1\" && source \"$2\" && get_cxx_flags \"$3\""
+        bash
+        "${ARM_BUILD_TARGET}"
+        "${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh"
+        "${CPU_TARGET}"
     OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY
