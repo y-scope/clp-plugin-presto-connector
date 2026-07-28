@@ -1,24 +1,34 @@
 # Defines `derive_velox_target_cpu_flags()`, which derives the target-CPU compiler flags that the
 # Presto worker's own build uses.
 #
-# The implementation is adapted from the `execute_process(... get_cxx_flags ...)` block near the
-# top of upstream's `presto-native-execution/CMakeLists.txt`:
-# https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
-# `get_cxx_flags` is a bash function from Velox (`velox/scripts/setup-helper-functions.sh`) that
-# maps a CPU-target keyword to compiler flags, so the flag selection always tracks the pinned
-# Presto commit:
-# https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
-# (The permalinks point at the Presto commit pinned in taskfiles/velox-connector/deps.yaml and its
-# Velox submodule; refresh them when bumping the pin.) Deviations from upstream's block are
-# commented inline.
+# Provenance:
+#
+# - The heavy lifting is done by `get_cxx_flags`, a bash function from Velox that maps a CPU-target
+#   keyword (e.g. "avx") to compiler flags. It is sourced from the fetched Presto tree at configure
+#   time, so the flag selection always tracks the pinned Presto commit:
+#   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
+#
+# - The CMake code wrapping it is adapted from how upstream's own build invokes the same function,
+#   near the top of `presto-native-execution/CMakeLists.txt`:
+#   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
+#
+# - Everywhere this file intentionally differs from upstream's version, the difference is marked
+#   with an "Upstream deviation:" comment explaining why.
+#
+# NOTE: The permalinks point at the Presto commit pinned in taskfiles/velox-connector/deps.yaml
+# (and its Velox submodule at that commit); refresh them when bumping the pin.
 
 # derive_velox_target_cpu_flags(<output-variable> <helper-script>)
 #
-# Runs `get_cxx_flags` from `<helper-script>` (the path to Velox's
-# `scripts/setup-helper-functions.sh`) and stores the derived flags in `<output-variable>` in the
-# caller's scope. The selection is controlled by the `CPU_TARGET`/`ARM_BUILD_TARGET` environment
-# variables, as upstream (see "Target-CPU flags" in tools/build-packages/README.md). Fails the
-# configure if the selection is unsupported.
+# Arguments:
+# - output-variable: name of the variable to store the derived flags in, set in the caller's
+#   scope.
+# - helper-script: path to Velox's `scripts/setup-helper-functions.sh`, which provides
+#   `get_cxx_flags`.
+#
+# The selection is controlled by the `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables, as
+# upstream (see "Target-CPU flags" in tools/build-packages/README.md). Fails the configure if the
+# selection is unsupported.
 function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     set(CPU_TARGET "$ENV{CPU_TARGET}")
     if(CPU_TARGET STREQUAL "" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
