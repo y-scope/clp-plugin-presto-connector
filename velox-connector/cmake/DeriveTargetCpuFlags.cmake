@@ -25,7 +25,7 @@
 #    armv8-a machine.
 #
 # Upstream references, at the pinned Presto commit (refresh when bumping the pin in
-# taskfiles/velox-connector/deps.yaml):
+# taskfile.yaml):
 # - `get_cxx_flags`:
 #   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
 # - upstream's invocation of it:
