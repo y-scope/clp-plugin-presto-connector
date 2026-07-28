@@ -27,9 +27,7 @@
 # 2. Default ARM_BUILD_TARGET to "common" instead of upstream's "local" (tune for the build
 #    machine's arm core). "common" matches the official arm images and runs on any armv8-a
 #    machine; ARM_BUILD_TARGET=local opts back in.
-# 3. Pass the values to bash as positional arguments (upstream interpolates them into the
-#    `bash -c` string) so the shell never interprets them.
-# 4. Fail the configure on an unsupported selection: `get_cxx_flags` reports one as text with a
+# 3. Fail the configure on an unsupported selection: `get_cxx_flags` reports one as text with a
 #    zero exit status, which upstream lets reach the compiler command line.
 
 # derive_velox_target_cpu_flags(<output-variable> <helper-script>)
@@ -54,20 +52,15 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
         set(ARM_BUILD_TARGET "common")
     endif()
 
-    # Deviation 3: pass the values as positional arguments (see header).
     execute_process(
         COMMAND bash -c
-            "export ARM_BUILD_TARGET=\"$1\" && source \"$2\" && get_cxx_flags \"$3\""
-            bash
-            "${ARM_BUILD_TARGET}"
-            "${HELPER_SCRIPT}"
-            "${CPU_TARGET}"
+            "export ARM_BUILD_TARGET=${ARM_BUILD_TARGET} && source ${HELPER_SCRIPT} && get_cxx_flags ${CPU_TARGET}"
         OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
         OUTPUT_STRIP_TRAILING_WHITESPACE
         COMMAND_ERROR_IS_FATAL ANY
     )
 
-    # Deviation 4: catch the helper's zero-exit-status error text (see header). Real flags always
+    # Deviation 3: catch the helper's zero-exit-status error text (see header). Real flags always
     # start with "-".
     if(NOT VELOX_TARGET_CPU_CXX_FLAGS MATCHES "^-")
         message(FATAL_ERROR
