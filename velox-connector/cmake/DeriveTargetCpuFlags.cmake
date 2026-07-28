@@ -1,59 +1,36 @@
 # Defines `derive_velox_target_cpu_flags()`, which computes the plugin's target-CPU compiler flags
-# the same way the Presto worker's own build computes the worker's. The worker only loads a plugin
+# the same way the Presto worker's own build computes the worker's. A worker only loads a plugin
 # built with matching flags, so the caller appends the result to `CMAKE_CXX_FLAGS`.
 #
-# What it does, in short:
+# Behavior:
+# - The `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables select the target, as upstream (for
+#   the accepted values, see "Target-CPU flags" in tools/build-packages/README.md).
+# - When unset, they default to what the official presto-native docker images are built with:
+#   "avx" on x86_64, and the portable armv8-a "common" baseline on arm (images from 0.299 onward).
+# - An unsupported selection fails the configure; otherwise the resolved flags are logged.
 #
-# - When `CPU_TARGET`/`ARM_BUILD_TARGET` aren't set, defaults to the flags the official
-#   presto-native docker images are built with: "avx" on x86_64, and the portable armv8-a
-#   "common" baseline on arm (arm images are published from 0.299 onward).
-# - Set the `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables to target a worker built
-#   with different flags — see "Target-CPU flags" in tools/build-packages/README.md.
-# - Fails the configure on an unsupported selection, and logs the resolved flags otherwise.
+# The keyword-to-flags mapping is Velox's `get_cxx_flags` bash function, which the caller passes
+# in via `<helper-script>` — this module doesn't ship a copy. The CMake wrapper around it is
+# adapted from upstream's own invocation. Both at the pinned Presto commit (refresh the permalinks
+# when bumping the pin in taskfiles/velox-connector/deps.yaml):
+# - https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
+# - https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
 #
-# Provenance:
+# Deviations from upstream's invocation (numbers match the `Deviation N` markers below). 1 and 2
+# exist so an unconfigured build matches the official images rather than the build machine — the
+# build machine's CPU says nothing about the worker that will load the plugin:
 #
-# - The heavy lifting is done by `get_cxx_flags`, a bash function from Velox that maps a CPU-target
-#   keyword (e.g. "avx") to compiler flags. This module doesn't ship a copy of it — the caller
-#   passes in the script that defines it via `<helper-script>`. At the pinned Presto commit's Velox
-#   submodule, the function is:
-#   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
-#
-# - The CMake code wrapping it is adapted from how upstream's own build invokes the same function,
-#   near the top of `presto-native-execution/CMakeLists.txt`:
-#   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
-#
-# Upstream deviations — where this file intentionally differs from upstream's block, and why. The
-# numbers match the `Deviation N` markers in the code below.
-#
-# Deviations 1 and 2 share one goal: when no target is specified, default to the flags the
-# official presto-native docker images are built with — not to the build machine's CPU — so that
-# an unconfigured build produces a plugin the official images can load. The plugin must be
-# compiled with the same flags as the worker that loads it, and the build machine's CPU says
-# nothing about that worker.
-#
-# 1. On x86_64, default CPU_TARGET to "avx", which the official x86_64 images are built with.
-#    Upstream has the same default, but in their Makefile (`CPU_TARGET ?= "avx"`) — a file our
-#    CMake-only build never runs:
-#    https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/Makefile#L20
-#    Letting `get_cxx_flags` auto-detect instead would pick "sse" on a build machine without AVX,
-#    producing a plugin the official images refuse to load — with nothing at build time hinting
-#    that anything went wrong.
-#
-# 2. On arm, default ARM_BUILD_TARGET to the portable "common" baseline, which the official arm
-#    images (published from 0.299 onward) are built with. Upstream defaults to "local": tune for
-#    the build machine's arm core, baking in that core's extensions. "common" has the further
-#    benefit of running on any armv8-a machine. Set ARM_BUILD_TARGET=local to opt back in when
-#    building for the deployment machine's own core.
-#
-# 3. The values are passed to bash as positional arguments — upstream interpolates them into the
-#    `bash -c` string — so the shell never interprets them.
-#
-# 4. An unsupported selection fails the configure. `get_cxx_flags` reports it as text with a zero
-#    exit status, and upstream lets that text reach the compiler command line.
-#
-# NOTE: The permalinks point at the Presto commit pinned in taskfiles/velox-connector/deps.yaml
-# (and its Velox submodule at that commit); refresh them when bumping the pin.
+# 1. Default CPU_TARGET to "avx" on x86_64 here in CMake. Upstream's identical default lives in
+#    their Makefile (`CPU_TARGET ?= "avx"`), which this build never runs. Without it,
+#    auto-detection on a non-AVX build machine would pick "sse", and official (avx) workers would
+#    refuse to load the plugin — with no hint at build time.
+# 2. Default ARM_BUILD_TARGET to "common" instead of upstream's "local" (tune for the build
+#    machine's arm core). "common" matches the official arm images and runs on any armv8-a
+#    machine; ARM_BUILD_TARGET=local opts back in.
+# 3. Pass the values to bash as positional arguments (upstream interpolates them into the
+#    `bash -c` string) so the shell never interprets them.
+# 4. Fail the configure on an unsupported selection: `get_cxx_flags` reports one as text with a
+#    zero exit status, which upstream lets reach the compiler command line.
 
 # derive_velox_target_cpu_flags(<output-variable> <helper-script>)
 #
