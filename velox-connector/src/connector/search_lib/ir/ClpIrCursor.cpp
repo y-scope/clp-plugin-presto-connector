@@ -88,7 +88,7 @@ ErrorCode ClpIrCursor::loadSplit() {
       projectionResolutionCallback_,
       std::move(expr_),
       projections,
-      !ignoreCase_)};
+      false == ignoreCase_)};
   if (!queryHandlerResult) {
     VLOG(2) << "Failed to create query handler for deserialization.";
     return ErrorCode::InternalError;
