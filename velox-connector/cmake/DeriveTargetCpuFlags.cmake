@@ -7,7 +7,8 @@
 #   the accepted values, see "Target-CPU flags" in tools/build-packages/README.md).
 # - When unset, they default to what the official presto-native docker images are built with:
 #   "avx" on x86_64, and the portable armv8-a "common" baseline on arm (images from 0.299 onward).
-# - An unsupported selection fails the configure; otherwise the resolved flags are logged.
+# - Logs the resolved flags. Error handling mirrors upstream's, including two known gaps that are
+#   documented as TODOs in the body.
 #
 # The keyword-to-flags mapping is Velox's `get_cxx_flags` bash function, which the caller passes
 # in via `<helper-script>` — this module doesn't ship a copy. The CMake wrapper around it is
@@ -16,7 +17,7 @@
 # - https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
 # - https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
 #
-# Deviations from upstream's invocation (numbers match the `Deviation N` markers below). 1 and 2
+# Deviations from upstream's invocation (numbers match the `Deviation N` markers below). Both
 # exist so an unconfigured build matches the official images rather than the build machine — the
 # build machine's CPU says nothing about the worker that will load the plugin:
 #
@@ -27,8 +28,6 @@
 # 2. Default ARM_BUILD_TARGET to "common" instead of upstream's "local" (tune for the build
 #    machine's arm core). "common" matches the official arm images and runs on any armv8-a
 #    machine; ARM_BUILD_TARGET=local opts back in.
-# 3. Fail the configure on an unsupported selection: `get_cxx_flags` reports one as text with a
-#    zero exit status, which upstream lets reach the compiler command line.
 
 # derive_velox_target_cpu_flags(<output-variable> <helper-script>)
 #
@@ -54,21 +53,20 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
 
     execute_process(
         COMMAND bash -c
-            "export ARM_BUILD_TARGET=${ARM_BUILD_TARGET} && source ${HELPER_SCRIPT} && get_cxx_flags ${CPU_TARGET}"
+            "( export ARM_BUILD_TARGET=${ARM_BUILD_TARGET} && source ${HELPER_SCRIPT} && echo -n $(get_cxx_flags ${CPU_TARGET}))"
         OUTPUT_VARIABLE VELOX_TARGET_CPU_CXX_FLAGS
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        COMMAND_ERROR_IS_FATAL ANY
+        RESULT_VARIABLE COMMAND_STATUS
     )
 
-    # Deviation 3: catch the helper's zero-exit-status error text (see header). Real flags always
-    # start with "-".
-    if(NOT VELOX_TARGET_CPU_CXX_FLAGS MATCHES "^-")
-        message(FATAL_ERROR
-            "get_cxx_flags rejected CPU_TARGET='${CPU_TARGET}':"
-            " ${VELOX_TARGET_CPU_CXX_FLAGS} Valid values: avx, sse (x86_64), aarch64, arm64"
-            " (Apple Silicon), or unset for the default (avx on x86_64, matching official"
-            " presto-native builds; auto-detected elsewhere)."
-        )
+    # TODO: The error handling below mirrors upstream's and inherits two upstream bugs; fix them
+    # upstream first, then copy the fix back here:
+    # - An unknown keyword makes `get_cxx_flags` print "Architecture not supported!" with a zero
+    #   exit status, so the text lands in the flags and only surfaces later as confusing compile
+    #   errors.
+    # - The `echo -n $(get_cxx_flags ...)` wrapper discards the helper's exit status, so the check
+    #   below can never fire — even on an unsupported OS, where the helper exits 1.
+    if(COMMAND_STATUS EQUAL "1")
+        message(FATAL_ERROR "Unable to determine compiler flags!")
     endif()
 
     message(STATUS "Target-CPU flags (get_cxx_flags): ${VELOX_TARGET_CPU_CXX_FLAGS}")
