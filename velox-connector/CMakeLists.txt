@@ -62,6 +62,8 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/DeriveTargetCpuFlags.cmake")
 derive_velox_target_cpu_flags(
     VELOX_TARGET_CPU_CXX_FLAGS
+    # Velox's `get_cxx_flags` helper, taken out of the FetchContent checkout pinned above rather
+    # than a vendored copy, so the keyword-to-flags mapping tracks the pinned Presto commit.
     "${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh"
 )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")

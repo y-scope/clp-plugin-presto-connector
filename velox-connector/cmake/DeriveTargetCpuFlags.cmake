@@ -4,8 +4,9 @@
 # Provenance:
 #
 # - The heavy lifting is done by `get_cxx_flags`, a bash function from Velox that maps a CPU-target
-#   keyword (e.g. "avx") to compiler flags. It is sourced from the fetched Presto tree at configure
-#   time, so the flag selection always tracks the pinned Presto commit:
+#   keyword (e.g. "avx") to compiler flags. This module doesn't ship a copy of it — the caller
+#   passes in the script that defines it via `<helper-script>`. At the pinned Presto commit's Velox
+#   submodule, the function is:
 #   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
 #
 # - The CMake code wrapping it is adapted from how upstream's own build invokes the same function,
