@@ -55,7 +55,7 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     # keyword as text ("Architecture not supported!") with a zero exit status, so the text lands
     # in the flags and only surfaces later as confusing compile errors. Fix in Velox's
     # `scripts/setup-helper-functions.sh` (exit non-zero on the unknown-keyword case), then copy
-    # the fix back here.
+    # the fix back here in a follow-up PR.
     execute_process(
         COMMAND bash -c
             "( export ARM_BUILD_TARGET=${ARM_BUILD_TARGET} && source ${HELPER_SCRIPT} && echo -n $(get_cxx_flags ${CPU_TARGET}))"
@@ -66,7 +66,8 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     # TODO: This mirrors upstream's check, but it can never fire: the `echo -n $(...)` wrapper
     # above discards the helper's exit status, so COMMAND_STATUS is always 0 — even on an
     # unsupported OS, where the helper exits 1. Fix in upstream's CMakeLists (both Velox's and
-    # presto-native-execution's) by dropping the wrapper, then copy the fix back here.
+    # presto-native-execution's) by dropping the wrapper, then copy the fix back here in a
+    # follow-up PR.
     if(COMMAND_STATUS EQUAL "1")
         message(FATAL_ERROR "Unable to determine compiler flags!")
     endif()
