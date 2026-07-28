@@ -4,11 +4,11 @@
 #
 # What it does, in short:
 #
-# - On x86_64, defaults to the "avx" flag set the official presto-native images are built with.
-# - On arm, defaults to the portable armv8-a "common" baseline the official presto-native arm
-#   images (published from 0.299 onward) are built with.
-# - The `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables override the selection — see
-#   "Target-CPU flags" in tools/build-packages/README.md for the accepted values.
+# - When `CPU_TARGET`/`ARM_BUILD_TARGET` aren't set, defaults to the flags the official
+#   presto-native docker images are built with: "avx" on x86_64, and the portable armv8-a
+#   "common" baseline on arm (arm images are published from 0.299 onward).
+# - Set the `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables to target a worker built
+#   with different flags — see "Target-CPU flags" in tools/build-packages/README.md.
 # - Fails the configure on an unsupported selection, and logs the resolved flags otherwise.
 #
 # Provenance:
@@ -24,22 +24,27 @@
 #   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
 #
 # Upstream deviations — where this file intentionally differs from upstream's block, and why. The
-# numbers match the `Deviation N` markers in the code below:
+# numbers match the `Deviation N` markers in the code below.
 #
-# 1. On x86_64, when CPU_TARGET isn't set, we pick "avx" ourselves instead of letting
-#    `get_cxx_flags` inspect the build machine. Upstream builds get the same "avx" default, but
-#    from their Makefile (`CPU_TARGET ?= "avx"`) — a file our CMake-only build never runs:
+# Deviations 1 and 2 share one goal: when no target is specified, default to the flags the
+# official presto-native docker images are built with — not to the build machine's CPU — so that
+# an unconfigured build produces a plugin the official images can load. The plugin must be
+# compiled with the same flags as the worker that loads it, and the build machine's CPU says
+# nothing about that worker.
+#
+# 1. On x86_64, default CPU_TARGET to "avx", which the official x86_64 images are built with.
+#    Upstream has the same default, but in their Makefile (`CPU_TARGET ?= "avx"`) — a file our
+#    CMake-only build never runs:
 #    https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/Makefile#L20
-#    Why it matters: the official presto-native images are built with "avx". If we instead let
-#    `get_cxx_flags` inspect a build machine that happens to lack AVX, it would fall back to
-#    "sse", and an "avx" worker would refuse to load the resulting plugin — with nothing at build
-#    time hinting that anything went wrong.
+#    Letting `get_cxx_flags` auto-detect instead would pick "sse" on a build machine without AVX,
+#    producing a plugin the official images refuse to load — with nothing at build time hinting
+#    that anything went wrong.
 #
-# 2. Arm pins ARM_BUILD_TARGET to the portable "common" baseline instead of upstream's default
-#    "local" (tune for the build machine's arm core, baking in that core's extensions). Default
-#    arm builds thereby work with the official presto-native arm images (published from 0.299
-#    onward, built with the common baseline) and run on any armv8-a machine. Set
-#    ARM_BUILD_TARGET=local to opt back in when building for the deployment machine's own core.
+# 2. On arm, default ARM_BUILD_TARGET to the portable "common" baseline, which the official arm
+#    images (published from 0.299 onward) are built with. Upstream defaults to "local": tune for
+#    the build machine's arm core, baking in that core's extensions. "common" has the further
+#    benefit of running on any armv8-a machine. Set ARM_BUILD_TARGET=local to opt back in when
+#    building for the deployment machine's own core.
 #
 # 3. The values are passed to bash as positional arguments — upstream interpolates them into the
 #    `bash -c` string — so the shell never interprets them.
