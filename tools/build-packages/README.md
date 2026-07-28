@@ -85,7 +85,9 @@ on the production server or an identical machine; like `CPU_TARGET`, it's
 forwarded into the packaging container. Keep `common` for artifacts that must
 run on unknown or mixed arm hardware: core-specific extensions crash (SIGILL)
 on other cores. (Upstream's helper defaults to `local` when the variable is
-unset; our CMake configure pins `common` so default builds are portable.)
+unset; our CMake configure pins `common` so default builds are portable and
+work with the official presto-native arm images, which are published from
+0.299 onward and built with the common baseline.)
 The CMake configure logs the resolved flags (`Target-CPU flags (get_cxx_flags)`)
 so you can verify what a build used.
 

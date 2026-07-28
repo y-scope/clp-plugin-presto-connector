@@ -1,5 +1,15 @@
-# Defines `derive_velox_target_cpu_flags()`, which derives the target-CPU compiler flags that the
-# Presto worker's own build uses.
+# Defines `derive_velox_target_cpu_flags()`, which computes the plugin's target-CPU compiler flags
+# the same way the Presto worker's own build computes the worker's. The worker only loads a plugin
+# built with matching flags, so the caller appends the result to `CMAKE_CXX_FLAGS`.
+#
+# What it does, in short:
+#
+# - On x86_64, defaults to the "avx" flag set the official presto-native images are built with.
+# - On arm, defaults to the portable armv8-a "common" baseline the official presto-native arm
+#   images (published from 0.299 onward) are built with.
+# - The `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables override the selection — see
+#   "Target-CPU flags" in tools/build-packages/README.md for the accepted values.
+# - Fails the configure on an unsupported selection, and logs the resolved flags otherwise.
 #
 # Provenance:
 #
@@ -26,10 +36,6 @@
 #   scope.
 # - helper-script: path to Velox's `scripts/setup-helper-functions.sh`, which provides
 #   `get_cxx_flags`.
-#
-# The selection is controlled by the `CPU_TARGET` and `ARM_BUILD_TARGET` environment variables, as
-# upstream (see "Target-CPU flags" in tools/build-packages/README.md). Fails the configure if the
-# selection is unsupported.
 function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     set(CPU_TARGET "$ENV{CPU_TARGET}")
     if(CPU_TARGET STREQUAL "" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
@@ -41,9 +47,12 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
         # produce an sse-only plugin that official presto-native images reject.
         set(CPU_TARGET "avx")
     endif()
-    # Upstream deviation: `get_cxx_flags` defaults ARM_BUILD_TARGET to "local" (tune for the build
-    # machine's arm core, baking in that core's extensions); pin its portable "common" mode instead
-    # so default arm builds run on any armv8-a machine. ARM_BUILD_TARGET=local opts back in.
+    # Upstream deviation: `get_cxx_flags` defaults ARM_BUILD_TARGET to "local", tuning for the
+    # build machine's arm core and baking that core's extensions into the plugin. Pin its portable
+    # "common" mode instead so that a default arm build works with the official presto-native arm
+    # docker images — published from 0.299 onward and built with the common baseline — and runs on
+    # any armv8-a machine. ARM_BUILD_TARGET=local opts back in for builds that target the build
+    # machine's own core.
     set(ARM_BUILD_TARGET "$ENV{ARM_BUILD_TARGET}")
     if(ARM_BUILD_TARGET STREQUAL "")
         set(ARM_BUILD_TARGET "common")
