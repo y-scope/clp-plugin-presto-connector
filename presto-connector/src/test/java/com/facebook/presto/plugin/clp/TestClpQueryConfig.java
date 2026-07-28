@@ -150,7 +150,7 @@ public class TestClpQueryConfig
         Session session = transactionSession();
         assertOptimizedPlan(
                 session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', 'true') AND isHoliday = true",
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', true) AND isHoliday = true",
                 anyTree(
                         ClpTableScanMatcher.clpTableScanPattern(
                                 new ClpTableLayoutHandle(
@@ -167,7 +167,7 @@ public class TestClpQueryConfig
         Session session = transactionSession();
         assertOptimizedPlan(
                 session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', 'true')",
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', true)",
                 anyTree(
                         ClpTableScanMatcher.clpTableScanPattern(
                                 new ClpTableLayoutHandle(
@@ -184,7 +184,7 @@ public class TestClpQueryConfig
         Session session = transactionSession();
         assertOptimizedPlan(
                 session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', 'false') AND LOWER(city.Name) = 'beijing'",
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', false) AND LOWER(city.Name) = 'beijing'",
                 anyTree(
                         filter(
                                 expression("lower(city.Name) = 'beijing'"),
@@ -219,12 +219,12 @@ public class TestClpQueryConfig
     }
 
     @Test
-    public void testQueryConfigTypedBooleanValue()
+    public void testQueryConfigKeyIsCaseInsensitive()
     {
         Session session = transactionSession();
         assertOptimizedPlan(
                 session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', true) AND isHoliday = true",
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('CASE_INSENSITIVE', true) AND isHoliday = true",
                 anyTree(
                         ClpTableScanMatcher.clpTableScanPattern(
                                 new ClpTableLayoutHandle(
@@ -235,21 +235,11 @@ public class TestClpQueryConfig
                                 ImmutableSet.of(city, fare, isHoliday))));
     }
 
-    @Test
-    public void testQueryConfigKeyAndBooleanValueAreCaseInsensitive()
+    @Test(expectedExceptions = PrestoException.class, expectedExceptionsMessageRegExp = ".*Expected a boolean literal.*")
+    public void testQueryConfigStringValueForBooleanKeyRejected()
     {
         Session session = transactionSession();
-        assertOptimizedPlan(
-                session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('CASE_INSENSITIVE', 'TRUE') AND isHoliday = true",
-                anyTree(
-                        ClpTableScanMatcher.clpTableScanPattern(
-                                new ClpTableLayoutHandle(
-                                        table,
-                                        Optional.of("isHoliday: true"),
-                                        Optional.empty(),
-                                        ImmutableMap.of("case_insensitive", "true")),
-                                ImmutableSet.of(city, fare, isHoliday))));
+        optimize(session, "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', 'true') AND isHoliday = true");
     }
 
     @Test
@@ -261,10 +251,10 @@ public class TestClpQueryConfig
         // no config is recorded on the layout handle.
         assertOptimizedPlan(
                 session,
-                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', 'true') OR isHoliday = true",
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', true) OR isHoliday = true",
                 anyTree(
                         filter(
-                                expression("CLP_QUERY_CONFIG('case_insensitive', 'true') OR isHoliday = true"),
+                                expression("CLP_QUERY_CONFIG('case_insensitive', true) OR isHoliday = true"),
                                 ClpTableScanMatcher.clpTableScanPattern(
                                         new ClpTableLayoutHandle(table, Optional.empty(), Optional.empty()),
                                         ImmutableSet.of(city, fare, isHoliday)))));

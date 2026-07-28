@@ -257,11 +257,11 @@ public class ClpComputePushDown
          * records the key/value pair in {@code queryConfig}, and returns true. Returns false for
          * any other expression.
          * <p>
-         * The key must be a non-null varchar literal and the value a non-null varchar, boolean,
-         * bigint, or double literal — computed expressions (e.g. column references or function
-         * calls) fail the query with {@code CLP_INVALID_QUERY_CONFIG}. Keys are matched
-         * case-insensitively; values are validated against the key's {@link QueryConfigValueType}
-         * and boolean values are normalized to lowercase.
+         * The key must be a non-null varchar literal, matched case-insensitively. The value must
+         * be a literal whose type matches the key's {@link QueryConfigValueType} (e.g. an
+         * unquoted boolean literal for a BOOLEAN key — the string {@code 'true'} is rejected).
+         * Computed expressions (e.g. column references or function calls) fail the query with
+         * {@code CLP_INVALID_QUERY_CONFIG}.
          */
         private boolean tryParseQueryConfigCall(RowExpression expression, Map<String, String> queryConfig)
         {
@@ -294,32 +294,9 @@ public class ClpComputePushDown
                 throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
                         format("Unsupported %s key: '%s'. Supported keys: %s", CLP_QUERY_CONFIG_FUNCTION_NAME, key, SUPPORTED_QUERY_CONFIG_KEYS.keySet()));
             }
-            String value = valueType.normalize(stringifyValueLiteral(valueValue));
-            if (!valueType.isValid(value)) {
-                throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
-                        format("Invalid value '%s' for %s key '%s'. Expected %s", value, CLP_QUERY_CONFIG_FUNCTION_NAME, key, valueType.getExpectation()));
-            }
 
-            queryConfig.put(key, value);
+            queryConfig.put(key, valueType.toConfigString(valueValue, key));
             return true;
-        }
-
-        /**
-         * Converts a {@code CLP_QUERY_CONFIG} value literal to its string form. The function is
-         * overloaded for varchar, boolean, bigint, and double values so users can write typed
-         * literals (e.g. {@code CLP_QUERY_CONFIG('case_insensitive', true)}); the config map
-         * carries all values as strings.
-         */
-        private String stringifyValueLiteral(Object valueLiteral)
-        {
-            if (valueLiteral instanceof Slice) {
-                return ((Slice) valueLiteral).toStringUtf8();
-            }
-            if (valueLiteral instanceof Boolean || valueLiteral instanceof Long || valueLiteral instanceof Double) {
-                return valueLiteral.toString();
-            }
-            throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
-                    CLP_QUERY_CONFIG_FUNCTION_NAME + " values must be non-null varchar, boolean, bigint, or double literals");
         }
     }
 
@@ -329,10 +306,10 @@ public class ClpComputePushDown
      */
     private enum QueryConfigValueType
     {
-        BOOLEAN("'true' or 'false'"),
-        STRING("a string"),
-        INTEGER("an integer"),
-        FLOAT("a floating point number");
+        BOOLEAN("a boolean literal (true or false)"),
+        STRING("a varchar literal"),
+        INTEGER("a bigint literal"),
+        FLOAT("a double literal");
 
         private final String expectation;
 
@@ -341,46 +318,37 @@ public class ClpComputePushDown
             this.expectation = expectation;
         }
 
-        String getExpectation()
-        {
-            return expectation;
-        }
-
         /**
-         * Normalizes a raw value literal before validation; boolean values are lowercased so
-         * workers can compare against "true" directly, other types are passed through unchanged.
+         * Converts a value literal to its canonical string form for the query config map,
+         * enforcing that the literal's type matches this key type — e.g. a BOOLEAN key only
+         * accepts an unquoted boolean literal, not the string {@code 'true'}.
          */
-        String normalize(String rawValue)
-        {
-            return this == BOOLEAN ? rawValue.toLowerCase(ENGLISH) : rawValue;
-        }
-
-        boolean isValid(String value)
+        String toConfigString(Object valueLiteral, String key)
         {
             switch (this) {
                 case BOOLEAN:
-                    return value.equals("true") || value.equals("false");
+                    if (valueLiteral instanceof Boolean) {
+                        return valueLiteral.toString();
+                    }
+                    break;
                 case STRING:
-                    return true;
+                    if (valueLiteral instanceof Slice) {
+                        return ((Slice) valueLiteral).toStringUtf8();
+                    }
+                    break;
                 case INTEGER:
-                    try {
-                        Long.parseLong(value);
-                        return true;
+                    if (valueLiteral instanceof Long) {
+                        return valueLiteral.toString();
                     }
-                    catch (NumberFormatException e) {
-                        return false;
-                    }
+                    break;
                 case FLOAT:
-                    try {
-                        Double.parseDouble(value);
-                        return true;
+                    if (valueLiteral instanceof Double || valueLiteral instanceof Long) {
+                        return valueLiteral.toString();
                     }
-                    catch (NumberFormatException e) {
-                        return false;
-                    }
-                default:
-                    throw new IllegalStateException("Unhandled query config value type: " + this);
+                    break;
             }
+            throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
+                    format("Invalid value for %s key '%s'. Expected %s", CLP_QUERY_CONFIG_FUNCTION_NAME, key, expectation));
         }
     }
 }
