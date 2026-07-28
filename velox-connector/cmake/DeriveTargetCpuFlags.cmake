@@ -26,12 +26,14 @@
 # Upstream deviations — where this file intentionally differs from upstream's block, and why. The
 # numbers match the `Deviation N` markers in the code below:
 #
-# 1. x86_64 defaults to "avx". Upstream's default lives in `presto-native-execution/Makefile`
-#    (`CPU_TARGET ?= "avx"`), which this build doesn't go through:
+# 1. On x86_64, when CPU_TARGET isn't set, we pick "avx" ourselves instead of letting
+#    `get_cxx_flags` inspect the build machine. Upstream builds get the same "avx" default, but
+#    from their Makefile (`CPU_TARGET ?= "avx"`) — a file our CMake-only build never runs:
 #    https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/Makefile#L20
-#    Without the default, `get_cxx_flags` would auto-detect the build machine's CPU, and a machine
-#    without AVX would silently produce an sse-only plugin that official presto-native images
-#    reject.
+#    Why it matters: the official presto-native images are built with "avx". If we instead let
+#    `get_cxx_flags` inspect a build machine that happens to lack AVX, it would fall back to
+#    "sse", and an "avx" worker would refuse to load the resulting plugin — with nothing at build
+#    time hinting that anything went wrong.
 #
 # 2. Arm pins ARM_BUILD_TARGET to the portable "common" baseline instead of upstream's default
 #    "local" (tune for the build machine's arm core, baking in that core's extensions). Default
