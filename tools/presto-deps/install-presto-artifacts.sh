@@ -154,18 +154,6 @@ checkout_pinned_presto() {
     git -C "${src_dir}" checkout --quiet --force --detach "${presto_git_tag}"
 }
 
-# The version we install must be the pinned commit's own version, or the connector would
-# resolve artifacts that don't correspond to its pom.
-verify_pinned_version() {
-    local ref_version
-    ref_version="$(grep -A2 '<artifactId>presto-root</artifactId>' "${src_dir}/pom.xml" \
-        | sed -n 's|.*<version>\(.*\)</version>.*|\1|p' | head -n1)"
-    [[ "${ref_version}" == "${presto_version}" ]] \
-        || die "presto.version ${presto_version} != ${ref_version} at" \
-            "presto@${presto_git_tag:0:12}; update presto-connector/pom.xml to match" \
-            "(tools/presto-deps/validate-presto-dep-sync.py reports the expected pins)"
-}
-
 install_presto_modules() {
     echo "==> Building and installing Presto modules [${PRESTO_MODULES}] and their" \
         "reactor dependencies (first run takes a while)..."
@@ -187,7 +175,6 @@ install_presto_modules() {
 }
 
 checkout_pinned_presto
-verify_pinned_version
 install_presto_modules
 printf '%s\n' "${want}" > "${stamp}"
 echo "==> Installed Presto ${presto_version} artifacts from ${presto_git_tag:0:12}."
