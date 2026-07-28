@@ -105,4 +105,17 @@ public final class ClpFunctions
     {
         throw new UnsupportedOperationException("CLP_GET_JSON_STRING is a placeholder function without implementation.");
     }
+
+    @ScalarFunction(value = "CLP_QUERY_CONFIG", deterministic = false)
+    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table, and both arguments must be varchar literals. Repeating the same key in one query is unsupported (unspecified behavior).")
+    @SqlType(StandardTypes.BOOLEAN)
+    public static boolean clpQueryConfig(
+            @SqlType(StandardTypes.VARCHAR) Slice key,
+            @SqlType(StandardTypes.VARCHAR) Slice value)
+    {
+        throw new UnsupportedOperationException(
+                "CLP_QUERY_CONFIG is a placeholder function without implementation. It must appear as a" +
+                        " top-level AND conjunct in the WHERE clause of a query on a CLP table so the CLP connector" +
+                        " can absorb it during filter pushdown.");
+    }
 }

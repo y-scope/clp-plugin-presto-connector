@@ -37,8 +37,10 @@ namespace facebook::velox::connector::clp::search_lib {
 
 ClpArchiveCursor::ClpArchiveCursor(
     clp_s::InputSource inputSource,
-    std::string_view splitPath)
+    std::string_view splitPath,
+    bool ignoreCase)
     : BaseClpCursor(inputSource, splitPath),
+      ignoreCase_(ignoreCase),
       archiveReader_(std::make_shared<ArchiveReader>()),
       filteredRowIndices_(std::make_shared<std::vector<uint64_t>>()) {}
 
@@ -243,7 +245,7 @@ ErrorCode ClpArchiveCursor::loadSplit() {
   archiveReader_->open_packed_streams();
   currentSplitLoaded_ = true;
   queryRunner_ = std::make_shared<ClpQueryRunner>(
-      schemaMatch_, expr_, archiveReader_, false, projection_);
+      schemaMatch_, expr_, archiveReader_, ignoreCase_, projection_);
   queryRunner_->global_init();
   return ErrorCode::Success;
 }

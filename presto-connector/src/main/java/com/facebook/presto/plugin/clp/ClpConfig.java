@@ -23,6 +23,7 @@ public class ClpConfig
     public static final Pattern SAFE_SQL_TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]+$");
 
     private boolean polymorphicTypeEnabled = true;
+    private boolean caseInsensitive;
 
     private MetadataProviderType metadataProviderType = MetadataProviderType.MYSQL;
     private String metadataDbUrl;
@@ -46,6 +47,18 @@ public class ClpConfig
     public ClpConfig setPolymorphicTypeEnabled(boolean polymorphicTypeEnabled)
     {
         this.polymorphicTypeEnabled = polymorphicTypeEnabled;
+        return this;
+    }
+
+    public boolean isCaseInsensitive()
+    {
+        return caseInsensitive;
+    }
+
+    @Config("clp.case-insensitive")
+    public ClpConfig setCaseInsensitive(boolean caseInsensitive)
+    {
+        this.caseInsensitive = caseInsensitive;
         return this;
     }
 
