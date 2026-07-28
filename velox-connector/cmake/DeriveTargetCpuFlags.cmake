@@ -51,6 +51,13 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
         set(ARM_BUILD_TARGET "common")
     endif()
 
+    # TODO: This invocation mirrors upstream's and inherits two upstream bugs; fix them upstream
+    # first, then copy the fix back here:
+    # - `get_cxx_flags` reports an unknown keyword as text ("Architecture not supported!") with a
+    #   zero exit status, so the text lands in the flags and only surfaces later as confusing
+    #   compile errors.
+    # - The `echo -n $(get_cxx_flags ...)` wrapper discards the helper's exit status, so
+    #   COMMAND_STATUS is always 0 — even on an unsupported OS, where the helper exits 1.
     execute_process(
         COMMAND bash -c
             "( export ARM_BUILD_TARGET=${ARM_BUILD_TARGET} && source ${HELPER_SCRIPT} && echo -n $(get_cxx_flags ${CPU_TARGET}))"
@@ -58,13 +65,7 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
         RESULT_VARIABLE COMMAND_STATUS
     )
 
-    # TODO: The error handling below mirrors upstream's and inherits two upstream bugs; fix them
-    # upstream first, then copy the fix back here:
-    # - An unknown keyword makes `get_cxx_flags` print "Architecture not supported!" with a zero
-    #   exit status, so the text lands in the flags and only surfaces later as confusing compile
-    #   errors.
-    # - The `echo -n $(get_cxx_flags ...)` wrapper discards the helper's exit status, so the check
-    #   below can never fire — even on an unsupported OS, where the helper exits 1.
+    # TODO: This check mirrors upstream's but can never fire (see the TODO above).
     if(COMMAND_STATUS EQUAL "1")
         message(FATAL_ERROR "Unable to determine compiler flags!")
     endif()
