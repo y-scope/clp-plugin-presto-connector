@@ -219,6 +219,23 @@ public class TestClpQueryConfig
     }
 
     @Test
+    public void testQueryConfigTypedBooleanValue()
+    {
+        Session session = transactionSession();
+        assertOptimizedPlan(
+                session,
+                "SELECT * FROM test WHERE CLP_QUERY_CONFIG('case_insensitive', true) AND isHoliday = true",
+                anyTree(
+                        ClpTableScanMatcher.clpTableScanPattern(
+                                new ClpTableLayoutHandle(
+                                        table,
+                                        Optional.of("isHoliday: true"),
+                                        Optional.empty(),
+                                        ImmutableMap.of("case_insensitive", "true")),
+                                ImmutableSet.of(city, fare, isHoliday))));
+    }
+
+    @Test
     public void testQueryConfigKeyAndBooleanValueAreCaseInsensitive()
     {
         Session session = transactionSession();

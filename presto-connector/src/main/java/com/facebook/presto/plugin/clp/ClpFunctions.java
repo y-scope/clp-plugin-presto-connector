@@ -107,13 +107,48 @@ public final class ClpFunctions
     }
 
     @ScalarFunction(value = "CLP_QUERY_CONFIG", deterministic = false)
-    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table, and both arguments must be varchar literals. Repeating the same key in one query is unsupported (unspecified behavior).")
+    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table; the key must be a varchar literal and the value a literal. Repeating the same key in one query is unsupported (unspecified behavior).")
     @SqlType(StandardTypes.BOOLEAN)
     public static boolean clpQueryConfig(
             @SqlType(StandardTypes.VARCHAR) Slice key,
             @SqlType(StandardTypes.VARCHAR) Slice value)
     {
-        throw new UnsupportedOperationException(
+        throw newClpQueryConfigPlaceholderException();
+    }
+
+    @ScalarFunction(value = "CLP_QUERY_CONFIG", deterministic = false)
+    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table; the key must be a varchar literal and the value a literal. Repeating the same key in one query is unsupported (unspecified behavior).")
+    @SqlType(StandardTypes.BOOLEAN)
+    public static boolean clpQueryConfig(
+            @SqlType(StandardTypes.VARCHAR) Slice key,
+            @SqlType(StandardTypes.BOOLEAN) boolean value)
+    {
+        throw newClpQueryConfigPlaceholderException();
+    }
+
+    @ScalarFunction(value = "CLP_QUERY_CONFIG", deterministic = false)
+    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table; the key must be a varchar literal and the value a literal. Repeating the same key in one query is unsupported (unspecified behavior).")
+    @SqlType(StandardTypes.BOOLEAN)
+    public static boolean clpQueryConfig(
+            @SqlType(StandardTypes.VARCHAR) Slice key,
+            @SqlType(StandardTypes.BIGINT) long value)
+    {
+        throw newClpQueryConfigPlaceholderException();
+    }
+
+    @ScalarFunction(value = "CLP_QUERY_CONFIG", deterministic = false)
+    @Description("Sets a CLP connector config option (e.g. 'case_insensitive') for the enclosing query only. Must appear as a top-level AND conjunct in the WHERE clause of a query on a CLP table; the key must be a varchar literal and the value a literal. Repeating the same key in one query is unsupported (unspecified behavior).")
+    @SqlType(StandardTypes.BOOLEAN)
+    public static boolean clpQueryConfig(
+            @SqlType(StandardTypes.VARCHAR) Slice key,
+            @SqlType(StandardTypes.DOUBLE) double value)
+    {
+        throw newClpQueryConfigPlaceholderException();
+    }
+
+    private static UnsupportedOperationException newClpQueryConfigPlaceholderException()
+    {
+        return new UnsupportedOperationException(
                 "CLP_QUERY_CONFIG is a placeholder function without implementation. It must appear as a" +
                         " top-level AND conjunct in the WHERE clause of a query on a CLP table so the CLP connector" +
                         " can absorb it during filter pushdown.");

@@ -257,10 +257,11 @@ public class ClpComputePushDown
          * records the key/value pair in {@code queryConfig}, and returns true. Returns false for
          * any other expression.
          * <p>
-         * Both arguments must be non-null varchar literals — computed expressions (e.g. column
-         * references or function calls) fail the query with {@code CLP_INVALID_QUERY_CONFIG}.
-         * Keys are matched case-insensitively; values are validated against the key's
-         * {@link QueryConfigValueType} and boolean values are normalized to lowercase.
+         * The key must be a non-null varchar literal and the value a non-null varchar, boolean,
+         * bigint, or double literal — computed expressions (e.g. column references or function
+         * calls) fail the query with {@code CLP_INVALID_QUERY_CONFIG}. Keys are matched
+         * case-insensitively; values are validated against the key's {@link QueryConfigValueType}
+         * and boolean values are normalized to lowercase.
          */
         private boolean tryParseQueryConfigCall(RowExpression expression, Map<String, String> queryConfig)
         {
@@ -277,14 +278,14 @@ public class ClpComputePushDown
                     || !(call.getArguments().get(0) instanceof ConstantExpression)
                     || !(call.getArguments().get(1) instanceof ConstantExpression)) {
                 throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
-                        CLP_QUERY_CONFIG_FUNCTION_NAME + " requires two varchar literal arguments, e.g. CLP_QUERY_CONFIG('case_insensitive', 'true')");
+                        CLP_QUERY_CONFIG_FUNCTION_NAME + " requires a varchar literal key and a literal value, e.g. CLP_QUERY_CONFIG('case_insensitive', true)");
             }
 
             Object keyValue = ((ConstantExpression) call.getArguments().get(0)).getValue();
             Object valueValue = ((ConstantExpression) call.getArguments().get(1)).getValue();
-            if (!(keyValue instanceof Slice) || !(valueValue instanceof Slice)) {
+            if (!(keyValue instanceof Slice)) {
                 throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
-                        CLP_QUERY_CONFIG_FUNCTION_NAME + " arguments must be non-null varchar literals");
+                        CLP_QUERY_CONFIG_FUNCTION_NAME + " keys must be non-null varchar literals");
             }
 
             String key = ((Slice) keyValue).toStringUtf8().toLowerCase(ENGLISH);
@@ -293,7 +294,7 @@ public class ClpComputePushDown
                 throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
                         format("Unsupported %s key: '%s'. Supported keys: %s", CLP_QUERY_CONFIG_FUNCTION_NAME, key, SUPPORTED_QUERY_CONFIG_KEYS.keySet()));
             }
-            String value = valueType.normalize(((Slice) valueValue).toStringUtf8());
+            String value = valueType.normalize(stringifyValueLiteral(valueValue));
             if (!valueType.isValid(value)) {
                 throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
                         format("Invalid value '%s' for %s key '%s'. Expected %s", value, CLP_QUERY_CONFIG_FUNCTION_NAME, key, valueType.getExpectation()));
@@ -301,6 +302,24 @@ public class ClpComputePushDown
 
             queryConfig.put(key, value);
             return true;
+        }
+
+        /**
+         * Converts a {@code CLP_QUERY_CONFIG} value literal to its string form. The function is
+         * overloaded for varchar, boolean, bigint, and double values so users can write typed
+         * literals (e.g. {@code CLP_QUERY_CONFIG('case_insensitive', true)}); the config map
+         * carries all values as strings.
+         */
+        private String stringifyValueLiteral(Object valueLiteral)
+        {
+            if (valueLiteral instanceof Slice) {
+                return ((Slice) valueLiteral).toStringUtf8();
+            }
+            if (valueLiteral instanceof Boolean || valueLiteral instanceof Long || valueLiteral instanceof Double) {
+                return valueLiteral.toString();
+            }
+            throw new PrestoException(CLP_INVALID_QUERY_CONFIG,
+                    CLP_QUERY_CONFIG_FUNCTION_NAME + " values must be non-null varchar, boolean, bigint, or double literals");
         }
     }
 
