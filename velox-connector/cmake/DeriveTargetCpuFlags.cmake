@@ -23,8 +23,27 @@
 #   near the top of `presto-native-execution/CMakeLists.txt`:
 #   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
 #
-# - Everywhere this file intentionally differs from upstream's version, the difference is marked
-#   with an "Upstream deviation:" comment explaining why.
+# Upstream deviations — where this file intentionally differs from upstream's block, and why. The
+# numbers match the `Deviation N` markers in the code below:
+#
+# 1. x86_64 defaults to "avx". Upstream's default lives in `presto-native-execution/Makefile`
+#    (`CPU_TARGET ?= "avx"`), which this build doesn't go through:
+#    https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/Makefile#L20
+#    Without the default, `get_cxx_flags` would auto-detect the build machine's CPU, and a machine
+#    without AVX would silently produce an sse-only plugin that official presto-native images
+#    reject.
+#
+# 2. Arm pins ARM_BUILD_TARGET to the portable "common" baseline instead of upstream's default
+#    "local" (tune for the build machine's arm core, baking in that core's extensions). Default
+#    arm builds thereby work with the official presto-native arm images (published from 0.299
+#    onward, built with the common baseline) and run on any armv8-a machine. Set
+#    ARM_BUILD_TARGET=local to opt back in when building for the deployment machine's own core.
+#
+# 3. The values are passed to bash as positional arguments — upstream interpolates them into the
+#    `bash -c` string — so the shell never interprets them.
+#
+# 4. An unsupported selection fails the configure. `get_cxx_flags` reports it as text with a zero
+#    exit status, and upstream lets that text reach the compiler command line.
 #
 # NOTE: The permalinks point at the Presto commit pinned in taskfiles/velox-connector/deps.yaml
 # (and its Velox submodule at that commit); refresh them when bumping the pin.
@@ -37,28 +56,21 @@
 # - helper-script: path to Velox's `scripts/setup-helper-functions.sh`, which provides
 #   `get_cxx_flags`.
 function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
+    # Empty means "let get_cxx_flags auto-detect the build machine's CPU".
     set(CPU_TARGET "$ENV{CPU_TARGET}")
+
+    # Deviation 1: default x86_64 to "avx" (see header).
     if(CPU_TARGET STREQUAL "" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-        # Upstream deviation: default to "avx" to match Presto's official native builds.
-        # Upstream's default comes from `CPU_TARGET ?= "avx"` in `presto-native-execution/Makefile`:
-        # https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/Makefile#L20
-        # This build doesn't go through that Makefile; without the default here, `get_cxx_flags`
-        # would auto-detect the build machine's CPU, and a machine without AVX would silently
-        # produce an sse-only plugin that official presto-native images reject.
         set(CPU_TARGET "avx")
     endif()
-    # Upstream deviation: `get_cxx_flags` defaults ARM_BUILD_TARGET to "local", tuning for the
-    # build machine's arm core and baking that core's extensions into the plugin. Pin its portable
-    # "common" mode instead so that a default arm build works with the official presto-native arm
-    # docker images — published from 0.299 onward and built with the common baseline — and runs on
-    # any armv8-a machine. ARM_BUILD_TARGET=local opts back in for builds that target the build
-    # machine's own core.
+
+    # Deviation 2: pin the portable "common" arm baseline (see header).
     set(ARM_BUILD_TARGET "$ENV{ARM_BUILD_TARGET}")
     if(ARM_BUILD_TARGET STREQUAL "")
         set(ARM_BUILD_TARGET "common")
     endif()
-    # Upstream deviation: pass the values as positional arguments (upstream interpolates them into
-    # the `bash -c` string) so the shell never interprets them.
+
+    # Deviation 3: pass the values as positional arguments (see header).
     execute_process(
         COMMAND bash -c
             "export ARM_BUILD_TARGET=\"$1\" && source \"$2\" && get_cxx_flags \"$3\""
@@ -70,9 +82,9 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
         OUTPUT_STRIP_TRAILING_WHITESPACE
         COMMAND_ERROR_IS_FATAL ANY
     )
-    # Upstream deviation: `get_cxx_flags` reports an unsupported selection as text with a zero exit
-    # status; catch it here rather than letting it reach the compiler command line as upstream
-    # does.
+
+    # Deviation 4: catch the helper's zero-exit-status error text (see header). Real flags always
+    # start with "-".
     if(NOT VELOX_TARGET_CPU_CXX_FLAGS MATCHES "^-")
         message(FATAL_ERROR
             "get_cxx_flags rejected CPU_TARGET='${CPU_TARGET}':"
@@ -81,6 +93,7 @@ function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
             " presto-native builds; auto-detected elsewhere)."
         )
     endif()
+
     message(STATUS "Target-CPU flags (get_cxx_flags): ${VELOX_TARGET_CPU_CXX_FLAGS}")
     set("${OUTPUT_VARIABLE}" "${VELOX_TARGET_CPU_CXX_FLAGS}" PARENT_SCOPE)
 endfunction()
