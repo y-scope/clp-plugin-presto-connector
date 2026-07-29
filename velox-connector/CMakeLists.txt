@@ -60,7 +60,7 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream (see "Target-CPU flags" in
 # tools/build-packages/README.md).
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/DeriveTargetCpuFlags.cmake")
-derive_velox_target_cpu_flags(
+derive_target_cpu_flags(
     VELOX_TARGET_CPU_CXX_FLAGS
     # Velox's `get_cxx_flags` helper, taken out of the FetchContent checkout pinned above rather
     # than a vendored copy, so the keyword-to-flags mapping tracks the pinned Presto commit.

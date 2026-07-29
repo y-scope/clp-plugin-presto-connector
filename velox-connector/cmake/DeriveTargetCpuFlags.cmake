@@ -1,4 +1,4 @@
-# Defines `derive_velox_target_cpu_flags(<output-variable> <helper-script>)`, which derives the
+# Defines `derive_target_cpu_flags(<output-variable> <helper-script>)`, which derives the
 # target-CPU compiler flags the plugin must be built with and stores them in `<output-variable>`
 # (set in the caller's scope). A Presto worker only loads a plugin built with the same target-CPU
 # flags as itself, so the caller appends the result to `CMAKE_CXX_FLAGS`.
@@ -30,7 +30,7 @@
 #   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
 # - upstream's invocation of it:
 #   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
-function(derive_velox_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
+function(derive_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     # Empty means "let get_cxx_flags auto-detect the build machine's CPU".
     set(CPU_TARGET "$ENV{CPU_TARGET}")
 
