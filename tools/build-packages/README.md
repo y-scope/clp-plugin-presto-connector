@@ -49,9 +49,9 @@ Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
 
 The worker plugin must be built with the same target-CPU flags as the Presto
 worker that loads it; the defaults match the official presto-native images. To
-target a worker built with different flags, set the `CPU_TARGET` (and, on arm,
-`ARM_BUILD_TARGET`) environment variables — both are forwarded into the
-packaging container:
+target a worker built with different flags, set the `CPU_TARGET` environment
+variable (on arm, `ARM_BUILD_TARGET` is a second knob) — both are forwarded
+into the packaging container:
 
 ```bash
 CPU_TARGET=sse task package

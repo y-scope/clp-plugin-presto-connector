@@ -54,16 +54,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(presto_native_execution)
 set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 
-# Compile with the same target-CPU flags as the Presto worker: Folly's F14 hash table bakes the
-# enabled CPU features into its ABI and enforces a match across the `dlopen` boundary via
-# `F14LinkCheck<Mode>`, so a mismatch aborts the worker on startup. Override with the
-# `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream (see
-# cmake/DeriveTargetCpuFlags.cmake).
+# Compile with the same target-CPU flags as the Presto worker, which refuses to load a plugin
+# built with different flags (see cmake/DeriveTargetCpuFlags.cmake).
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/DeriveTargetCpuFlags.cmake")
 derive_target_cpu_flags(
     VELOX_TARGET_CPU_CXX_FLAGS
-    # Velox's `get_cxx_flags` helper, taken out of the FetchContent checkout pinned above rather
-    # than a vendored copy, so the keyword-to-flags mapping tracks the pinned Presto commit.
+    # Velox's `get_cxx_flags` helper, from the FetchContent checkout pinned above.
     "${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh"
 )
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")
