@@ -27,9 +27,12 @@
 #
 # On arm, `ARM_BUILD_TARGET` (no effect elsewhere) additionally picks between upstream's two arm
 # build styles: "common" — the portable armv8-a+crc+crypto baseline, the default (Deviation 2) —
-# or "local", which tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`).
-# Use "local" only when the build machine matches the deployment hardware; core-specific
-# extensions SIGILL on other cores.
+# or "local", which tunes for the build machine's core: `get_cxx_flags` reads the CPU part number
+# from the MIDR_EL1 register (via sysfs) and emits `-mcpu=neoverse-*` if it matches one of the
+# Neoverse parts the helper knows (N1/N2/V1/V2, with an NVIDIA Grace special case); any other arm
+# core — or a missing MIDR sysfs file — falls back to the "common" baseline. Use "local" only
+# when the build machine matches the deployment hardware; core-specific extensions SIGILL on
+# other cores.
 #
 # Both defaults match what the official presto-native docker images are built with ("avx" on
 # x86_64; "common" on arm, whose images exist from 0.299 onward), so default builds load into
