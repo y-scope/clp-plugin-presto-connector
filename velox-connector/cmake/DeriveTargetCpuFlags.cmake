@@ -3,47 +3,52 @@
 # (set in the caller's scope). A Presto worker only loads a plugin built with the same target-CPU
 # flags as itself, so the caller appends the result to `CMAKE_CXX_FLAGS`.
 #
-# Which flags come out:
-# - By default, the flags the official presto-native docker images are built with: "avx" on
-#   x86_64, and the portable armv8-a "common" baseline on arm (arm images exist from 0.299
-#   onward).
-# - To target a worker built with different flags, set the `CPU_TARGET` environment variable to
-#   one of the keywords below (keywords, not raw compiler flags — `get_cxx_flags` expands them):
+# Design: reuse upstream's flag derivation, don't reimplement it. The plugin's flags must track
+# whatever Presto's own build produces, so this module invokes the same `get_cxx_flags` bash
+# helper Presto's build uses — `<helper-script>` must point to it in the pinned Presto checkout;
+# this module doesn't ship a copy — and the wrapper code below closely mirrors upstream's own
+# invocation, kept that way deliberately so it stays easy to diff against upstream (including two
+# inherited upstream bugs, marked TODO in the code). The only intended differences from upstream
+# are two default values, marked `Deviation N` in the code and explained below.
 #
-#   | `CPU_TARGET` | Architecture   | Flags                                      |
-#   |--------------|----------------|--------------------------------------------|
-#   | (blank)      | any            | Default: "avx" on x86_64 (Deviation 1); auto-detect elsewhere (Linux arm → "aarch64") |
-#   | avx          | x86_64         | -mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2   |
-#   | sse          | x86_64         | -msse4.2                                   |
-#   | aarch64      | arm64 (Linux)  | -march=armv8-a+crc+crypto (see below)      |
-#   | arm64        | Apple Silicon  | -mcpu=apple-m1+crc                         |
+# The `CPU_TARGET` environment variable selects the flags. It is a keyword naming the flag set
+# the target worker was built with, not raw compiler flags — `get_cxx_flags` expands it:
 #
-#   On arm, `ARM_BUILD_TARGET` additionally picks between upstream's two arm build styles
-#   (elsewhere it has no effect): "common" — the portable armv8-a+crc+crypto baseline, our
-#   default (Deviation 2) — or "local", which tunes for the build machine's detected Neoverse
-#   core (`-mcpu=neoverse-*`). Use "local" only when the build machine matches the deployment
-#   hardware; core-specific extensions SIGILL on other cores.
+#   +------------+---------------+-----------------------------------------------+
+#   | CPU_TARGET | Architecture  | Flags                                         |
+#   +------------+---------------+-----------------------------------------------+
+#   | (blank)    | any           | Default: "avx" on x86_64 (Deviation 1);       |
+#   |            |               | auto-detect elsewhere (Linux arm → "aarch64") |
+#   | avx        | x86_64        | -mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2      |
+#   | sse        | x86_64        | -msse4.2                                      |
+#   | aarch64    | arm64 (Linux) | -march=armv8-a+crc+crypto (see below)         |
+#   | arm64      | Apple Silicon | -mcpu=apple-m1+crc                            |
+#   +------------+---------------+-----------------------------------------------+
 #
-# To find the value a given worker was built with: Folly's F14 hash table bakes the enabled CPU
-# features into its ABI and enforces a match across the `dlopen` boundary via a symbol
-# (`F14LinkCheck<(F14IntrinsicsMode)N>`), so `nm -DC presto_server | grep F14LinkCheck` tells you
-# directly — mode 2 means AVX2 (use "avx"), mode 1 means SSE/NEON only (use "sse" on x86_64,
-# "aarch64" on arm64). The F14 link check is the enforced part of the contract — matching the
-# worker's full flag set is still the safe rule for the rest of the shared inline code.
+# On arm, `ARM_BUILD_TARGET` (no effect elsewhere) additionally picks between upstream's two arm
+# build styles: "common" — the portable armv8-a+crc+crypto baseline, the default (Deviation 2) —
+# or "local", which tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`).
+# Use "local" only when the build machine matches the deployment hardware; core-specific
+# extensions SIGILL on other cores.
 #
-# How it works: the keyword-to-flags mapping is `get_cxx_flags`, a bash function from Velox that
-# `<helper-script>` must point to — this module doesn't ship a copy. The wrapper code below
-# closely mirrors upstream's own invocation, kept that way deliberately so it stays easy to diff
-# against upstream (including two inherited upstream bugs, marked TODO in the code). The only
-# intended differences are the two defaults above, marked `Deviation N` in the code:
+# Both defaults match what the official presto-native docker images are built with ("avx" on
+# x86_64; "common" on arm, whose images exist from 0.299 onward), so default builds load into
+# official workers:
 #
 # 1. CPU_TARGET defaults to "avx" on x86_64 here in CMake, because upstream's identical default
 #    lives in their Makefile (`CPU_TARGET ?= "avx"`), which this build never runs. Without it,
 #    auto-detection on a non-AVX build machine would pick "sse", and official (avx) workers would
 #    refuse to load the plugin — with no hint at build time.
-# 2. ARM_BUILD_TARGET defaults to "common" instead of upstream's "local" (tune for the build
-#    machine's arm core): "common" is what the official arm images use, and it runs on any
-#    armv8-a machine.
+# 2. ARM_BUILD_TARGET defaults to "common" instead of upstream's "local", so that default builds
+#    are portable rather than tuned to the build machine.
+#
+# To find the value a given worker was built with: Folly's F14 hash table bakes the enabled CPU
+# features into its ABI and enforces a match across the `dlopen` boundary via the
+# `F14LinkCheck<(F14IntrinsicsMode)N>` symbol, so `nm -DC presto_server | grep F14LinkCheck`
+# reads it off the worker binary — mode 2 means AVX2 (use "avx"); mode 1 means SSE/NEON only
+# (use "sse" on x86_64, "aarch64" on arm64). The F14 link check is only the enforced part of the
+# contract — matching the worker's full flag set is still the safe rule for the rest of the
+# shared inline code.
 #
 # Upstream references, at the pinned Presto commit (refresh when bumping the pin in
 # taskfile.yaml):
