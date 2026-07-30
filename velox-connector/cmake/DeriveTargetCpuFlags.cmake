@@ -7,8 +7,29 @@
 # - By default, the flags the official presto-native docker images are built with: "avx" on
 #   x86_64, and the portable armv8-a "common" baseline on arm (arm images exist from 0.299
 #   onward).
-# - To target a worker built with different flags, set the `CPU_TARGET`/`ARM_BUILD_TARGET`
-#   environment variables — see "Target-CPU flags" in tools/build-packages/README.md.
+# - To target a worker built with different flags, set the `CPU_TARGET` environment variable to
+#   one of the keywords below (keywords, not raw compiler flags — `get_cxx_flags` expands them):
+#
+#   | `CPU_TARGET` | Architecture   | Flags                                      |
+#   |--------------|----------------|--------------------------------------------|
+#   | (blank)      | any            | Default: "avx" on x86_64 (Deviation 1); auto-detect elsewhere (Linux arm → "aarch64") |
+#   | avx          | x86_64         | -mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2   |
+#   | sse          | x86_64         | -msse4.2                                   |
+#   | aarch64      | arm64 (Linux)  | -march=armv8-a+crc+crypto (see below)      |
+#   | arm64        | Apple Silicon  | -mcpu=apple-m1+crc                         |
+#
+#   On arm, `ARM_BUILD_TARGET` additionally picks between upstream's two arm build styles
+#   (elsewhere it has no effect): "common" — the portable armv8-a+crc+crypto baseline, our
+#   default (Deviation 2) — or "local", which tunes for the build machine's detected Neoverse
+#   core (`-mcpu=neoverse-*`). Use "local" only when the build machine matches the deployment
+#   hardware; core-specific extensions SIGILL on other cores.
+#
+# To find the value a given worker was built with: Folly's F14 hash table bakes the enabled CPU
+# features into its ABI and enforces a match across the `dlopen` boundary via a symbol
+# (`F14LinkCheck<(F14IntrinsicsMode)N>`), so `nm -DC presto_server | grep F14LinkCheck` tells you
+# directly — mode 2 means AVX2 (use "avx"), mode 1 means SSE/NEON only (use "sse" on x86_64,
+# "aarch64" on arm64). The F14 link check is the enforced part of the contract — matching the
+# worker's full flag set is still the safe rule for the rest of the shared inline code.
 #
 # How it works: the keyword-to-flags mapping is `get_cxx_flags`, a bash function from Velox that
 # `<helper-script>` must point to — this module doesn't ship a copy. The wrapper code below

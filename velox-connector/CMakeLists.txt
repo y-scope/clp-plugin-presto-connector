@@ -57,8 +57,8 @@ set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
 # Compile with the same target-CPU flags as the Presto worker: Folly's F14 hash table bakes the
 # enabled CPU features into its ABI and enforces a match across the `dlopen` boundary via
 # `F14LinkCheck<Mode>`, so a mismatch aborts the worker on startup. Override with the
-# `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream (see "Target-CPU flags" in
-# tools/build-packages/README.md).
+# `CPU_TARGET`/`ARM_BUILD_TARGET` environment variables, as upstream (see
+# cmake/DeriveTargetCpuFlags.cmake).
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/DeriveTargetCpuFlags.cmake")
 derive_target_cpu_flags(
     VELOX_TARGET_CPU_CXX_FLAGS

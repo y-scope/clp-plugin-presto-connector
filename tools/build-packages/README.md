@@ -47,79 +47,15 @@ Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
 
 ## Target-CPU flags
 
-The worker plugin must be compiled with the same target-CPU flags as the Presto
-worker that loads it: Folly's F14 hash table bakes the enabled CPU features into
-its ABI and aborts the worker at plugin load on a mismatch. The velox-connector
-CMake configure derives its flags with the same `get_cxx_flags` helper Presto's
-own build uses. By default it targets what official presto-native builds ship
-(their Makefile defaults `CPU_TARGET` to `avx` on x86_64; arm builds use the
-generic `aarch64` baseline), so the plugin is compatible with the official
-presto-native images out of the box.
-
-Set the `CPU_TARGET` environment variable to target a worker built with
-different flags. It takes one of the keywords below — not raw compiler flags;
-the helper expands the keyword to the same flag set the worker's build uses
-(shown in the Flags column). Pick the value the target Presto worker was built
-with:
-
-| `CPU_TARGET` | Architecture   | Flags                                        |
-|--------------|----------------|----------------------------------------------|
-| (blank)      | any            | Official presto-native default: `avx` on x86_64; auto-detect elsewhere (Linux arm → `aarch64`) |
-| `avx`        | x86_64         | `-mavx2 -mfma -mavx -mf16c -mlzcnt -mbmi2`   |
-| `sse`        | x86_64         | `-msse4.2`                                   |
-| `aarch64`    | arm64 (Linux)  | `-march=armv8-a+crc+crypto` (see note)       |
-| `arm64`      | Apple Silicon  | `-mcpu=apple-m1+crc`                         |
-
-Note: the two variables compose rather than compete. `CPU_TARGET` selects the
-architecture flag family; `ARM_BUILD_TARGET` is a modifier consulted only
-inside the arm family — with `avx`, `sse`, or `arm64` it has no effect. On arm
-(`CPU_TARGET=aarch64` or auto-detection), `ARM_BUILD_TARGET` picks between
-upstream's two arm build styles: `common` — the default,
-`-march=armv8-a+crc+crypto`, upstream's portable baseline: it runs on any
-armv8-a machine with the CRC and crypto extensions, which all server-class arm
-cores (Neoverse, Graviton, Ampere) provide — and `local`,
-which tunes for the build machine's detected Neoverse core (`-mcpu=neoverse-*`,
-including that core's architecture extensions). Use `local` when the build
-machine's core matches the deployment hardware — e.g. when packaging directly
-on the production server or an identical machine; like `CPU_TARGET`, it's
-forwarded into the packaging container. Keep `common` for artifacts that must
-run on unknown or mixed arm hardware: core-specific extensions crash (SIGILL)
-on other cores. (Upstream's helper defaults to `local` when the variable is
-unset; our CMake configure pins `common` so default builds are portable and
-work with the official presto-native arm images, which are published from
-0.299 onward and built with the common baseline.)
-The CMake configure logs the resolved flags (`Target-CPU flags (get_cxx_flags)`)
-so you can verify what a build used.
-
-Locally, set it on either build path (the package build forwards it into the
-container):
+The worker plugin must be built with the same target-CPU flags as the Presto
+worker that loads it; the defaults match the official presto-native images. To
+target a worker built with different flags, set the `CPU_TARGET` (and, on arm,
+`ARM_BUILD_TARGET`) environment variables — both are forwarded into the
+packaging container:
 
 ```bash
-CPU_TARGET=sse task velox-connector:build  # dev build
-CPU_TARGET=sse task package                # package build
+CPU_TARGET=sse task package
 ```
 
-CI package builds use the official presto-native defaults. Changing the flags
-re-runs the CMake configure, and the changed flags rebuild the affected
-objects.
-
-### Finding the right value
-
-Folly encodes the F14 ABI mode in a symbol name, so the Presto worker binary
-that will load the plugin can tell you directly:
-
-```bash
-nm -DC /path/to/presto_server | grep F14LinkCheck
-```
-
-| Symbol in the worker                 | Worker was built with | `CPU_TARGET` to use              |
-|--------------------------------------|-----------------------|----------------------------------|
-| `F14LinkCheck<(F14IntrinsicsMode)2>` | AVX2                  | `avx`                            |
-| `F14LinkCheck<(F14IntrinsicsMode)1>` | SSE / NEON only       | `sse` (x86_64), `aarch64` (arm64) |
-
-The same command on `libclp-plugin-velox-connector.so` shows the mode the
-plugin expects, as an undefined symbol the worker must provide; a mismatch
-fails at plugin load with an unresolved `F14LinkCheck<...>` error naming the
-expected mode. The F14 link check is the enforced part of the contract —
-matching the worker's full flag set is still the safe rule for the rest of the
-shared inline code.
+See `velox-connector/cmake/DeriveTargetCpuFlags.cmake` for the accepted
+keywords, defaults, and how to find the right value for a given worker.
