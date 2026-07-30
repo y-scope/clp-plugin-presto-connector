@@ -2,7 +2,7 @@
 
 # Ensures the Presto Maven artifacts that presto-connector/pom.xml consumes exist in
 # the local Maven repository, building them from the pinned Presto commit
-# (G_PRESTO_GIT_TAG in taskfiles/velox-connector/deps.yaml) when they're unpublished.
+# (G_PRESTO_GIT_TAG in taskfile.yaml) when they're unpublished.
 # See tools/README.md for the full behavior and how this fits the build.
 #
 # Installs the `provided`-scope modules by default; --with-test-deps adds the test
@@ -18,7 +18,7 @@ set -o pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 repo_root="$(cd "${script_dir}/../.." &>/dev/null && pwd)"
 connector_pom="${repo_root}/presto-connector/pom.xml"
-velox_deps_yaml="${repo_root}/taskfiles/velox-connector/deps.yaml"
+root_taskfile="${repo_root}/taskfile.yaml"
 
 # The modules presto-connector/pom.xml consumes at `provided` scope.
 PRESTO_MODULES_MAIN="presto-common,presto-spi"
@@ -72,11 +72,11 @@ presto_version="$(sed -n 's|.*<presto.version>\(.*\)</presto.version>.*|\1|p' \
 
 # ── Ensure artifacts built from the pinned commit ─────────────────────────────
 
-[[ -f "${velox_deps_yaml}" ]] || die "velox-connector deps taskfile not found: ${velox_deps_yaml}"
-presto_git_tag="$(sed -n 's|.*G_PRESTO_GIT_TAG: "\([^"]*\)".*|\1|p' "${velox_deps_yaml}")"
-[[ -n "${presto_git_tag}" ]] || die "G_PRESTO_GIT_TAG not found in ${velox_deps_yaml}"
-presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${velox_deps_yaml}")"
-[[ -n "${presto_git_url}" ]] || die "G_PRESTO_GIT_URL not found in ${velox_deps_yaml}"
+[[ -f "${root_taskfile}" ]] || die "root taskfile not found: ${root_taskfile}"
+presto_git_url="$(sed -n 's|.*G_PRESTO_GIT_URL: "\([^"]*\)".*|\1|p' "${root_taskfile}")"
+[[ -n "${presto_git_url}" ]] || die "G_PRESTO_GIT_URL not found in ${root_taskfile}"
+presto_git_tag="$(sed -n 's|.*G_PRESTO_GIT_TAG: "\([^"]*\)".*|\1|p' "${root_taskfile}")"
+[[ -n "${presto_git_tag}" ]] || die "G_PRESTO_GIT_TAG not found in ${root_taskfile}"
 
 # Official releases (a purely numeric version, e.g. 0.299, from the upstream Presto
 # repository) are published to Maven Central, so Maven resolves them without a source
@@ -136,7 +136,8 @@ have_pinned_commit() {
     git -C "${src_dir}" cat-file -e "${presto_git_tag}^{commit}" 2>/dev/null
 }
 
-# Makes ${src_dir} a checkout of the pinned commit.
+# Makes ${src_dir} a checkout of the pinned commit. The clone is shared with
+# validate-presto-dep-sync.py, which may have already fetched the commit into it.
 checkout_pinned_presto() {
     mkdir -p "${src_dir}"
     if [[ ! -d "${src_dir}/.git" ]]; then
@@ -147,36 +148,10 @@ checkout_pinned_presto() {
     git -C "${src_dir}" remote set-url origin "${presto_git_url}"
 
     if ! have_pinned_commit; then
-        # Prefer copying the commit from a local checkout that already has it (e.g. the
-        # CMake FetchContent cache) over fetching it from the network again.
-        local candidate
-        for candidate in "${repo_root}"/.cache/fetchcontent/*/presto_native_execution-src \
-            "${build_dir}/velox-connector/_deps/presto_native_execution-src"; do
-            if git -C "${candidate}" cat-file -e "${presto_git_tag}^{commit}" 2>/dev/null \
-                && git -C "${src_dir}" fetch --quiet "${candidate}" "${presto_git_tag}" \
-                    2>/dev/null
-            then
-                echo "==> Copied presto@${presto_git_tag:0:12} from ${candidate}."
-                break
-            fi
-        done
-    fi
-    if ! have_pinned_commit; then
         echo "==> Fetching presto@${presto_git_tag} from ${presto_git_url}..."
         git -C "${src_dir}" fetch --depth 1 origin "${presto_git_tag}"
     fi
     git -C "${src_dir}" checkout --quiet --force --detach "${presto_git_tag}"
-}
-
-# The version we install must be the pinned commit's own version, or the connector would
-# resolve artifacts that don't correspond to its pom.
-verify_pinned_version() {
-    local ref_version
-    ref_version="$(grep -A2 '<artifactId>presto-root</artifactId>' "${src_dir}/pom.xml" \
-        | sed -n 's|.*<version>\(.*\)</version>.*|\1|p' | head -n1)"
-    [[ "${ref_version}" == "${presto_version}" ]] \
-        || die "presto.version ${presto_version} != ${ref_version} at" \
-            "presto@${presto_git_tag:0:12}; update presto-connector/pom.xml to match"
 }
 
 install_presto_modules() {
@@ -200,7 +175,6 @@ install_presto_modules() {
 }
 
 checkout_pinned_presto
-verify_pinned_version
 install_presto_modules
 printf '%s\n' "${want}" > "${stamp}"
 echo "==> Installed Presto ${presto_version} artifacts from ${presto_git_tag:0:12}."
