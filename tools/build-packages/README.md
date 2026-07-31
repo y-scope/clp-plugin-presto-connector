@@ -35,7 +35,7 @@ docker run --rm -e WORKER_PLUGIN_INSTALL_PATH=/plugins -v "$(pwd)/plugins:/plugi
   ghcr.io/y-scope/clp-plugin-presto-connector:<version>-<arch>
 ```
 
-Run `build-installer-init-image.sh --help` to build it standalone from any package tarball.
+Run `./tools/build-packages/build-installer-init-image.sh --help` to build it standalone from any package tarball.
 
 In CI, `build-packages.yaml` builds the image per architecture on every run and
 combines them into a multi-arch `:<version>` tag; pushes to GHCR happen only
