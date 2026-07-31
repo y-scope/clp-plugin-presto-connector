@@ -14,6 +14,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+umask 0022
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 image_dir="${script_dir}/image"
 
