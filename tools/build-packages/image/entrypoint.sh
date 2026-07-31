@@ -32,7 +32,9 @@ install_component() {
     dest="$2"
     mkdir -p "${dest}"
     # Copy contents (not the subdir itself) so the target holds the plugin files directly.
-    cp -a "${src}/." "${dest}/"
+    # -r without -p: preserve permission bits but not ownership, so installed files belong
+    # to whatever user the container runs as (root by default, or a pod's runAsUser).
+    cp -r "${src}/." "${dest}/"
     echo "Installed $1 plugin -> ${dest}"
 }
 
