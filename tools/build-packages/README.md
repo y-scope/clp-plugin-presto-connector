@@ -37,6 +37,12 @@ docker run --rm -e WORKER_PLUGIN_INSTALL_PATH=/plugins -v "$(pwd)/plugins:/plugi
 
 Run `build-installer-init-image.sh --help` to build it standalone from any package tarball.
 
+In CI, `build-packages.yaml` builds the image per architecture on every run and
+combines them into a multi-arch `:<version>` tag; pushes to GHCR happen only
+from the default branch and version tags. The multi-arch tag exists only on the
+registry (a manifest can't be loaded into a local daemon) — local builds always
+load `:<version>-<arch>`.
+
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
 cache, this repository's GHCR package, or a local build, reusing the cached
