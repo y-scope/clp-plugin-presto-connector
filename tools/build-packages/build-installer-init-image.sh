@@ -43,13 +43,13 @@ See tools/build-packages/README.md for details.
 EOF
 }
 
-die() {
+panic() {
     echo >&2 "ERROR: $*"
     exit 1
 }
 
 require_value() {
-    [[ -n "${2:-}" ]] || die "$1 requires a value"
+    [[ -n "${2:-}" ]] || panic "$1 requires a value"
 }
 
 # ── Parse arguments ───────────────────────────────────────────────────────────
@@ -69,15 +69,15 @@ while [[ $# -gt 0 ]]; do
         --push)    output="--push"; shift ;;
         --load)    output="--load"; shift ;;
         --help)    show_help; exit 0 ;;
-        *) die "unknown option: $1 (use --help for usage)" ;;
+        *) panic "unknown option: $1 (use --help for usage)" ;;
     esac
 done
 
-[[ -n "${tarball}" ]] || die "--tarball is required (use --help for usage)"
-[[ -f "${tarball}" ]] || die "tarball not found: ${tarball}"
+[[ -n "${tarball}" ]] || panic "--tarball is required (use --help for usage)"
+[[ -f "${tarball}" ]] || panic "tarball not found: ${tarball}"
 
-command -v docker &>/dev/null || die "docker is required"
-docker buildx version &>/dev/null || die "docker buildx is required"
+command -v docker &>/dev/null || panic "docker is required"
+docker buildx version &>/dev/null || panic "docker buildx is required"
 
 # ── Resolve version and arch from the tarball name when not given ──────────────
 
@@ -86,7 +86,7 @@ tar_base="$(basename "${tarball}")"
 tar_base="${tar_base%.tar.gz}"
 name_rest="${tar_base#clp-plugin-presto-connector-}"
 if [[ "${name_rest}" == "${tar_base}" || "${name_rest}" != *-linux-* ]]; then
-    die "cannot parse tarball name '${tar_base}'; pass --version and --arch explicitly"
+    panic "cannot parse tarball name '${tar_base}'; pass --version and --arch explicitly"
 fi
 [[ -n "${arch}" ]] || arch="${name_rest##*-linux-}"
 [[ -n "${version}" ]] || version="${name_rest%-linux-"${arch}"}"
@@ -94,7 +94,7 @@ fi
 case "${arch}" in
     amd64) platform="linux/amd64" ;;
     arm64) platform="linux/arm64" ;;
-    *) die "unsupported arch: ${arch} (expected amd64 or arm64)" ;;
+    *) panic "unsupported arch: ${arch} (expected amd64 or arm64)" ;;
 esac
 
 [[ -n "${repo}" ]] || repo="$(image_repo_from_origin)"
@@ -112,7 +112,7 @@ trap 'rm -rf "${context_dir}"' EXIT
 # Dockerfile's COPY paths. --strip-components=1 drops the versioned top-level directory.
 tar -xzf "${tarball}" -C "${context_dir}" --strip-components=1
 [[ -d "${context_dir}/coordinator" && -d "${context_dir}/worker" ]] \
-    || die "tarball did not contain coordinator/ and worker/ trees"
+    || panic "tarball did not contain coordinator/ and worker/ trees"
 
 cp "${image_dir}/Dockerfile" "${image_dir}/entrypoint.sh" "${context_dir}/"
 
