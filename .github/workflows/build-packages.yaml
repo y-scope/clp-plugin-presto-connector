@@ -275,6 +275,11 @@ jobs:
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"
     steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+        with:
+          persist-credentials: false
+
       - name: "Log in to GHCR"
         uses: "docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0"  # v4.4.0
         with:
@@ -285,8 +290,14 @@ jobs:
       - name: "Create multi-arch manifest"
         run: |-
           image_repo="ghcr.io/$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-          # Docker tags allow only [A-Za-z0-9_.-]; sanitize to match the build script.
-          tag_version="${VERSION//[^A-Za-z0-9_.-]/_}"
+          # Validate the version with the same shared helper the build script uses, so the
+          # manifest tag always matches the per-arch tags (versions with characters Docker
+          # tags can't represent, like '+' or '~', fail loudly instead of being mangled).
+          source tools/build-packages/dependency-image/utils.sh
+          if ! tag_version="$(package_version_to_image_tag "${VERSION}")"; then
+            echo "::error::Version '${VERSION}' can't be used as an image tag"
+            exit 1
+          fi
           docker buildx imagetools create \
             --tag "${image_repo}:${tag_version}" \
             "${image_repo}:${tag_version}-amd64" \

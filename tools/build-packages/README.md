@@ -10,7 +10,8 @@ through `.github/workflows/build-packages.yaml`. Local builds use
 container-side script.
 
 Supported package version format: must start with a digit and use only
-`[0-9A-Za-z.+~-]`.
+`[0-9A-Za-z.+~-]`. The installer image additionally rejects versions containing
+`+` or `~` (Docker tags can't represent them).
 
 For command options, run `--help` on the relevant entry point.
 

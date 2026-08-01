@@ -99,8 +99,11 @@ esac
 
 [[ -n "${repo}" ]] || repo="$(image_repo_from_origin)"
 
-# Docker tags allow only [A-Za-z0-9_.-]; sanitize any other version characters (e.g. '+').
-tag_version="${version//[^A-Za-z0-9_.-]/_}"
+# Docker tags forbid '+' and '~'; the shared helper rejects versions image tags can't
+# represent losslessly.
+tag_version="$(package_version_to_image_tag "${version}")" \
+    || panic "version '${version}' can't be used as an image tag" \
+        "(only letters, digits, '.', '_', and '-' are allowed)"
 image="${repo}:${tag_version}-${arch}"
 
 # ── Assemble a self-contained build context and build ─────────────────────────

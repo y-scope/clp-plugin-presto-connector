@@ -37,6 +37,20 @@ image_repo_from_origin() {
     printf 'ghcr.io/%s\n' "$(printf '%s' "${owner_repo}" | tr '[:upper:]' '[:lower:]')"
 }
 
+# Validates a package version for use as a Docker tag and prints it unchanged. Docker tags
+# allow only [A-Za-z0-9_.-], so versions containing '+' or '~' (valid in packages) are
+# rejected rather than encoded — a lossy substitution would collide distinct versions
+# (e.g. '1.0+rc' and '1.0~rc'), and an encoding would produce unreadable tags. The single
+# shared definition keeps local builds and the CI manifest job producing identical tags.
+#
+# Args: <version>
+# Fails when the version isn't a digit followed by letters, digits, '.', '_', or '-'.
+package_version_to_image_tag() {
+    local version="$1"
+    [[ "${version}" =~ ^[0-9][0-9A-Za-z._-]*$ ]] || return 1
+    printf '%s\n' "${version}"
+}
+
 # Inputs that should change the build-env image tag.
 _BUILD_ENV_HASH_INPUTS=(
     ".dockerignore"
