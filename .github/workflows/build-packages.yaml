@@ -218,6 +218,11 @@ jobs:
     timeout-minutes: 30
     env:
       ARCH: "${{matrix.arch}}"
+    # Matrix legs share one output namespace, so each leg fills only its own arch's key
+    # (the other resolves to empty and is ignored by the merge below).
+    outputs:
+      digest_amd64: "${{steps.image.outputs.digest_amd64}}"
+      digest_arm64: "${{steps.image.outputs.digest_arm64}}"
     steps:
       - name: "Check out repository"
         uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
@@ -243,6 +248,7 @@ jobs:
         uses: "docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c"  # v4.2.0
 
       - name: "Build the installer image (and push when publishing)"
+        id: "image"
         env:
           PUBLISH: "${{needs.resolve-version.outputs.publish}}"
         run: |-
@@ -253,16 +259,22 @@ jobs:
             echo "::error::Expected exactly one tarball for ${ARCH}, found ${#tarballs[@]}"
             exit 1
           fi
-          # Push from the default branch / tags; otherwise just build to validate.
-          output="--load"
+          # Push from the default branch / tags; otherwise just build to validate. When
+          # pushing, capture the image digest so the manifest job can combine the exact
+          # images this run built (per-arch tags are mutable and a concurrent run could
+          # move them between this job and the manifest job).
+          args=(--load)
           if [[ "${PUBLISH}" == "true" ]]; then
-            output="--push"
+            args=(--push --digest-file digest.txt)
           fi
           bash tools/build-packages/build-installer-init-image.sh \
             --tarball "${tarballs[0]}" \
             --arch "${ARCH}" \
             --repo "${image_repo}" \
-            "${output}"
+            "${args[@]}"
+          if [[ "${PUBLISH}" == "true" ]]; then
+            echo "digest_${ARCH}=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
+          fi
 
   # Combine the per-architecture installer images into one multi-arch version tag.
   manifest:
@@ -274,6 +286,8 @@ jobs:
     timeout-minutes: 15
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"
+      DIGEST_AMD64: "${{needs.image.outputs.digest_amd64}}"
+      DIGEST_ARM64: "${{needs.image.outputs.digest_arm64}}"
     steps:
       - name: "Check out repository"
         uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
@@ -298,7 +312,16 @@ jobs:
             echo "::error::Version '${VERSION}' can't be used as an image tag"
             exit 1
           fi
+          for digest in "${DIGEST_AMD64}" "${DIGEST_ARM64}"; do
+            if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Missing or malformed image digest: '${digest}'"
+              exit 1
+            fi
+          done
+          # Reference the per-arch images by immutable digest rather than by tag: the
+          # per-arch tags are mutable, so a concurrent publish run could move them between
+          # the image jobs and this one, silently mixing images from different runs.
           docker buildx imagetools create \
             --tag "${image_repo}:${tag_version}" \
-            "${image_repo}:${tag_version}-amd64" \
-            "${image_repo}:${tag_version}-arm64"
+            "${image_repo}@${DIGEST_AMD64}" \
+            "${image_repo}@${DIGEST_ARM64}"

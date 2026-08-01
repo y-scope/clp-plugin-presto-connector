@@ -37,6 +37,9 @@ Options:
                     e.g. ghcr.io/y-scope/clp-plugin-presto-connector)
   --push           Push the image to the registry (default: --load into local docker)
   --load           Load the image into the local docker daemon (default)
+  --digest-file F  Write the pushed image's registry digest (sha256:...) to F
+                    (requires --push; used by CI to build the multi-arch manifest
+                    from immutable digests instead of mutable per-arch tags)
   --help           Show this help
 
 See tools/build-packages/README.md for details.
@@ -59,6 +62,7 @@ version=""
 arch=""
 repo=""
 output="--load"
+digest_file=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -68,6 +72,7 @@ while [[ $# -gt 0 ]]; do
         --repo)    require_value "$1" "${2:-}"; repo="$2";    shift 2 ;;
         --push)    output="--push"; shift ;;
         --load)    output="--load"; shift ;;
+        --digest-file) require_value "$1" "${2:-}"; digest_file="$2"; shift 2 ;;
         --help)    show_help; exit 0 ;;
         *) panic "unknown option: $1 (use --help for usage)" ;;
     esac
@@ -75,6 +80,8 @@ done
 
 [[ -n "${tarball}" ]] || panic "--tarball is required (use --help for usage)"
 [[ -f "${tarball}" ]] || panic "tarball not found: ${tarball}"
+[[ -z "${digest_file}" || "${output}" == "--push" ]] \
+    || panic "--digest-file requires --push (only pushed images have a registry digest)"
 
 command -v docker &>/dev/null || panic "docker is required"
 docker buildx version &>/dev/null || panic "docker buildx is required"
@@ -104,7 +111,16 @@ esac
 tag_version="$(package_version_to_image_tag "${version}")" \
     || panic "version '${version}' can't be used as an image tag" \
         "(only letters, digits, '.', '_', and '-' are allowed)"
-image="${repo}:${tag_version}-${arch}"
+
+# Pushed images get an arch suffix because the two CI legs need distinct registry names
+# (the bare tag is the multi-arch manifest combining them). Local loads use the bare tag —
+# the conventional Docker pattern where a locally-built image and the published one share
+# a name and whatever is in the daemon wins.
+if [[ "${output}" == "--push" ]]; then
+    image="${repo}:${tag_version}-${arch}"
+else
+    image="${repo}:${tag_version}"
+fi
 
 # ── Assemble a self-contained build context and build ─────────────────────────
 
@@ -120,12 +136,25 @@ tar -xzf "${tarball}" -C "${context_dir}" --strip-components=1
 cp "${image_dir}/Dockerfile" "${image_dir}/entrypoint.sh" "${context_dir}/"
 
 echo >&2 "==> Building installer image ${image} (${platform})..."
-docker buildx build \
-    --platform "${platform}" \
-    --tag "${image}" \
-    "${output}" \
-    -f "${context_dir}/Dockerfile" \
-    "${context_dir}"
+buildx_args=(
+    --platform "${platform}"
+    --tag "${image}"
+    "${output}"
+    -f "${context_dir}/Dockerfile"
+)
+metadata_file="${context_dir}/buildx-metadata.json"
+[[ -z "${digest_file}" ]] || buildx_args+=(--metadata-file "${metadata_file}")
+docker buildx build "${buildx_args[@]}" "${context_dir}"
+
+if [[ -n "${digest_file}" ]]; then
+    # Extract the registry digest from the buildx metadata JSON. sed keeps the dependency
+    # footprint small (no jq); the strict format check makes a parse failure loud.
+    digest="$(sed -n 's/.*"containerimage\.digest": *"\([^"]*\)".*/\1/p' "${metadata_file}")"
+    [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]] \
+        || panic "failed to extract image digest from buildx metadata"
+    printf '%s\n' "${digest}" > "${digest_file}"
+    echo >&2 "==> Pushed digest ${digest}"
+fi
 
 echo >&2 "==> Built ${image}"
 echo "${image}"

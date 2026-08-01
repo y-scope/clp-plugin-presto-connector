@@ -33,16 +33,17 @@ A thin wrapper over `./tools/build-packages/build-packages.sh` (call that direct
 
 ```bash
 docker run --rm -e WORKER_PLUGIN_INSTALL_PATH=/plugins -v "$(pwd)/plugins:/plugins" \
-  ghcr.io/y-scope/clp-plugin-presto-connector:<version>-<arch>
+  ghcr.io/y-scope/clp-plugin-presto-connector:<version>
 ```
 
 Run `./tools/build-packages/build-installer-init-image.sh --help` to build it standalone from any package tarball.
 
 In CI, `build-packages.yaml` builds the image per architecture on every run and
 combines them into a multi-arch `:<version>` tag; pushes to GHCR happen only
-from the default branch and version tags. The multi-arch tag exists only on the
-registry (a manifest can't be loaded into a local daemon) — local builds always
-load `:<version>-<arch>`.
+from the default branch and version tags. Local builds load the same
+`:<version>` tag (single-arch, for the build host) — a locally-built image
+therefore shadows the published one in your Docker daemon until you
+`docker pull` it.
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
