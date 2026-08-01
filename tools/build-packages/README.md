@@ -62,7 +62,7 @@ while `packages/` is owned by the invoking user.
 
 ### Prerequisites
 
-Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
+Docker with buildx (usable without `sudo`), git, `tar`, `sha256sum` or `shasum`, and
 ~10 GB free disk for the build-env image.
 
 ## Target-CPU flags
