@@ -23,12 +23,26 @@ Default outputs are written to `./packages`.
 
 * `build-dependency-image.sh` — Resolves and prints the build-env image
   reference; also usable standalone for one-off container runs.
+* `build-installer-init-image.sh` — Builds the busybox init-container installer
+  image from a package tarball, and prints the resulting image reference.
+  Shared by local builds (`--load`) and CI (`--push`, plus `--digest-file` so
+  the multi-arch manifest is assembled from immutable digests rather than
+  mutable per-architecture tags). Also usable standalone against any package
+  tarball.
 * `build-packages.sh` — Local entry point: resolves the build-env image,
-  prepares the build cache and CA trust, and runs the container-side build.
+  prepares the build cache and CA trust, runs the container-side build, and
+  then builds and loads the installer image from the tarball it produced.
 * `dependency-image/` — Build-env image definition: the `Dockerfile`,
-  `utils.sh` (image-tag hash derivation and Docker build helpers, shared with
-  the `build-dependency-image` CI workflow), and `use-host-ca.sh` (exposes a
-  host CA bundle to the image's networked build steps).
+  `utils.sh` (image-tag hash derivation, GHCR repo derivation, package-version
+  tag validation, and Docker build helpers — shared with the
+  `build-dependency-image` CI workflow and `build-installer-init-image.sh`),
+  and `use-host-ca.sh` (exposes a host CA bundle to the image's networked build
+  steps).
+* `image/` — Installer image definition consumed by
+  `build-installer-init-image.sh`: the `Dockerfile` (busybox base; stages both
+  plugins under the same install root as the `.deb`/`.rpm` channels) and
+  `entrypoint.sh` (copies each plugin into the mounted directory named by
+  `COORDINATOR_PLUGIN_INSTALL_PATH` / `WORKER_PLUGIN_INSTALL_PATH`).
 * `internal/` — Implementation used by the entry points and CI, not meant to
   be invoked by users directly.
   * `build-cache/` — Host/container script pair behind the persistent local

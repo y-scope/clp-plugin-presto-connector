@@ -6,11 +6,12 @@ also be run directly.
 
 ## `build-packages/`
 
-Builds installable `.deb`, `.rpm`, and `.tar.gz` artifacts for the connector
-inside a hash-tagged build-env container image, so local and CI builds share
-one reproducible environment. Used by `task package` and the `build-packages` /
-`build-dependency-image` CI workflows. See its
-[README](build-packages/README.md) for details.
+Builds the connector's four distribution channels — installable `.deb`, `.rpm`,
+and `.tar.gz` artifacts, plus a busybox init-container installer image that
+copies either plugin into a mounted volume — inside a hash-tagged build-env
+container image, so local and CI builds share one reproducible environment.
+Used by `task package` and the `build-packages` / `build-dependency-image` CI
+workflows. See its [README](build-packages/README.md) for details.
 
 ## `presto-deps/`
 
