@@ -10,6 +10,12 @@
 #   docker run --rm -v "$(pwd):/src" -w /src "${image}" \
 #       task velox-connector:build-with-installed-deps
 #
+# Options:
+#   --with-ca-certs   Propagate the host's CA trust into the image build, for
+#                     builds behind a corporate TLS gateway. Only applies when
+#                     the image is built rather than found or pulled. Nothing is
+#                     baked into the image. Off by default.
+#
 # Requires: docker (with buildx), git, and sha256sum or shasum.
 
 set -o errexit
@@ -29,6 +35,20 @@ host_platform() {
 
 main() {
     local build_env_hash image image_repo platform pull_err
+    local with_ca_certs=0
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --with-ca-certs)
+                with_ca_certs=1
+                shift
+                ;;
+            *)
+                echo >&2 "ERROR: unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
 
     echo >&2 "==> Deriving build-env hash..."
     build_env_hash="$(derive_build_env_hash)"
@@ -40,6 +60,9 @@ main() {
     echo >&2 "    image:          ${image}"
 
     if docker image inspect "${image}" &>/dev/null; then
+        if (( with_ca_certs )); then
+            echo >&2 "    Note: --with-ca-certs applies only when the image is built; reusing cache."
+        fi
         echo >&2 "==> Found in local Docker cache."
         echo "${image}"
         return
@@ -47,6 +70,9 @@ main() {
 
     echo >&2 "==> Checking repository registry..."
     if pull_err="$(docker pull "${image}" 2>&1)"; then
+        if (( with_ca_certs )); then
+            echo >&2 "    Note: --with-ca-certs applies only when the image is built; pulled instead."
+        fi
         echo >&2 "==> Pulled from repository registry."
         echo "${image}"
         return
@@ -56,9 +82,9 @@ main() {
     printf '%s\n' "${pull_err}" | sed 's/^/      /' >&2
 
     echo >&2 "==> Image not available — building from scratch..."
-    build_image "${image}" "${platform}" "--load"
+    build_image "${image}" "${platform}" "--load" "${with_ca_certs}"
     echo >&2 "==> Built locally."
     echo "${image}"
 }
 
-main
+main "$@"

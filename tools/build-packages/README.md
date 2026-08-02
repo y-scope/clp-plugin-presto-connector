@@ -48,7 +48,16 @@ therefore shadows the published one in your Docker daemon until you
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
 cache, this repository's GHCR package, or a local build, reusing the cached
-image on later runs.
+image on later runs. It also accepts `--with-ca-certs`, which applies when the
+image is built rather than found or pulled.
+
+`--with-ca-certs` (on either script) propagates the host's CA trust into the
+build for corporate TLS gateways, using
+[yscope-dev-utils' ca-trust library][ca-trust]. It's off by default and nothing
+is baked into any image: the bundle is mounted only for the steps that need the
+network, so CI needs no CA configuration at all.
+
+[ca-trust]: ../yscope-dev-utils/exports/docker/ca-trust/README.md
 
 Build state is cached under `.cache/` (`maven/`, `ccache/`,
 `fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),
