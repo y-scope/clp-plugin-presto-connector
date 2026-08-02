@@ -306,6 +306,11 @@
         <artifactId>spotless-maven-plugin</artifactId>
         <configuration>
           <java>
+            <!-- Unlike the other steps here, CleanThat rewrites code rather than reformatting
+                 it. It applies CleanThat's default `SafeAndConsensual` mutators, which modernize
+                 constructs without changing behavior (e.g. `values.size() == 0` becomes
+                 `values.isEmpty()`). Dropping this step would leave formatting untouched but
+                 stop those rewrites. -->
             <cleanthat/>
             <eclipse>
               <file>.eclipse-formatter.xml</file>
