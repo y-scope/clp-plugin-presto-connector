@@ -44,3 +44,18 @@ while `packages/` is owned by the invoking user.
 
 Docker with buildx (usable without `sudo`), git, `sha256sum` or `shasum`, and
 ~10 GB free disk for the build-env image.
+
+## Target-CPU flags
+
+The worker plugin must be built with the same target-CPU flags as the Presto
+worker that loads it; the defaults match the official presto-native images. To
+target a worker built with different flags, set the `CPU_TARGET` environment
+variable (on arm, `ARM_BUILD_TARGET` is a second knob) — both are forwarded
+into the packaging container:
+
+```bash
+CPU_TARGET=sse task package
+```
+
+See `velox-connector/cmake/DeriveTargetCpuFlags.cmake` for the accepted
+keywords, defaults, and how to find the right value for a given worker.

@@ -134,7 +134,9 @@ host_gid=$(id -g)
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
 # trust_mount_args (built above) adds the CA trust mount and CA_TRUST_DIR env
-# var when --with-ca-certs was passed.
+# var when --with-ca-certs was passed. CPU_TARGET / ARM_BUILD_TARGET forward the
+# worker's target-CPU flag selection (see "Target-CPU flags" in README.md) into
+# the container when set on the host.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
@@ -147,6 +149,8 @@ docker run --rm \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
     --env MAVEN_OPTS \
+    --env CPU_TARGET \
+    --env ARM_BUILD_TARGET \
     -w /repo \
     "${image}" \
     bash /repo/tools/build-packages/internal/container/build-artifacts.sh \
