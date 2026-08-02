@@ -57,5 +57,11 @@ into the packaging container:
 CPU_TARGET=sse task package
 ```
 
+In CI, triggering `build-packages.yaml` manually (workflow dispatch) exposes
+per-architecture inputs — `amd64_cpu_target`, `arm64_cpu_target`, and
+`arm64_build_target` — each applied only to the matching architecture's build,
+so an input can never affect the other architecture. Blank inputs — and
+push-triggered builds — use the official presto-native defaults.
+
 See `velox-connector/cmake/DeriveTargetCpuFlags.cmake` for the accepted
 keywords, defaults, and how to find the right value for a given worker.
