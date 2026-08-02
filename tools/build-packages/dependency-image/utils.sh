@@ -19,6 +19,38 @@ image_ref() {
     echo "$1/$2:env-$3"
 }
 
+# Derives this repo's GHCR namespace from its GitHub origin remote.
+image_repo_from_origin() {
+    local remote_url owner_repo
+    remote_url="$(git -C "${_REPO_ROOT}" remote get-url origin)"
+    case "${remote_url}" in
+        https://github.com/*) owner_repo="${remote_url#https://github.com/}" ;;
+        git@github.com:*) owner_repo="${remote_url#git@github.com:}" ;;
+        ssh://git@github.com/*) owner_repo="${remote_url#ssh://git@github.com/}" ;;
+        *)
+            echo >&2 "ERROR: can't derive GHCR image repo from origin remote: ${remote_url}"
+            echo >&2 "       Expected a github.com remote."
+            exit 1
+            ;;
+    esac
+    owner_repo="${owner_repo%.git}"
+    printf 'ghcr.io/%s\n' "$(printf '%s' "${owner_repo}" | tr '[:upper:]' '[:lower:]')"
+}
+
+# Validates a package version for use as a Docker tag and prints it unchanged. Docker tags
+# allow only [A-Za-z0-9_.-], so versions containing '+' or '~' (valid in packages) are
+# rejected rather than encoded — a lossy substitution would collide distinct versions
+# (e.g. '1.0+rc' and '1.0~rc'), and an encoding would produce unreadable tags. The single
+# shared definition keeps local builds and the CI manifest job producing identical tags.
+#
+# Args: <version>
+# Fails when the version isn't a digit followed by letters, digits, '.', '_', or '-'.
+package_version_to_image_tag() {
+    local version="$1"
+    [[ "${version}" =~ ^[0-9][0-9A-Za-z._-]*$ ]] || return 1
+    printf '%s\n' "${version}"
+}
+
 # Inputs that should change the build-env image tag.
 _BUILD_ENV_HASH_INPUTS=(
     ".dockerignore"
