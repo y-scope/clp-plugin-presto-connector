@@ -32,13 +32,13 @@ import com.facebook.presto.spi.plan.PlanNodeIdAllocator;
 import com.facebook.presto.spi.plan.TableScanNode;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 import static com.facebook.presto.plugin.clp.ClpConnectorFactory.CONNECTOR_NAME;
 import static com.facebook.presto.spi.ConnectorPlanRewriter.rewriteWith;
@@ -49,15 +49,18 @@ public class ClpComputePushDown
         implements ConnectorPlanOptimizer
 {
     private static final Logger log = Logger.get(ClpComputePushDown.class);
+
     private final FunctionMetadataManager functionManager;
     private final StandardFunctionResolution functionResolution;
     private final ClpSplitFilterProvider splitFilterProvider;
+    private final ClpQueryConfigExtractor queryConfigExtractor;
 
     public ClpComputePushDown(FunctionMetadataManager functionManager, StandardFunctionResolution functionResolution, ClpSplitFilterProvider splitFilterProvider)
     {
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
         this.functionResolution = requireNonNull(functionResolution, "functionResolution is null");
         this.splitFilterProvider = requireNonNull(splitFilterProvider, "splitFilterProvider is null");
+        this.queryConfigExtractor = new ClpQueryConfigExtractor(this.functionManager);
     }
 
     @Override
@@ -116,16 +119,24 @@ public class ClpComputePushDown
             String tableScope = CONNECTOR_NAME + "." + clpTableHandle.getSchemaTableName().toString();
             Map<VariableReferenceExpression, ColumnHandle> assignments = tableScanNode.getAssignments();
 
-            ClpExpression clpExpression = filterNode.getPredicate().accept(
-                    new ClpFilterToKqlConverter(
-                            functionResolution,
-                            functionManager,
-                            assignments,
-                            splitFilterProvider.getColumnNames(tableScope)),
-                    null);
-            Optional<String> kqlQuery = clpExpression.getPushDownExpression();
-            Optional<String> metadataSqlQuery = clpExpression.getMetadataSqlQuery();
-            Optional<RowExpression> remainingPredicate = clpExpression.getRemainingExpression();
+            Map<String, String> queryConfig = new TreeMap<>();
+            Optional<RowExpression> strippedPredicate = queryConfigExtractor.extract(filterNode.getPredicate(), queryConfig);
+
+            Optional<String> kqlQuery = Optional.empty();
+            Optional<String> metadataSqlQuery = Optional.empty();
+            Optional<RowExpression> remainingPredicate = Optional.empty();
+            if (strippedPredicate.isPresent()) {
+                ClpExpression clpExpression = strippedPredicate.get().accept(
+                        new ClpFilterToKqlConverter(
+                                functionResolution,
+                                functionManager,
+                                assignments,
+                                splitFilterProvider.getColumnNames(tableScope)),
+                        null);
+                kqlQuery = clpExpression.getPushDownExpression();
+                metadataSqlQuery = clpExpression.getMetadataSqlQuery();
+                remainingPredicate = clpExpression.getRemainingExpression();
+            }
 
             // Perform required metadata filter checks before handling the KQL query (if kqlQuery
             // isn't present, we'll return early, skipping subsequent checks).
@@ -136,15 +147,12 @@ public class ClpComputePushDown
                 log.debug("Metadata SQL query: %s", metadataSqlQuery.get());
             }
 
-            if (kqlQuery.isPresent() || hasMetadataFilter) {
+            if (kqlQuery.isPresent() || hasMetadataFilter || !queryConfig.isEmpty()) {
                 if (kqlQuery.isPresent()) {
                     log.debug("KQL query: %s", kqlQuery.get());
                 }
 
-                // No per-query config is extracted yet; the map is always empty until
-                // CLP_QUERY_CONFIG lands.
-                ClpTableLayoutHandle layoutHandle =
-                        new ClpTableLayoutHandle(clpTableHandle, kqlQuery, metadataSqlQuery, ImmutableMap.of());
+                ClpTableLayoutHandle layoutHandle = new ClpTableLayoutHandle(clpTableHandle, kqlQuery, metadataSqlQuery, queryConfig);
                 TableHandle newTableHandle = new TableHandle(
                         tableHandle.getConnectorId(),
                         clpTableHandle,
@@ -175,5 +183,6 @@ public class ClpComputePushDown
                 return tableScanNode;
             }
         }
+
     }
 }

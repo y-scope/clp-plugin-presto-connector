@@ -44,6 +44,7 @@ import java.util.Set;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_PUSHDOWN_UNSUPPORTED_EXPRESSION;
 import static com.facebook.presto.spi.ConnectorPlanRewriter.rewriteWith;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -188,7 +189,7 @@ public final class ClpUdfRewriter
             // Handle CLP_GET_* function calls
             if (expression instanceof CallExpression) {
                 CallExpression call = (CallExpression) expression;
-                String functionName = functionManager.getFunctionMetadata(call.getFunctionHandle()).getName().getObjectName().toUpperCase();
+                String functionName = functionManager.getFunctionMetadata(call.getFunctionHandle()).getName().getObjectName().toUpperCase(ENGLISH);
 
                 if (inProjectNode && functionName.equals("CLP_GET_JSON_STRING")) {
                     VariableReferenceExpression newValue = variableAllocator.newVariable(
