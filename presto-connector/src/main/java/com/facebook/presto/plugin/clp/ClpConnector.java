@@ -13,6 +13,7 @@ package com.facebook.presto.plugin.clp;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.List;
 import javax.inject.Inject;
 
 import com.facebook.airlift.bootstrap.LifeCycleManager;
@@ -27,6 +28,7 @@ import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.function.FunctionMetadataManager;
 import com.facebook.presto.spi.function.StandardFunctionResolution;
+import com.facebook.presto.spi.session.PropertyMetadata;
 import com.facebook.presto.spi.transaction.IsolationLevel;
 
 import com.facebook.presto.plugin.clp.codec.ClpConnectorCodecProvider;
@@ -44,6 +46,7 @@ public class ClpConnector implements Connector {
     private final StandardFunctionResolution functionResolution;
     private final ClpSplitFilterProvider splitFilterProvider;
     private final TypeManager typeManager;
+    private final ClpSessionProperties sessionProperties;
 
     @Inject
     public ClpConnector(
@@ -54,7 +57,8 @@ public class ClpConnector implements Connector {
             FunctionMetadataManager functionManager,
             StandardFunctionResolution functionResolution,
             ClpSplitFilterProvider splitFilterProvider,
-            TypeManager typeManager
+            TypeManager typeManager,
+            ClpSessionProperties sessionProperties
     ) {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -67,6 +71,12 @@ public class ClpConnector implements Connector {
                 "splitFilterProvider is null"
         );
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties() {
+        return sessionProperties.getSessionProperties();
     }
 
     @Override

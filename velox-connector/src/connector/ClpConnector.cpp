@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "velox/common/config/Config.h"
 #include "connector/ClpConnector.h"
 #include "connector/ClpDataSource.h"
 
@@ -29,12 +30,15 @@ std::unique_ptr<DataSource> ClpConnector::createDataSource(
     const ConnectorTableHandlePtr& tableHandle,
     const connector::ColumnHandleMap& columnHandles,
     ConnectorQueryCtx* connectorQueryCtx) {
+  auto caseInsensitive = connectorQueryCtx->sessionProperties()->get<bool>(
+      ClpConfig::kCaseInsensitiveSession, config_->caseInsensitive());
   return std::make_unique<ClpDataSource>(
       outputType,
       tableHandle,
       columnHandles,
       connectorQueryCtx->memoryPool(),
-      config_);
+      config_,
+      caseInsensitive);
 }
 
 std::unique_ptr<DataSink> ClpConnector::createDataSink(
