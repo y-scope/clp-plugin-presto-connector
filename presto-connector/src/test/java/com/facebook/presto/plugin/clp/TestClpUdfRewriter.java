@@ -18,29 +18,20 @@ import com.facebook.presto.common.transaction.TransactionId;
 import com.facebook.presto.common.type.ArrayType;
 import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.cost.StatsAndCosts;
-import com.facebook.presto.cost.StatsProvider;
 import com.facebook.presto.metadata.FunctionAndTypeManager;
-import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.plugin.clp.optimization.ClpComputePushDown;
 import com.facebook.presto.plugin.clp.optimization.ClpUdfRewriter;
 import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
-import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.VariableAllocator;
 import com.facebook.presto.spi.WarningCollector;
 import com.facebook.presto.spi.plan.PlanNode;
 import com.facebook.presto.spi.plan.PlanNodeIdAllocator;
-import com.facebook.presto.spi.plan.TableScanNode;
-import com.facebook.presto.spi.relation.VariableReferenceExpression;
 import com.facebook.presto.sql.planner.Plan;
-import com.facebook.presto.sql.planner.assertions.MatchResult;
-import com.facebook.presto.sql.planner.assertions.Matcher;
 import com.facebook.presto.sql.planner.assertions.PlanAssert;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
-import com.facebook.presto.sql.planner.assertions.SymbolAliases;
 import com.facebook.presto.sql.relational.FunctionResolution;
-import com.facebook.presto.sql.tree.SymbolReference;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -50,12 +41,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
-import static com.facebook.presto.common.Utils.checkState;
 import static com.facebook.presto.common.type.BigintType.BIGINT;
 import static com.facebook.presto.common.type.DoubleType.DOUBLE;
 import static com.facebook.presto.common.type.VarcharType.VARCHAR;
@@ -73,11 +60,8 @@ import static com.facebook.presto.plugin.clp.metadata.ClpSchemaTreeNodeType.Floa
 import static com.facebook.presto.plugin.clp.metadata.ClpSchemaTreeNodeType.Integer;
 import static com.facebook.presto.plugin.clp.metadata.ClpSchemaTreeNodeType.VarString;
 import static com.facebook.presto.plugin.clp.optimization.ClpUdfRewriter.JSON_STRING_PLACEHOLDER;
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
-import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.filter;
-import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.node;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
@@ -297,62 +281,5 @@ public class TestClpUdfRewriter
                                                 fare,
                                                 new ClpColumnHandle("user_id", BIGINT),
                                                 new ClpColumnHandle(JSON_STRING_PLACEHOLDER, VARCHAR))))));
-    }
-
-    private static final class ClpTableScanMatcher
-            implements Matcher
-    {
-        private final ClpTableLayoutHandle expectedLayoutHandle;
-        private final Set<ColumnHandle> expectedColumns;
-
-        private ClpTableScanMatcher(ClpTableLayoutHandle expectedLayoutHandle, Set<ColumnHandle> expectedColumns)
-        {
-            this.expectedLayoutHandle = expectedLayoutHandle;
-            this.expectedColumns = expectedColumns;
-        }
-
-        static PlanMatchPattern clpTableScanPattern(ClpTableLayoutHandle layoutHandle, Set<ColumnHandle> columns)
-        {
-            return node(TableScanNode.class).with(new ClpTableScanMatcher(layoutHandle, columns));
-        }
-
-        @Override
-        public boolean shapeMatches(PlanNode node)
-        {
-            return node instanceof TableScanNode;
-        }
-
-        @Override
-        public MatchResult detailMatches(
-                PlanNode node,
-                StatsProvider stats,
-                Session session,
-                Metadata metadata,
-                SymbolAliases symbolAliases)
-        {
-            checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false");
-            TableScanNode tableScanNode = (TableScanNode) node;
-            ClpTableLayoutHandle actualLayoutHandle = (ClpTableLayoutHandle) tableScanNode.getTable().getLayout().get();
-
-            // Check layout handle
-            if (!expectedLayoutHandle.equals(actualLayoutHandle)) {
-                return NO_MATCH;
-            }
-
-            // Check assignments contain expected columns
-            Map<VariableReferenceExpression, ColumnHandle> actualAssignments = tableScanNode.getAssignments();
-            Set<ColumnHandle> actualColumns = new HashSet<>(actualAssignments.values());
-
-            if (!expectedColumns.equals(actualColumns)) {
-                return NO_MATCH;
-            }
-
-            SymbolAliases.Builder aliasesBuilder = SymbolAliases.builder();
-            for (VariableReferenceExpression variable : tableScanNode.getOutputVariables()) {
-                aliasesBuilder.put(variable.getName(), new SymbolReference(variable.getName()));
-            }
-
-            return match(aliasesBuilder.build());
-        }
     }
 }

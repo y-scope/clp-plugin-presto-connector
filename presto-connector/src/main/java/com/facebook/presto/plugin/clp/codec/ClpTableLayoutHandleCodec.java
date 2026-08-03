@@ -24,11 +24,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.facebook.presto.plugin.clp.codec.ClpTableHandleCodec.readTableHandle;
 import static com.facebook.presto.plugin.clp.codec.ClpTableHandleCodec.writeTableHandle;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.readStringMap;
 import static com.facebook.presto.plugin.clp.codec.CodecUtils.readUtf8String;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeStringMap;
 import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeUtf8String;
 
 public class ClpTableLayoutHandleCodec
@@ -40,6 +43,8 @@ public class ClpTableLayoutHandleCodec
     //   [kqlQuery]         : 2-byte BE length + UTF-8 bytes, if present
     //   metadataSqlPresent : writeBoolean
     //   [metadataSql]      : 2-byte BE length + UTF-8 bytes, if present
+    //   queryConfig      : writeStringMap (4-byte BE entry count, then per entry
+    //                        key and value each as 2-byte BE length + UTF-8 bytes)
 
     @Override
     public byte[] serialize(ConnectorTableLayoutHandle handle)
@@ -65,6 +70,8 @@ public class ClpTableLayoutHandleCodec
             if (metadataSql.isPresent()) {
                 writeUtf8String(metadataSql.get(), out);
             }
+            // Serialize queryConfig
+            writeStringMap(layoutHandle.getQueryConfig(), out);
             return byteOut.toByteArray();
         }
         catch (IOException e) {
@@ -86,10 +93,12 @@ public class ClpTableLayoutHandleCodec
             Optional<String> metadataSql = in.readBoolean()
                     ? Optional.of(readUtf8String(in))
                     : Optional.empty();
+            // Deserialize queryConfig
+            Map<String, String> queryConfig = readStringMap(in);
             if (in.available() > 0) {
                 throw new IOException("Unexpected trailing bytes in ClpTableLayoutHandle deserialization");
             }
-            return new ClpTableLayoutHandle(table, kqlQuery, metadataSql);
+            return new ClpTableLayoutHandle(table, kqlQuery, metadataSql, queryConfig);
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to deserialize ClpTableLayoutHandle", e);
