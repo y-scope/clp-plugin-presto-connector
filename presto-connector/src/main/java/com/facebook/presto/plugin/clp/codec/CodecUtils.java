@@ -15,6 +15,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+
+import com.google.common.collect.ImmutableSortedMap;
 
 /**
  * String serialization helpers for the binary codec wire format.
@@ -50,5 +53,30 @@ final class CodecUtils {
         byte[] bytes = new byte[length];
         in.readFully(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Wire format: 4-byte big-endian entry count, then per entry the key and value each encoded by
+     * {@link #writeUtf8String}. Entries are written in the map's iteration order; callers pass
+     * sorted maps so the serialized bytes are deterministic.
+     */
+    static void writeStringMap(Map<String, String> map, DataOutputStream out) throws IOException {
+        out.writeInt(map.size());
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            writeUtf8String(entry.getKey(), out);
+            writeUtf8String(entry.getValue(), out);
+        }
+    }
+
+    static Map<String, String> readStringMap(DataInputStream in) throws IOException {
+        int size = in.readInt();
+        if (size < 0) { throw new IOException("Invalid string map size: " + size); }
+        ImmutableSortedMap.Builder<String, String> map = ImmutableSortedMap.naturalOrder();
+        for (int i = 0; i < size; i++) {
+            String key = readUtf8String(in);
+            String value = readUtf8String(in);
+            map.put(key, value);
+        }
+        return map.build();
     }
 }
