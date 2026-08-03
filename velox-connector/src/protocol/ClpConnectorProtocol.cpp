@@ -49,6 +49,20 @@ bool readBoolean(std::istringstream& in) {
   return byte != 0;
 }
 
+// Java's CodecUtils.writeStringMap: 4-byte big-endian entry count, then per
+// entry the key and value each encoded by CodecUtils.writeUtf8String.
+Map<String, String> readStringMap(std::istringstream& in) {
+  int32_t size = readInt(in);
+  VELOX_CHECK(size >= 0, "Invalid string map size: {}", size);
+  Map<String, String> result;
+  for (int32_t i = 0; i < size; ++i) {
+    auto key = readUtf8String(in);
+    auto value = readUtf8String(in);
+    result.emplace(std::move(key), std::move(value));
+  }
+  return result;
+}
+
 } // namespace
 
 // ClpColumnHandle
@@ -76,6 +90,7 @@ void ClpConnectorProtocol::deserialize(
 //   typeOrdinal     : writeInt (0 = ARCHIVE, 1 = IR)
 //   kqlQueryPresent : writeBoolean
 //   [kqlQuery]      : CodecUtils.writeUtf8String, if present
+//   queryConfig     : CodecUtils.writeStringMap
 
 void ClpConnectorProtocol::deserialize(
     const std::string& binaryData,
@@ -93,6 +108,7 @@ void ClpConnectorProtocol::deserialize(
   if (readBoolean(in)) {
     handle->kqlQuery = std::make_shared<String>(readUtf8String(in));
   }
+  handle->queryConfig = readStringMap(in);
 
   proto = handle;
 }
@@ -127,6 +143,7 @@ void ClpConnectorProtocol::deserialize(
 //   [kqlQuery]           : CodecUtils.writeUtf8String, if present
 //   metadataSqlPresent   : writeBoolean
 //   [metadataSql]        : CodecUtils.writeUtf8String, if present
+//   queryConfig          : CodecUtils.writeStringMap
 
 void ClpConnectorProtocol::deserialize(
     const std::string& binaryData,
@@ -146,6 +163,8 @@ void ClpConnectorProtocol::deserialize(
     handle->metadataFilterQuery =
         std::make_shared<String>(readUtf8String(in));
   }
+
+  handle->queryConfig = readStringMap(in);
 
   proto = handle;
 }

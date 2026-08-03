@@ -36,6 +36,7 @@ import com.facebook.presto.spi.plan.PlanNodeIdAllocator;
 import com.facebook.presto.spi.plan.TableScanNode;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import com.facebook.presto.plugin.clp.ClpExpression;
@@ -152,10 +153,13 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
                     log.debug("KQL query: %s", kqlQuery.get());
                 }
 
+                // No per-query config is extracted yet; the map is always empty until
+                // CLP_QUERY_CONFIG lands.
                 ClpTableLayoutHandle layoutHandle = new ClpTableLayoutHandle(
                         clpTableHandle,
                         kqlQuery,
-                        metadataSqlQuery
+                        metadataSqlQuery,
+                        ImmutableMap.of()
                 );
                 TableHandle newTableHandle = new TableHandle(
                         tableHandle.getConnectorId(),
