@@ -32,8 +32,9 @@ ClpDataSource::ClpDataSource(
     const ConnectorTableHandlePtr& tableHandle,
     const connector::ColumnHandleMap& columnHandles,
     velox::memory::MemoryPool* pool,
-    std::shared_ptr<const ClpConfig>& clpConfig)
-    : pool_(pool), outputType_(outputType) {
+    std::shared_ptr<const ClpConfig>& clpConfig,
+    bool caseInsensitive)
+    : caseInsensitive_(caseInsensitive), pool_(pool), outputType_(outputType) {
   auto clpTableHandle =
       std::dynamic_pointer_cast<const ClpTableHandle>(tableHandle);
   storageType_ = clpConfig->storageType();
@@ -114,13 +115,11 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
   }
 
   if (ClpConnectorSplit::SplitType::kArchive == clpSplit->type_) {
-    cursor_ =
-        std::make_unique<search_lib::ClpArchiveCursor>(inputSource, splitPath);
+    cursor_ = std::make_unique<search_lib::ClpArchiveCursor>(
+        inputSource, splitPath, caseInsensitive_);
   } else if (ClpConnectorSplit::SplitType::kIr == clpSplit->type_) {
-    // IR splits match case-sensitively, matching archive splits. This argument
-    // is `ignoreCase`, so it is false.
-    cursor_ =
-        std::make_unique<search_lib::ClpIrCursor>(inputSource, splitPath, false);
+    cursor_ = std::make_unique<search_lib::ClpIrCursor>(
+        inputSource, splitPath, caseInsensitive_);
   } else {
     VELOX_UNSUPPORTED(
         "Unsupported split type: {}", static_cast<int>(clpSplit->type_));
