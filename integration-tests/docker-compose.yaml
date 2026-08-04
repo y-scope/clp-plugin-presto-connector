@@ -9,6 +9,10 @@
 # SAME path in both services: the coordinator enumerates archives to build splits, and the worker
 # opens the paths those splits carry.
 #
+# The same fixtures are also seeded into MinIO, so the `clp_s3` catalog reads them over S3 while
+# `clp` reads them from disk. Both catalogs use `connector.name=clp`; only the worker-side
+# `clp.storage-type` differs.
+#
 # The plugins are installed by the same init-container image a real deployment uses, built by
 # `task package`. Each install service writes into a volume the corresponding node then mounts as
 # its plugin directory, so the harness exercises the shipped installer rather than a copy of what
@@ -24,6 +28,36 @@ volumes:
   worker-plugin:
 
 services:
+  minio:
+    image: "minio/minio:RELEASE.2025-04-22T22-12-26Z"
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: "3s"
+      timeout: "3s"
+      retries: 30
+
+  # Uploads the fixture tree into a bucket named `fixtures`, so a split path of
+  # `fixtures/<table>/<archive>` addresses bucket `fixtures`, key `<table>/<archive>`.
+  seed-fixtures:
+    image: "minio/mc:RELEASE.2025-04-16T18-13-26Z"
+    depends_on:
+      minio:
+        condition: "service_healthy"
+    volumes:
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+    entrypoint:
+      - "sh"
+      - "-c"
+      - |
+        mc alias set local http://minio:9000 minioadmin minioadmin
+        mc mb --ignore-existing local/fixtures
+        mc cp --recursive /fixtures/ local/fixtures/
+        mc ls --recursive local/fixtures
+
   install-coordinator-plugin:
     <<: *installer
     environment:
@@ -47,6 +81,9 @@ services:
       - "coordinator-plugin:/opt/presto-server/plugin/clp:ro"
       - "./etc/coordinator:/opt/presto-server/etc:ro"
       - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+      # Same tree again, under the working directory, so the S3 catalog's relative
+      # archive dir resolves and yields bucket-relative split paths.
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/var/lib/presto/data/fixtures:ro"
     ports:
       - "${CLP_INTEGRATION_TEST_COORDINATOR_PORT:-18080}:8080"
     healthcheck:
@@ -65,6 +102,8 @@ services:
       coordinator:
         condition: "service_healthy"
       install-worker-plugin:
+        condition: "service_completed_successfully"
+      seed-fixtures:
         condition: "service_completed_successfully"
     volumes:
       - "worker-plugin:/opt/presto-server/plugin/clp:ro"
