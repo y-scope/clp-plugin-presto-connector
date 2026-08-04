@@ -14,6 +14,7 @@
 package com.facebook.presto.plugin.clp;
 
 import com.facebook.airlift.configuration.Config;
+import com.facebook.airlift.configuration.ConfigDescription;
 import com.facebook.presto.spi.PrestoException;
 
 import java.util.regex.Pattern;
@@ -22,9 +23,14 @@ public class ClpConfig
 {
     public static final Pattern SAFE_SQL_TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]+$");
 
+    /**
+     * Default provider name, matching the built-in factories that read CLP's metadata database.
+     */
+    public static final String DEFAULT_PROVIDER_TYPE = "MYSQL";
+
     private boolean polymorphicTypeEnabled = true;
 
-    private MetadataProviderType metadataProviderType = MetadataProviderType.MYSQL;
+    private String metadataProviderType = DEFAULT_PROVIDER_TYPE;
     private String metadataDbUrl;
     private String metadataDbName;
     private String metadataDbUser;
@@ -35,7 +41,7 @@ public class ClpConfig
 
     private String splitFilterConfig;
     private SplitFilterProviderType splitFilterProviderType = SplitFilterProviderType.MYSQL;
-    private SplitProviderType splitProviderType = SplitProviderType.MYSQL;
+    private String splitProviderType = DEFAULT_PROVIDER_TYPE;
 
     public boolean isPolymorphicTypeEnabled()
     {
@@ -49,13 +55,14 @@ public class ClpConfig
         return this;
     }
 
-    public MetadataProviderType getMetadataProviderType()
+    public String getMetadataProviderType()
     {
         return metadataProviderType;
     }
 
     @Config("clp.metadata-provider-type")
-    public ClpConfig setMetadataProviderType(MetadataProviderType metadataProviderType)
+    @ConfigDescription("Name of a ClpMetadataProviderFactory registered on the plugin's classpath")
+    public ClpConfig setMetadataProviderType(String metadataProviderType)
     {
         this.metadataProviderType = metadataProviderType;
         return this;
@@ -175,29 +182,20 @@ public class ClpConfig
         return this;
     }
 
-    public SplitProviderType getSplitProviderType()
+    public String getSplitProviderType()
     {
         return splitProviderType;
     }
 
     @Config("clp.split-provider-type")
-    public ClpConfig setSplitProviderType(SplitProviderType splitProviderType)
+    @ConfigDescription("Name of a ClpSplitProviderFactory registered on the plugin's classpath")
+    public ClpConfig setSplitProviderType(String splitProviderType)
     {
         this.splitProviderType = splitProviderType;
         return this;
     }
 
-    public enum MetadataProviderType
-    {
-        MYSQL
-    }
-
     public enum SplitFilterProviderType
-    {
-        MYSQL
-    }
-
-    public enum SplitProviderType
     {
         MYSQL
     }
