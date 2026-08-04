@@ -1,0 +1,5 @@
+# Local Python state.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/

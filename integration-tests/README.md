@@ -1,9 +1,26 @@
 # Integration tests
 
-End-to-end tests for the CLP Presto connector, run against a real two-node cluster: a Java
+Integration tests for the CLP Presto connector, run against a real two-node cluster: a Java
 coordinator and a native (C++) worker, both loading the connector plugin.
 
-## Running the cluster
+## Why a real cluster
+
+The worker plugin leaves Velox symbols undefined for the worker process to resolve at load time, so
+a test binary has nothing to link against. Running queries through a real worker exercises it
+without building Velox into the toolchain image.
+
+## Running
+
+```shell
+task package    # builds the init-container image the cluster installs the plugins from
+task integration-tests:run
+```
+
+The session brings the cluster up and tears it down. `--use-running-cluster` reuses one already
+up; `--keep-cluster` leaves it running afterwards. Markers select subsets (`archive`, `ir`,
+`pushdown`, `schema`, `udf`), e.g. `task integration-tests:run -- -m ir`.
+
+### By hand
 
 `task package` builds the installer image the compose file defaults to. Then, from this directory:
 
