@@ -15,9 +15,9 @@ package com.facebook.presto.plugin.clp;
 
 import com.facebook.airlift.configuration.AbstractConfigurationAwareModule;
 import com.facebook.presto.plugin.clp.metadata.ClpMetadataProvider;
-import com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider;
-import com.facebook.presto.plugin.clp.split.ClpMySqlSplitProvider;
+import com.facebook.presto.plugin.clp.metadata.ClpMetadataProviderFactory;
 import com.facebook.presto.plugin.clp.split.ClpSplitProvider;
+import com.facebook.presto.plugin.clp.split.ClpSplitProviderFactory;
 import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
 import com.facebook.presto.spi.PrestoException;
@@ -25,9 +25,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 
 import static com.facebook.airlift.configuration.ConfigBinder.configBinder;
-import static com.facebook.presto.plugin.clp.ClpConfig.MetadataProviderType;
 import static com.facebook.presto.plugin.clp.ClpConfig.SplitFilterProviderType;
-import static com.facebook.presto.plugin.clp.ClpConfig.SplitProviderType;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_METADATA_SOURCE;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_SPLIT_SOURCE;
@@ -53,18 +51,29 @@ public class ClpModule
             throw new PrestoException(CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE, "Unsupported split filter provider type: " + config.getSplitFilterProviderType());
         }
 
-        if (config.getMetadataProviderType() == MetadataProviderType.MYSQL) {
-            binder.bind(ClpMetadataProvider.class).to(ClpMySqlMetadataProvider.class).in(Scopes.SINGLETON);
-        }
-        else {
-            throw new PrestoException(CLP_UNSUPPORTED_METADATA_SOURCE, "Unsupported metadata provider type: " + config.getMetadataProviderType());
-        }
+        // Metadata and split providers are resolved independently, so a catalog may pair any
+        // metadata provider with any split provider. Both are discovered via ServiceLoader: a new
+        // provider ships as a jar on the plugin's classpath and needs no change here.
+        ClpMetadataProviderFactory metadataProviderFactory = ClpProviderResolver.resolve(
+                ClpMetadataProviderFactory.class,
+                ClpMetadataProviderFactory::getName,
+                config.getMetadataProviderType(),
+                "clp.metadata-provider-type",
+                CLP_UNSUPPORTED_METADATA_SOURCE);
+        metadataProviderFactory.validateConfig(config);
+        binder.bind(ClpMetadataProvider.class)
+                .to(metadataProviderFactory.getProviderClass())
+                .in(Scopes.SINGLETON);
 
-        if (config.getSplitProviderType() == SplitProviderType.MYSQL) {
-            binder.bind(ClpSplitProvider.class).to(ClpMySqlSplitProvider.class).in(Scopes.SINGLETON);
-        }
-        else {
-            throw new PrestoException(CLP_UNSUPPORTED_SPLIT_SOURCE, "Unsupported split provider type: " + config.getSplitProviderType());
-        }
+        ClpSplitProviderFactory splitProviderFactory = ClpProviderResolver.resolve(
+                ClpSplitProviderFactory.class,
+                ClpSplitProviderFactory::getName,
+                config.getSplitProviderType(),
+                "clp.split-provider-type",
+                CLP_UNSUPPORTED_SPLIT_SOURCE);
+        splitProviderFactory.validateConfig(config);
+        binder.bind(ClpSplitProvider.class)
+                .to(splitProviderFactory.getProviderClass())
+                .in(Scopes.SINGLETON);
     }
 }
