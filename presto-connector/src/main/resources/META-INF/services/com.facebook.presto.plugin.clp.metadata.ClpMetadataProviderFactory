@@ -1,1 +1,2 @@
 com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProviderFactory
+com.facebook.presto.plugin.clp.metadata.ClpIntegrationTestMetadataProviderFactory

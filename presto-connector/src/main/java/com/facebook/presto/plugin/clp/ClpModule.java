@@ -18,6 +18,7 @@ import com.facebook.presto.plugin.clp.metadata.ClpMetadataProvider;
 import com.facebook.presto.plugin.clp.metadata.ClpMetadataProviderFactory;
 import com.facebook.presto.plugin.clp.split.ClpSplitProvider;
 import com.facebook.presto.plugin.clp.split.ClpSplitProviderFactory;
+import com.facebook.presto.plugin.clp.split.filter.ClpIntegrationTestSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
 import com.facebook.presto.spi.PrestoException;
@@ -46,6 +47,9 @@ public class ClpModule
 
         if (SplitFilterProviderType.MYSQL == config.getSplitFilterProviderType()) {
             binder.bind(ClpSplitFilterProvider.class).to(ClpMySqlSplitFilterProvider.class).in(Scopes.SINGLETON);
+        }
+        else if (SplitFilterProviderType.INTEGRATION_TEST == config.getSplitFilterProviderType()) {
+            binder.bind(ClpSplitFilterProvider.class).to(ClpIntegrationTestSplitFilterProvider.class).in(Scopes.SINGLETON);
         }
         else {
             throw new PrestoException(CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE, "Unsupported split filter provider type: " + config.getSplitFilterProviderType());

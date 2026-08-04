@@ -31,6 +31,7 @@ public class ClpConfig
     private boolean polymorphicTypeEnabled = true;
 
     private String metadataProviderType = DEFAULT_PROVIDER_TYPE;
+    private String integrationTestArchiveDir;
     private String metadataDbUrl;
     private String metadataDbName;
     private String metadataDbUser;
@@ -195,8 +196,22 @@ public class ClpConfig
         return this;
     }
 
+    public String getIntegrationTestArchiveDir()
+    {
+        return integrationTestArchiveDir;
+    }
+
+    @Config("clp.integration-test-archive-dir")
+    @ConfigDescription("Directory of CLP archives served by the INTEGRATION_TEST providers")
+    public ClpConfig setIntegrationTestArchiveDir(String integrationTestArchiveDir)
+    {
+        this.integrationTestArchiveDir = integrationTestArchiveDir;
+        return this;
+    }
+
     public enum SplitFilterProviderType
     {
-        MYSQL
+        MYSQL,
+        INTEGRATION_TEST
     }
 }
