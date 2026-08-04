@@ -1,0 +1,30 @@
+[
+  {
+    "name": "timestamp",
+    "type": "Timestamp"
+  },
+  {
+    "name": "requestId",
+    "type": "VarString"
+  },
+  {
+    "name": "userId",
+    "type": "VarString"
+  },
+  {
+    "name": "method",
+    "type": "VarString"
+  },
+  {
+    "name": "path",
+    "type": "VarString"
+  },
+  {
+    "name": "responseTimeMs",
+    "type": "Integer"
+  },
+  {
+    "name": "status",
+    "type": "Integer"
+  }
+]
