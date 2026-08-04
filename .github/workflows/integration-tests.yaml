@@ -1,0 +1,63 @@
+# Runs the connector's integration tests against a real Presto cluster built from the stock y-scope
+# images. Packaging runs first: the cluster installs both plugins from the init-container image
+# that `task package` builds.
+
+name: "integration-tests"
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/integration-tests.yaml"
+      - "integration-tests/**"
+      - "presto-connector/**"
+      - "taskfile.yaml"
+      - "taskfiles/**"
+      - "tools/**"
+      - "velox-connector/**"
+      - "!**/*.md"
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  integration-tests:
+    runs-on: "ubuntu-24.04"
+    # Dominated by packaging, which builds the connector inside the build-env image.
+    timeout-minutes: 120
+    permissions:
+      # To check out the repository.
+      contents: "read"
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: "recursive"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-uv"
+        with:
+          version: "0.11.3"
+
+      - name: "Package the connector"
+        run: "task package"
+
+      # `--keep-cluster` so the containers outlive a failing test. Without it the session fixture
+      # tears the cluster down before the log-capture step runs, and there is nothing left to read.
+      # The runner is ephemeral, so nothing needs to clean them up afterwards.
+      - name: "Run the integration tests"
+        run: "task integration-tests:run -- --keep-cluster"
+
+      - name: "Capture cluster logs on failure"
+        if: "failure()"
+        working-directory: "integration-tests"
+        run: "docker compose logs --tail 200 || true"
