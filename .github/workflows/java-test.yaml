@@ -9,8 +9,6 @@ name: "java-test"
 on:
   pull_request:
   push:
-    # Branch pushes are covered by `pull_request`; listing them here too would double every run,
-    # and the `push` payload carries no PR number, so concurrency can't collapse the pair.
     branches: ["main"]
   workflow_dispatch:
 
