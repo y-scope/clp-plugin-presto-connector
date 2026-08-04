@@ -1,0 +1,21 @@
+version: "3"
+
+vars:
+  G_INTEGRATION_TESTS_DIR: "{{.ROOT_DIR}}/integration-tests"
+
+tasks:
+  default:
+    deps: ["run"]
+
+  cache-clear:
+    desc: "Clear the integration tests' pytest cache."
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    cmds:
+      - "rm -rf .pytest_cache"
+
+  # Requires `task package`: the cluster installs both plugins from the init-container image it
+  # builds.
+  run:
+    desc: "Run the integration tests against a real Presto cluster (requires `task package`)."
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    cmd: "uv run pytest {{.CLI_ARGS}}"

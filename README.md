@@ -39,6 +39,17 @@ one of the tasks in the table below.
 | `lint:check-yaml`  | Runs the YAML linters.                   |
 | `lint:fix-yaml`    | Runs the YAML linters and fixes issues.  |
 
+## Testing
+
+```shell
+task presto-connector:test        # coordinator plugin, unit tests
+task package && task integration-tests:run    # both plugins, in a real Presto cluster
+```
+
+The worker plugin has no unit tests: it leaves Velox symbols undefined for the worker to resolve at
+load time, so a test binary has nothing to link against. See
+[integration-tests/README.md](integration-tests/README.md).
+
 ## Building installable packages
 
 For details about the `.deb`, `.rpm`, and `.tar.gz` artifacts built in CI, and to build them locally, see [tools/build-packages/README.md](tools/build-packages/README.md).

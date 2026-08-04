@@ -5,6 +5,7 @@ includes:
   presto-connector:
     taskfile: "taskfiles/presto-connector/main.yaml"
     dir: "presto-connector"
+  integration-tests: "taskfiles/tests/integration.yaml"
   utils: "tools/yscope-dev-utils/exports/taskfiles/utils/utils.yaml"
   velox-connector: "taskfiles/velox-connector/main.yaml"
 
