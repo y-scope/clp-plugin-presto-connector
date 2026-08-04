@@ -1,7 +1,8 @@
-# Runs presto-connector's Java test suite (equivalent to `task presto-connector:test`).
+# Runs presto-connector's Java test suite through `task presto-connector:test` so that CI and
+# local runs can't drift.
 #
-# The tests compile against the pinned Presto commit's unpublished artifacts, so this first
-# source-builds them via install-presto-artifacts.sh with the `test`-scope closure. Note that
+# The task validates the dependency pins, then source-builds the pinned Presto commit's
+# unpublished `test`-scope artifacts, which the tests compile against. Note that
 # `build-packages.yaml` deliberately packages with `-Dmaven.test.skip=true`, so this workflow is
 # the only place the tests run.
 #
@@ -41,9 +42,9 @@ jobs:
           java-version: "17"
           cache: "maven"
 
-      - name: "Ensure the pinned Presto commit's Maven artifacts exist"
-        run: "./tools/presto-deps/install-presto-artifacts.sh --with-test-deps"
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
 
       - name: "Run the Java tests"
-        working-directory: "presto-connector"
-        run: "./mvnw --batch-mode test"
+        run: "task presto-connector:test"
