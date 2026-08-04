@@ -11,7 +11,7 @@ includes:
 
 vars:
   DEFAULT_CLP_PLUGIN_BUILD_DIR: "{{.ROOT_DIR}}/build"
-  G_BUILD_DIR: '{{.CLP_PLUGIN_BUILD_DIR | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}'
+  G_BUILD_DIR: "{{.CLP_PLUGIN_BUILD_DIR | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}"
 
   # The Presto repository that the connectors fetch from, and the commit they are built
   # against. Consumed by both connectors' builds and the tools/presto-deps/ scripts.
