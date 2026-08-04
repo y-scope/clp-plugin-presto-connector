@@ -3,6 +3,38 @@
 End-to-end tests for the CLP Presto connector, run against a real two-node cluster: a Java
 coordinator and a native (C++) worker, both loading the connector plugin.
 
+## Running the cluster
+
+`task package` builds the installer image the compose file defaults to. Then, from this directory:
+
+```shell
+docker compose up
+```
+
+The worker waits for the coordinator to report healthy, so a clean `up` ends with both nodes
+running and the worker counted in `activeWorkers`. Query it with any Presto client:
+
+```shell
+presto-cli --server localhost:18080 --catalog clp --schema default --execute "SHOW TABLES"
+```
+
+Tear it down with `docker compose down -v`. The `-v` matters: the plugin directories are volumes,
+so without it the next `up` reuses the previously installed plugin rather than the one you just
+built.
+
+Four variables override the defaults:
+
+| Variable | Default | What it changes |
+| --- | --- | --- |
+| `PRESTO_VERSION` | `0.299` | Tag of both server images |
+| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image `task package` produces |
+| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree the cluster mounts |
+| `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port the coordinator is published on |
+
+Only the coordinator's port is published, and it defaults to 18080 rather than 8080 to stay clear
+of whatever else is running. The ports inside the containers are fixed and cannot collide with the
+host. If 18080 is taken, `docker compose up` fails with a bind error; set the variable and retry.
+
 ## Fixtures
 
 `fixtures/` is mounted into the cluster as-is; nothing generates it. A table is a **directory** of
@@ -23,3 +55,29 @@ typed columns. A table without one exposes the single `__json_string` column, re
 The list form matters: CLP stores a field under every type it was written with, and `ClpSchemaTree`
 splits those into suffixed columns (`timestamp_bigint`, `timestamp_double`). A map keyed by field
 name could only declare one, silently misrepresenting any polymorphic field.
+
+## The cluster
+
+`docker-compose.yaml` brings up a Java coordinator and a native worker from the stock
+`ghcr.io/y-scope/presto` and `ghcr.io/y-scope/presto-native` images. The plugins are installed by
+the same init-container image a real deployment uses, built by `task package`: an install service
+per node writes into a volume that node then mounts as its plugin directory
+
+Each node's configuration lives under `etc/`, mounted over the image's wholesale, so every file the
+server needs must be present here -- including a `jvm.config` for the coordinator, which refuses to
+start without one. Ours carries the single flag the server demands and none of the image's heap or
+GC tuning.
+
+The connector is pointed at the fixture tree by the catalog properties in `etc/coordinator/catalog/`
+and `etc/worker/catalog/`:
+
+```properties
+clp.metadata-provider-type=INTEGRATION_TEST
+clp.split-provider-type=INTEGRATION_TEST
+clp.split-filter-provider-type=INTEGRATION_TEST
+clp.integration-test-archive-dir=/fixtures
+```
+
+The archive directory is mounted at the **same path** in both services: the coordinator enumerates
+it to build splits, and the worker opens the paths those splits carry.
+
