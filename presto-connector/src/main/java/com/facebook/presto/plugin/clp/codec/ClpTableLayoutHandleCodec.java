@@ -38,8 +38,9 @@ public class ClpTableLayoutHandleCodec
     //   [table handle]     : serialized by ClpTableHandleCodec
     //   kqlQueryPresent    : writeBoolean
     //   [kqlQuery]         : 2-byte BE length + UTF-8 bytes, if present
-    //   metadataSqlPresent : writeBoolean
-    //   [metadataSql]      : 2-byte BE length + UTF-8 bytes, if present
+    //
+    // The metadata expression is coordinator-side only (used during split generation) and is
+    // intentionally not sent to the native worker.
 
     @Override
     public byte[] serialize(ConnectorTableLayoutHandle handle)
@@ -59,12 +60,6 @@ public class ClpTableLayoutHandleCodec
             if (kqlQuery.isPresent()) {
                 writeUtf8String(kqlQuery.get(), out);
             }
-            // Serialize metadataSql
-            Optional<String> metadataSql = layoutHandle.getMetadataSql();
-            out.writeBoolean(metadataSql.isPresent());
-            if (metadataSql.isPresent()) {
-                writeUtf8String(metadataSql.get(), out);
-            }
             return byteOut.toByteArray();
         }
         catch (IOException e) {
@@ -82,14 +77,10 @@ public class ClpTableLayoutHandleCodec
             Optional<String> kqlQuery = in.readBoolean()
                     ? Optional.of(readUtf8String(in))
                     : Optional.empty();
-            // Deserialize metadataSql
-            Optional<String> metadataSql = in.readBoolean()
-                    ? Optional.of(readUtf8String(in))
-                    : Optional.empty();
             if (in.available() > 0) {
                 throw new IOException("Unexpected trailing bytes in ClpTableLayoutHandle deserialization");
             }
-            return new ClpTableLayoutHandle(table, kqlQuery, metadataSql);
+            return new ClpTableLayoutHandle(table, kqlQuery, Optional.empty());
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to deserialize ClpTableLayoutHandle", e);

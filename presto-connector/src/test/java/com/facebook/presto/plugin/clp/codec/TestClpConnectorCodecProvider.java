@@ -27,12 +27,14 @@ import com.facebook.presto.plugin.clp.ClpTableHandle;
 import com.facebook.presto.plugin.clp.ClpTableLayoutHandle;
 import com.facebook.presto.plugin.clp.ClpTransactionHandle;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.relation.ConstantExpression;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Optional;
 
+import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
 import static org.testng.Assert.assertEquals;
 
 public class TestClpConnectorCodecProvider
@@ -156,21 +158,24 @@ public class TestClpConnectorCodecProvider
         assertEquals(deserialized.getTable().getSchemaTableName().getTableName(), "logs");
         assertEquals(deserialized.getTable().getTablePath(), "/data/logs");
         assertEquals(deserialized.getKqlQuery(), Optional.of("level:ERROR"));
-        assertEquals(deserialized.getMetadataSql(), Optional.empty());
+        assertEquals(deserialized.getMetadataExpression(), Optional.empty());
     }
 
+    /** The metadata expression is coordinator-side only, so the codec must not carry it. */
     @Test
-    public void testTableLayoutHandleRoundtripWithMetadataSql()
+    public void testTableLayoutHandleDropsTheMetadataExpression()
     {
         ClpTableLayoutHandleCodec codec = new ClpTableLayoutHandleCodec();
         ClpTableHandle table = new ClpTableHandle(new SchemaTableName("clp", "logs"), "/data");
-        ClpTableLayoutHandle original = new ClpTableLayoutHandle(table, Optional.empty(), Optional.of("(end_timestamp > 100)"));
-        byte[] bytes = codec.serialize(original);
-        ClpTableLayoutHandle deserialized = (ClpTableLayoutHandle) codec.deserialize(bytes);
+        ClpTableLayoutHandle original = new ClpTableLayoutHandle(
+                table,
+                Optional.of("level:ERROR"),
+                Optional.of(new ConstantExpression(true, BOOLEAN)));
+        ClpTableLayoutHandle deserialized =
+                (ClpTableLayoutHandle) codec.deserialize(codec.serialize(original));
 
-        assertEquals(deserialized.getTable().getSchemaTableName().getSchemaName(), "clp");
-        assertEquals(deserialized.getKqlQuery(), Optional.empty());
-        assertEquals(deserialized.getMetadataSql(), Optional.of("(end_timestamp > 100)"));
+        assertEquals(deserialized.getKqlQuery(), Optional.of("level:ERROR"));
+        assertEquals(deserialized.getMetadataExpression(), Optional.empty());
     }
 
     @Test

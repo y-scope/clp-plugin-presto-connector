@@ -62,6 +62,7 @@ import static com.facebook.presto.common.type.TimestampType.TIMESTAMP_MICROSECON
 import static com.facebook.presto.common.type.TinyintType.TINYINT;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_PUSHDOWN_UNSUPPORTED_EXPRESSION;
 import static com.facebook.presto.spi.relation.SpecialFormExpression.Form.AND;
+import static com.facebook.presto.spi.relation.SpecialFormExpression.Form.OR;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -263,10 +264,8 @@ public class ClpFilterToKqlConverter
         String kql = String.format("%s >= %s AND %s <= %s",
                 variable, formatLiteral(second.getType(), lowerBound),
                 variable, formatLiteral(third.getType(), upperBound));
-        String metadataSqlQuery = metadataFilterColumns.contains(variable)
-                ? String.format("\"%s\" >= %s AND \"%s\" <= %s", variable, lowerBound, variable, upperBound)
-                : null;
-        return new ClpExpression(kql, metadataSqlQuery);
+        RowExpression metadataExpression = metadataFilterColumns.contains(variable) ? node : null;
+        return new ClpExpression(kql, metadataExpression);
     }
 
     /**
@@ -291,12 +290,10 @@ public class ClpFilterToKqlConverter
             return new ClpExpression(node);
         }
         String notPushDownExpression = "NOT " + expression.getPushDownExpression().get();
-        if (expression.getMetadataSqlQuery().isPresent()) {
-            return new ClpExpression(notPushDownExpression, "NOT " + expression.getMetadataSqlQuery());
-        }
-        else {
-            return new ClpExpression(notPushDownExpression);
-        }
+        // The negation itself is the metadata predicate, so the node carries it unchanged.
+        return expression.getMetadataExpression().isPresent()
+                ? new ClpExpression(notPushDownExpression, node)
+                : new ClpExpression(notPushDownExpression);
     }
 
     /**
@@ -443,16 +440,16 @@ public class ClpFilterToKqlConverter
             Type literalType,
             RowExpression originalNode)
     {
-        String metadataSqlQuery = null;
+        RowExpression metadataExpression = null;
         if (operator.equals(EQUAL)) {
             if (literalType instanceof VarcharType) {
                 return new ClpExpression(format("%s: \"%s\"", variableName, escapeKqlSpecialCharsForStringValue(literalString)));
             }
             else {
                 if (metadataFilterColumns.contains(variableName)) {
-                    metadataSqlQuery = format("\"%s\" = %s", variableName, literalString);
+                    metadataExpression = originalNode;
                 }
-                return new ClpExpression(format("%s: %s", variableName, formatLiteral(literalType, literalString)), metadataSqlQuery);
+                return new ClpExpression(format("%s: %s", variableName, formatLiteral(literalType, literalString)), metadataExpression);
             }
         }
         else if (operator.equals(NOT_EQUAL)) {
@@ -461,16 +458,16 @@ public class ClpFilterToKqlConverter
             }
             else {
                 if (metadataFilterColumns.contains(variableName)) {
-                    metadataSqlQuery = format("NOT \"%s\" = %s", variableName, literalString);
+                    metadataExpression = originalNode;
                 }
-                return new ClpExpression(format("NOT %s: %s", variableName, formatLiteral(literalType, literalString)), metadataSqlQuery);
+                return new ClpExpression(format("NOT %s: %s", variableName, formatLiteral(literalType, literalString)), metadataExpression);
             }
         }
         else if (LOGICAL_BINARY_OPS_FILTER.contains(operator) && !(literalType instanceof VarcharType)) {
             if (metadataFilterColumns.contains(variableName)) {
-                metadataSqlQuery = format("\"%s\" %s %s", variableName, operator.getOperator(), literalString);
+                metadataExpression = originalNode;
             }
-            return new ClpExpression(format("%s %s %s", variableName, operator.getOperator(), formatLiteral(literalType, literalString)), metadataSqlQuery);
+            return new ClpExpression(format("%s %s %s", variableName, operator.getOperator(), formatLiteral(literalType, literalString)), metadataExpression);
         }
         return new ClpExpression(originalNode);
     }
@@ -673,49 +670,47 @@ public class ClpFilterToKqlConverter
      */
     private ClpExpression handleAnd(SpecialFormExpression node)
     {
-        StringBuilder metadataQueryBuilder = new StringBuilder();
-        metadataQueryBuilder.append("(");
-        StringBuilder queryBuilder = new StringBuilder();
-        queryBuilder.append("(");
+        List<String> pushDownExpressions = new ArrayList<>();
+        List<RowExpression> metadataExpressions = new ArrayList<>();
         List<RowExpression> remainingExpressions = new ArrayList<>();
-        boolean hasMetadataSql = false;
-        boolean hasPushDownExpression = false;
+
         for (RowExpression argument : node.getArguments()) {
             ClpExpression expression = argument.accept(this, null);
-            if (expression.getPushDownExpression().isPresent()) {
-                hasPushDownExpression = true;
-                queryBuilder.append(expression.getPushDownExpression().get());
-                queryBuilder.append(" AND ");
-                if (expression.getMetadataSqlQuery().isPresent()) {
-                    hasMetadataSql = true;
-                    metadataQueryBuilder.append(expression.getMetadataSqlQuery().get());
-                    metadataQueryBuilder.append(" AND ");
-                }
-            }
-            if (expression.getRemainingExpression().isPresent()) {
-                remainingExpressions.add(expression.getRemainingExpression().get());
-            }
+            expression.getPushDownExpression().ifPresent(pushDownExpressions::add);
+            expression.getMetadataExpression().ifPresent(metadataExpressions::add);
+            expression.getRemainingExpression().ifPresent(remainingExpressions::add);
         }
-        if (!hasPushDownExpression) {
+
+        if (pushDownExpressions.isEmpty()) {
             return new ClpExpression(node);
         }
-        else if (!remainingExpressions.isEmpty()) {
-            if (remainingExpressions.size() == 1) {
-                return new ClpExpression(
-                        queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                        hasMetadataSql ? metadataQueryBuilder.substring(0, metadataQueryBuilder.length() - 5) + ")" : null,
-                        remainingExpressions.get(0));
-            }
-            else {
-                return new ClpExpression(
-                        queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                        hasMetadataSql ? metadataQueryBuilder.substring(0, metadataQueryBuilder.length() - 5) + ")" : null,
-                        new SpecialFormExpression(node.getSourceLocation(), AND, BOOLEAN, remainingExpressions));
-            }
+
+        // A conjunction prunes on whichever conjuncts are expressible; the rest are applied after
+        // the scan.
+        return new ClpExpression(
+                "(" + String.join(" AND ", pushDownExpressions) + ")",
+                combine(node, AND, metadataExpressions),
+                combine(node, AND, remainingExpressions));
+    }
+
+    /**
+     * @param node the expression being rewritten, for its source location
+     * @param form AND or OR
+     * @param expressions
+     * @return {@code expressions} joined under {@code form}, or null when there are none
+     */
+    private static RowExpression combine(
+            SpecialFormExpression node,
+            SpecialFormExpression.Form form,
+            List<RowExpression> expressions)
+    {
+        if (expressions.isEmpty()) {
+            return null;
         }
-        // Remove the last " AND " from the query
-        return new ClpExpression(queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                hasMetadataSql ? metadataQueryBuilder.substring(0, metadataQueryBuilder.length() - 5) + ")" : null);
+        if (1 == expressions.size()) {
+            return expressions.get(0);
+        }
+        return new SpecialFormExpression(node.getSourceLocation(), form, BOOLEAN, expressions);
     }
 
     /**
@@ -732,37 +727,26 @@ public class ClpFilterToKqlConverter
      */
     private ClpExpression handleOr(SpecialFormExpression node)
     {
-        StringBuilder metadataQueryBuilder = new StringBuilder();
-        metadataQueryBuilder.append("(");
-        StringBuilder queryBuilder = new StringBuilder();
-        queryBuilder.append("(");
-        boolean allPushedDown = true;
-        boolean hasAllMetadataSql = true;
+        List<String> pushDownExpressions = new ArrayList<>();
+        List<RowExpression> metadataExpressions = new ArrayList<>();
+
         for (RowExpression argument : node.getArguments()) {
             ClpExpression expression = argument.accept(this, null);
-            // Note: It is possible in the future that an expression cannot be pushed down as a KQL query, but can be
-            // pushed down as a metadata SQL query.
-            if (expression.getRemainingExpression().isPresent() || !expression.getPushDownExpression().isPresent()) {
-                allPushedDown = false;
-                continue;
+            // One disjunct that cannot be pushed down makes the whole disjunction unpushable.
+            if (expression.getRemainingExpression().isPresent()
+                    || false == expression.getPushDownExpression().isPresent()) {
+                return new ClpExpression(node);
             }
-            queryBuilder.append(expression.getPushDownExpression().get());
-            queryBuilder.append(" OR ");
-            if (hasAllMetadataSql && expression.getMetadataSqlQuery().isPresent()) {
-                metadataQueryBuilder.append(expression.getMetadataSqlQuery().get());
-                metadataQueryBuilder.append(" OR ");
-            }
-            else {
-                hasAllMetadataSql = false;
-            }
+            pushDownExpressions.add(expression.getPushDownExpression().get());
+            expression.getMetadataExpression().ifPresent(metadataExpressions::add);
         }
-        if (allPushedDown) {
-            // Remove the last " OR " from the query
-            return new ClpExpression(
-                    queryBuilder.substring(0, queryBuilder.length() - 4) + ")",
-                    hasAllMetadataSql ? metadataQueryBuilder.substring(0, metadataQueryBuilder.length() - 4) + ")" : null);
-        }
-        return new ClpExpression(node);
+
+        // Pruning on a disjunction needs every disjunct to be prunable, or a split holding rows
+        // that match only an unrepresented one would be dropped.
+        RowExpression metadata = (metadataExpressions.size() == node.getArguments().size())
+                ? combine(node, OR, metadataExpressions)
+                : null;
+        return new ClpExpression("(" + String.join(" OR ", pushDownExpressions) + ")", metadata);
     }
 
     /**
