@@ -74,3 +74,23 @@ Two cluster settings are load-bearing and easy to get wrong:
   and answers health checks, but is never counted in `activeWorkers`, so queries queue forever.
 * `use-connector-provided-serialization-codecs=true` on the coordinator. The connector ships its
   own split and handle codecs; without this the worker cannot deserialize the splits it is sent.
+
+## Known failures
+
+Two tests are marked `xfail` and do not block.
+
+The `timestamps` table stores one instant four ways: an ISO string, a float, and two integers
+(microseconds and nanoseconds). All four read back as the same instant, but a filter on that column
+matches only two of them -- the integer-encoded records are dropped.
+
+```sql
+SELECT timestamp_timestamp FROM timestamps;
+-- 2025-04-30 08:50:05.000, four times
+
+SELECT COUNT(*) FROM timestamps WHERE timestamp_timestamp = TIMESTAMP '2025-04-30 08:50:05';
+-- 2
+```
+
+The two tests assert 4, so they fail today. `test_projected_and_filtered_disagree` asserts today's
+numbers instead, so the suite fails if the behaviour ever changes. Fixing it needs a decision about
+whether this connector or CLP should change.
