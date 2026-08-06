@@ -7,12 +7,12 @@
 # Archives are served straight off the filesystem by the connector's `INTEGRATION_TEST` metadata
 # and split providers, so no metadata database is needed. The fixture directory is mounted at the
 # SAME path in both services: the coordinator enumerates archives to build splits, and the worker
-# opens the paths those splits carry.
+# opens the paths that those splits carry.
 #
-# The plugins are installed by the same init-container image a real deployment uses, built by
-# `task package`. Each install service writes into a volume the corresponding node then mounts as
-# its plugin directory, so the harness exercises the shipped installer rather than a copy of what
-# it would have done.
+# The plugins are installed by the same init-container image that a real deployment uses, which
+# `task package` builds. Each install service writes into a volume, and the corresponding node then
+# mounts that volume as its plugin directory, so the harness exercises the shipped installer rather
+# than a copy of what it would have done.
 
 name: "clp-integration-tests"
 
