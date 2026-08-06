@@ -32,8 +32,8 @@ tasks:
           RUFF_FORMAT_FLAGS: ""
 
   # The only Python in the repository is the integration-tests project, which pins its own
-  # toolchain in `uv.lock` and carries the `ruff` and `mypy` configuration they read, so these run
-  # through `uv` there rather than installing linters into the shared lint venv.
+  # toolchain in `uv.lock` and carries the `ruff` and `mypy` configuration that they read. These
+  # tasks therefore run through `uv` there, rather than installing linters into the shared venv.
   py:
     internal: true
     vars:
