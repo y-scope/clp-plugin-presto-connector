@@ -30,5 +30,5 @@ def test_reads_every_archive_of_a_table(client: PrestoClient) -> None:
 
 @pytest.mark.pushdown
 def test_pushed_down_filter(client: PrestoClient) -> None:
-    """A filter reaching the worker proves the object is decoded, not merely listed."""
+    """A filter that reaches the worker proves that the object is decoded, not merely listed."""
     assert client.scalar('SELECT COUNT(*) FROM clp_s3.default.http_logs WHERE "status" = 200') == 8
