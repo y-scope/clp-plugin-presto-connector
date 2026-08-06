@@ -1,4 +1,4 @@
-"""Table and column discovery from a directory of archives, with no metadata database."""
+"""Tests table and column discovery from a directory of archives, with no metadata database."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ pytestmark = pytest.mark.schema
 def test_tables_are_the_fixture_directories(
     client: PrestoClient, fixture_tables: list[str]
 ) -> None:
-    """Each directory under the archive directory is a table, named after it."""
+    """Each directory under the archive directory becomes a table that is named after it."""
     rows = client.run(
         "SELECT table_name FROM clp.information_schema.tables"
         " WHERE table_schema = 'default' ORDER BY 1"
@@ -24,7 +24,7 @@ def test_tables_are_the_fixture_directories(
 
 
 def test_schema_file_yields_typed_columns(client: PrestoClient) -> None:
-    """A table with a schema.json exposes real typed columns, as a MySQL-backed table would."""
+    """A table that has a schema.json exposes real typed columns, as a MySQL-backed table would."""
     rows = client.run(
         "SELECT column_name, data_type FROM clp.information_schema.columns"
         " WHERE table_schema = 'default' AND table_name = 'http_logs' ORDER BY 1"
@@ -43,7 +43,7 @@ def test_schema_file_yields_typed_columns(client: PrestoClient) -> None:
 def test_table_without_schema_file_falls_back_to_json_string(
     client: PrestoClient,
 ) -> None:
-    """Without a schema.json, a table exposes only __json_string, read via the CLP_GET_* UDFs."""
+    """A table that has no schema.json exposes only __json_string, which the CLP_GET_* UDFs read."""
     rows = client.run(
         "SELECT column_name FROM clp.information_schema.columns"
         " WHERE table_schema = 'default' AND table_name = 'legacy_archive'"
@@ -53,10 +53,11 @@ def test_table_without_schema_file_falls_back_to_json_string(
 
 def test_polymorphic_field_splits_into_typed_columns(client: PrestoClient) -> None:
     """
-    CLP stores a field under every type it was written with; each becomes its own column.
+    CLP stores a field under every type that it was written with, and each becomes its own column.
 
-    `ClpSchemaTree.resolvePolymorphicConflicts` suffixes them, so `timestamp` written as an
-    integer, a float and a timestamp surfaces as three columns rather than one.
+    `ClpSchemaTree.resolvePolymorphicConflicts` adds the type as a suffix, so a `timestamp` field
+    that was written as an integer, as a float, and as a timestamp surfaces as three columns
+    rather than as one.
     """
     rows = client.run(
         "SELECT column_name FROM clp.information_schema.columns"
