@@ -55,18 +55,3 @@ typed columns. A table without one exposes the single `__json_string` column, re
 The list form matters: CLP stores a field under every type it was written with, and `ClpSchemaTree`
 splits those into suffixed columns (`timestamp_bigint`, `timestamp_double`). A map keyed by field
 name could only declare one, silently misrepresenting any polymorphic field.
-
-
-The connector is pointed at the fixture tree by the catalog properties in `etc/coordinator/catalog/`
-and `etc/worker/catalog/`:
-
-```properties
-clp.metadata-provider-type=INTEGRATION_TEST
-clp.split-provider-type=INTEGRATION_TEST
-clp.split-filter-provider-type=INTEGRATION_TEST
-clp.integration-test-archive-dir=/fixtures
-```
-
-The archive directory is mounted at the **same path** in both services: the coordinator enumerates
-it to build splits, and the worker opens the paths those splits carry.
-
