@@ -42,11 +42,12 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Renders a predicate as a SQL condition over a split provider's metadata columns, so splits that
- * cannot hold a matching row are never listed.
+ * Renders a predicate as a SQL condition over a split provider's metadata columns, so that a
+ * split which cannot hold a matching row is never listed.
  * <p>
  * A predicate on a data column bounded by a range (see {@link ClpSplitMetadataConfig}) is rewritten
- * against those bounds: a split qualifies when its range overlaps the values the predicate admits.
+ * against those bounds: a split qualifies when its range overlaps the values that the predicate
+ * admits.
  * A predicate naming anything else is not translatable and is reported as such, leaving the caller
  * to apply it after the scan.
  */

@@ -88,8 +88,8 @@ public class ClpMySqlSplitProvider
         String tableName = clpTableHandle.getSchemaTableName().getTableName();
         String archivePathQuery = format(SQL_SELECT_ARCHIVES_TEMPLATE, config.getMetadataTablePrefix(), tableName);
 
-        // Rendered here rather than during planning, so the SQL matches this store's metadata
-        // columns rather than being rewritten after the fact.
+        // Rendered here rather than during planning, so that the SQL is built against this
+        // store's own metadata columns.
         SchemaTableName schemaTableName = clpTableHandle.getSchemaTableName();
         if (false == clpTableLayoutHandle.getMetadataExpression().isPresent()) {
             // No predicate at all still has to satisfy the required columns, or the scan reads

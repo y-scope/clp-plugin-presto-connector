@@ -39,8 +39,8 @@ import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_SPLIT_METADATA_CON
 import static java.util.Objects.requireNonNull;
 
 /**
- * Describes the metadata columns a split provider can prune on, loaded from the JSON file named by
- * {@code clp.split-metadata-config-path}.
+ * Describes the metadata columns that a split provider can prune on, loaded from the JSON file
+ * named by {@code clp.split-metadata-config-path}.
  * <p>
  * Entries are keyed by scope, from broadest to narrowest: {@code ""} for every table, a schema
  * name, or {@code "<schema>.<table>"}. Narrower scopes override broader ones per column.
