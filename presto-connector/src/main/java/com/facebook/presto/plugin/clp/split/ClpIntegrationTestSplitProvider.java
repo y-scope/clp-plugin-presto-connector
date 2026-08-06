@@ -19,7 +19,6 @@ import com.facebook.presto.spi.PrestoException;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -47,29 +46,17 @@ public class ClpIntegrationTestSplitProvider
         // Handed to the worker as-is, so the archive directory must be mounted at the same path on
         // the coordinator and the workers.
         Path tablePath = Paths.get(clpTableLayoutHandle.getTable().getTablePath());
-        if (!Files.isDirectory(tablePath)) {
-            throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                    format("Table path is not a directory: %s", tablePath));
-        }
 
         ImmutableList.Builder<ClpSplit> splits = ImmutableList.builder();
         try (Stream<Path> entries = Files.list(tablePath)) {
             entries.filter(ClpIntegrationTestSplitProvider::hasSplitSuffix)
                     .sorted()
-                    .forEach(entry -> {
-                        if (!Files.isRegularFile(entry)) {
-                            throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                                    format("Split path is not a regular file: %s", entry));
-                        }
-                        splits.add(new ClpSplit(
-                                entry.toString(),
-                                entry.getFileName().toString().endsWith(IR_SUFFIX) ? IR : ARCHIVE,
-                                clpTableLayoutHandle.getKqlQuery()));
-                    });
+                    .forEach(entry -> splits.add(new ClpSplit(
+                            entry.toString(),
+                            entry.getFileName().toString().endsWith(IR_SUFFIX) ? IR : ARCHIVE,
+                            clpTableLayoutHandle.getKqlQuery())));
         }
-        // Files.list is lazy, so a failure part-way through the walk arrives as an
-        // UncheckedIOException from the terminal operation rather than from Files.list itself.
-        catch (IOException | UncheckedIOException e) {
+        catch (IOException e) {
             throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
                     format("Failed to list %s", tablePath), e);
         }
