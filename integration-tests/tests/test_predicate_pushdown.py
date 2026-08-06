@@ -44,14 +44,14 @@ def test_scalar_predicates(client: PrestoClient, table: str) -> None:
     ],
 )
 def test_nested_predicates(client: PrestoClient, table: str) -> None:
-    """Predicates over nested object fields push down the same way scalar ones do."""
+    """Predicates over nested object fields push down the same way that scalar ones do."""
     rows = client.run(f"SELECT event.type, event.subtype FROM clp.default.{table} {_NESTED}")
     assert rows == [["storage", "disk_usage"]]
 
 
 @pytest.mark.udf
 def test_predicates_through_udfs(client: PrestoClient) -> None:
-    """The same predicate via CLP_GET_*, so both access paths are covered."""
+    """Runs the same predicate through the CLP_GET_* UDFs, so that both access paths are covered."""
     rows = client.run(
         "SELECT CLP_GET_STRING('requestId'), CLP_GET_STRING('path')"
         " FROM clp.default.multi_archive"
@@ -62,7 +62,7 @@ def test_predicates_through_udfs(client: PrestoClient) -> None:
 
 def test_array_field(client: PrestoClient) -> None:
     """
-    Array elements come back JSON-quoted; asserted as-is to pin current behaviour.
+    Array elements come back JSON-quoted, and this test asserts that as it stands.
 
     Whether `"filesystem"` should really carry embedded quotes is worth a separate look.
     """
