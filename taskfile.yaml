@@ -42,9 +42,15 @@ tasks:
       # would forward its own arguments here.
       - >-
         '{{.ROOT_DIR}}/tools/build-packages/build-packages.sh'
-        {{if .OUTPUT}}--output '{{.OUTPUT}}'{{end}}
-        {{if .VERSION}}--version '{{.VERSION}}'{{end}}
-        {{if .WITH_CA_CERTS}}--with-ca-certs{{end}}
+        {{- if .OUTPUT}}
+        --output '{{.OUTPUT}}'
+        {{- end}}
+        {{- if .VERSION}}
+        --version '{{.VERSION}}'
+        {{- end}}
+        {{- if .WITH_CA_CERTS}}
+        --with-ca-certs
+        {{- end}}
 
   validate-dep-sync:
     desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
