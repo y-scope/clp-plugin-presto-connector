@@ -36,9 +36,6 @@ tasks:
     desc: >-
       Build .deb/.rpm/.tar.gz packages. Set BUILD_PACKAGE_OUTPUT, BUILD_PACKAGE_VERSION, or
       BUILD_PACKAGE_WITH_CA_CERTS to pass options.
-    # Task resolves a bare `{{.VERSION}}` from the environment as well as from the command line, so
-    # each option carries a prefix naming the task it belongs to rather than a bare word that a
-    # developer may already have exported for something else.
     vars:
       BUILD_PACKAGE_OUTPUT: "{{.BUILD_PACKAGE_OUTPUT}}"
       BUILD_PACKAGE_VERSION: "{{.BUILD_PACKAGE_VERSION}}"
