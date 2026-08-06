@@ -43,7 +43,7 @@ def test_raw_record_is_readable(client: PrestoClient) -> None:
 
 @pytest.mark.archive
 def test_multi_archive_table_fans_out(client: PrestoClient) -> None:
-    """A table of several archives yields a split each, so its rows are the sum of its parts."""
+    """A table of several archives yields one split each, so its rows are the sum of its parts."""
     total = client.scalar("SELECT COUNT(*) FROM clp.default.multi_archive")
     parts = sum(
         client.scalar(f"SELECT COUNT(*) FROM clp.default.{table}")
