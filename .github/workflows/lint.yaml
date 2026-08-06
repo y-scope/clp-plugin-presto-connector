@@ -4,8 +4,8 @@
 # The linters are invoked as separate steps rather than through `lint:check` so that a failure
 # names the language it came from without anyone opening the log.
 #
-# Deliberately no `paths` filter: linting is cheap, and a filtered workflow that never runs reports
-# as pending forever once it is a required check.
+# Deliberately no `paths` filter. A filtered workflow that never runs reports as pending forever
+# once it is a required check.
 
 name: "lint"
 
