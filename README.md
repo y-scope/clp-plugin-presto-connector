@@ -43,7 +43,7 @@ one of the tasks in the table below.
 
 ```shell
 task presto-connector:test        # coordinator plugin, unit tests
-task package && task integration-tests:run    # both plugins, in a real Presto cluster
+task integration-tests:run        # both plugins, in a real Presto cluster
 ```
 
 The worker plugin has no unit tests: it leaves Velox symbols undefined for the worker to resolve at
