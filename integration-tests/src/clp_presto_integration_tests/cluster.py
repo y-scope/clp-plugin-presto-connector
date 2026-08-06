@@ -1,4 +1,4 @@
-"""Lifecycle for the Presto cluster the tests run against."""
+"""Controls the lifecycle of the Presto cluster that the tests run against."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ _READY_POLL_SECONDS = 5
 
 
 def compose_run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """Runs `docker compose`, raising with its stderr on failure rather than just an exit code."""
+    """Runs `docker compose`, and on failure raises an error that carries its stderr."""
     result = subprocess.run(
         ["docker", "compose", *args],
         cwd=_PROJECT_DIR,
@@ -31,7 +31,12 @@ def compose_run(*args: str, check: bool = True) -> subprocess.CompletedProcess[s
 
 
 def wait_until_ready(client: PrestoClient) -> None:
-    """Blocks until the cluster can run queries, dumping container logs if it never does."""
+    """
+    Blocks until the cluster can run queries.
+
+    If the cluster is still not ready when the timeout expires, this raises a `TimeoutError`
+    that carries the containers' recent logs, so that the caller can see why it never started.
+    """
     deadline = time.monotonic() + _READY_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         if client.is_ready():
