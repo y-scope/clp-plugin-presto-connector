@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -92,10 +91,6 @@ public class ClpIntegrationTestMetadataProvider
         if (Files.notExists(schemaFile)) {
             return ImmutableList.of(new ClpColumnHandle(JSON_STRING_PLACEHOLDER, VARCHAR));
         }
-        if (!Files.isRegularFile(schemaFile)) {
-            throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                    format("%s is not a regular file", schemaFile));
-        }
 
         // A list of {"name", "type"} entries, not a map: CLP stores a field under every type it was
         // written with, so one name can appear more than once.
@@ -108,32 +103,11 @@ public class ClpIntegrationTestMetadataProvider
             throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
                     format("Failed to read %s", schemaFile), e);
         }
-        if (null == columns) {
-            throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                    format("%s must hold a list of {\"name\", \"type\"} entries", schemaFile));
-        }
 
         ClpSchemaTree schemaTree = new ClpSchemaTree(config.isPolymorphicTypeEnabled());
         for (Map<String, String> column : columns) {
-            String name = null == column ? null : column.get("name");
-            String type = null == column ? null : column.get("type");
-            if (null == name || null == type) {
-                throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                        format("Entry in %s needs both \"name\" and \"type\": %s", schemaFile, column));
-            }
-            // ClpSchemaTree splits on ".", so an empty segment would yield a column with no name,
-            // or no path at all for a name that is nothing but separators.
-            if (name.isEmpty() || name.startsWith(".") || name.endsWith(".") || name.contains("..")) {
-                throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                        format("Column name in %s has an empty path segment: \"%s\"", schemaFile, name));
-            }
-            try {
-                schemaTree.addColumn(name, ClpSchemaTreeNodeType.valueOf(type).getType());
-            }
-            catch (IllegalArgumentException e) {
-                throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                        format("Unknown column type \"%s\" in %s; expected a ClpSchemaTreeNodeType name", type, schemaFile), e);
-            }
+            schemaTree.addColumn(
+                    column.get("name"), ClpSchemaTreeNodeType.valueOf(column.get("type")).getType());
         }
         return schemaTree.collectColumnHandles();
     }
@@ -141,11 +115,6 @@ public class ClpIntegrationTestMetadataProvider
     @Override
     public List<ClpTableHandle> listTableHandles(String schema)
     {
-        if (!Files.isDirectory(archiveDir)) {
-            throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
-                    format("clp.integration-test-archive-dir is not a directory: %s", archiveDir));
-        }
-
         ImmutableList.Builder<ClpTableHandle> tables = ImmutableList.builder();
         try (Stream<Path> entries = Files.list(archiveDir)) {
             entries.filter(Files::isDirectory)
@@ -154,9 +123,7 @@ public class ClpIntegrationTestMetadataProvider
                             new SchemaTableName(schema, entry.getFileName().toString()),
                             entry.toString())));
         }
-        // Files.list is lazy, so a failure part-way through the walk arrives as an
-        // UncheckedIOException from the terminal operation rather than from Files.list itself.
-        catch (IOException | UncheckedIOException e) {
+        catch (IOException e) {
             throw new PrestoException(CLP_INTEGRATION_TEST_FIXTURE_INVALID,
                     format("Failed to list %s", archiveDir), e);
         }
