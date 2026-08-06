@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from clp_presto_integration_tests.client import PrestoClient
 
-# How Presto renders the instant test_3 encodes four ways, and how it is written as a SQL
+# How Presto renders the instant that test_3 encodes four ways, and how it is written as a SQL
 # literal. Presto renders timestamps with milliseconds; the literal carries none.
 _INSTANT = "2025-04-30 08:50:05.000"
 _INSTANT_LITERAL = "2025-04-30 08:50:05"
@@ -73,11 +73,11 @@ def test_ir_range_pushdown(client: PrestoClient) -> None:
 @pytest.mark.pushdown
 def test_projected_and_filtered_disagree(client: PrestoClient) -> None:
     """
-    Pins the shape of the defect above, so a fix has an unambiguous target.
+    Pins the shape of the defect above, so that a fix has an unambiguous target.
 
     The same comparison is true for every record when projected, yet filtering on it drops two.
-    This test asserts the discrepancy so it cannot regress further unnoticed; when the underlying
-    bug is fixed, the two xfails above flip to XPASS and this one should be deleted.
+    This test asserts the discrepancy so that it cannot regress further unnoticed. When the
+    underlying bug is fixed, the two xfails above flip to XPASS and this one should be deleted.
     """
     projected = client.run(
         f"SELECT timestamp_timestamp = TIMESTAMP '{_INSTANT_LITERAL}' FROM clp.default.timestamps"
