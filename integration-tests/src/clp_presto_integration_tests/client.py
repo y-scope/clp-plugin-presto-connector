@@ -11,10 +11,10 @@ _CLUSTER_REQUEST_TIMEOUT_SECONDS = 30
 
 
 class PrestoClient:
-    """Runs statements against a coordinator, through `presto-python-client`."""
+    """Runs statements against one coordinator, in the `clp` catalog's `default` schema."""
 
     def __init__(self, host: str, port: int, user: str = "integration-test") -> None:
-        """Records where the coordinator is, and the Presto user that statements will run as."""
+        """Stores the connection details. Nothing connects until a statement runs."""
         self._host = host
         self._port = port
         self._user = user
