@@ -1,8 +1,5 @@
-# Runs presto-connector's Java tests. Invokes `task presto-connector:test` rather than
-# open-coding its steps, so that CI and local runs can't drift.
-#
-# Deliberately unfiltered by path: this is intended to be a required status check, and a
-# path-filtered workflow that skips leaves the check permanently "expected" rather than passing.
+# NOTE: This workflow is used as a required status check for pull requests, so it should always run
+# (e.g. it should not be skipped due to a path filter).
 
 name: "java-test"
 
