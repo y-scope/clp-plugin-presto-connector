@@ -21,7 +21,7 @@
 
 namespace facebook::velox::connector::clp::search_lib {
 
-/// Drops one trailing '/' so an endpoint joins onto a path cleanly.
+/// Drops one trailing '/' so that an endpoint joins onto a path cleanly.
 ///
 /// @param endPoint
 /// @return The endpoint without a trailing '/'.
