@@ -5,18 +5,18 @@
 # `node-scheduler.include-coordinator=false` and every read is served by the worker.
 #
 # The connector's `INTEGRATION_TEST` metadata and split providers stand in for the metadata
-# database a real deployment queries, discovering archives by listing a directory. Both catalogs
-# therefore need the fixture tree on the coordinator, whatever the worker reads from.
+# database that a real deployment queries, discovering archives by listing a directory. Both
+# catalogs therefore need the fixture tree on the coordinator, whatever the worker reads from.
 #
-# Both use a RELATIVE archive dir, so the split paths they hand the worker are relative too. Each
-# process resolves them against its own working directory: the coordinator lists them under
+# Both use a RELATIVE archive dir, so the split paths that they hand the worker are relative too.
+# Each process resolves them against its own working directory: the coordinator lists them under
 # node.data-dir, the `clp` worker opens them under `/`, and the `clp_s3` worker joins them onto
 # the MinIO endpoint instead. That is why the mounts below sit at different paths.
 #
-# The plugins are installed by the same init-container image a real deployment uses, built by
-# `task package`. Each install service writes into a volume the corresponding node then mounts as
-# its plugin directory, so the harness exercises the shipped installer rather than a copy of what
-# it would have done.
+# The plugins are installed by the same init-container image that a real deployment uses, which
+# `task package` builds. Each install service writes into a volume, and the corresponding node then
+# mounts that volume as its plugin directory, so the harness exercises the shipped installer rather
+# than a copy of what it would have done.
 
 name: "clp-integration-tests"
 
