@@ -37,25 +37,25 @@ tasks:
       Build .deb/.rpm/.tar.gz packages. Set BUILD_PACKAGE_OUTPUT, BUILD_PACKAGE_VERSION, or
       BUILD_PACKAGE_WITH_CA_CERTS to pass options.
     # Task resolves a bare `{{.VERSION}}` from the environment as well as from the command line, so
-    # each option is read from a name that is prefixed to this task rather than from one that a
+    # each option carries a prefix naming the task it belongs to rather than a bare word that a
     # developer may already have exported for something else.
     vars:
-      OUTPUT: "{{.BUILD_PACKAGE_OUTPUT}}"
-      VERSION: "{{.BUILD_PACKAGE_VERSION}}"
-      WITH_CA_CERTS: "{{.BUILD_PACKAGE_WITH_CA_CERTS}}"
+      BUILD_PACKAGE_OUTPUT: "{{.BUILD_PACKAGE_OUTPUT}}"
+      BUILD_PACKAGE_VERSION: "{{.BUILD_PACKAGE_VERSION}}"
+      BUILD_PACKAGE_WITH_CA_CERTS: "{{.BUILD_PACKAGE_WITH_CA_CERTS}}"
     preconditions:
       - sh: "docker buildx version >/dev/null 2>&1"
         msg: "docker (with buildx) is required for local package builds."
     cmds:
       - >-
         '{{.ROOT_DIR}}/tools/build-packages/build-packages.sh'
-        {{- if .OUTPUT}}
-        --output '{{.OUTPUT}}'
+        {{- if .BUILD_PACKAGE_OUTPUT}}
+        --output '{{.BUILD_PACKAGE_OUTPUT}}'
         {{- end}}
-        {{- if .VERSION}}
-        --version '{{.VERSION}}'
+        {{- if .BUILD_PACKAGE_VERSION}}
+        --version '{{.BUILD_PACKAGE_VERSION}}'
         {{- end}}
-        {{- if .WITH_CA_CERTS}}
+        {{- if .BUILD_PACKAGE_WITH_CA_CERTS}}
         --with-ca-certs
         {{- end}}
 
