@@ -12,8 +12,6 @@ set -o pipefail
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." &>/dev/null && pwd)"
 # shellcheck source=tools/build-packages/internal/build-cache/host.sh
 source "${src}/tools/build-packages/internal/build-cache/host.sh"
-# shellcheck source=tools/build-packages/internal/ca-trust/host.sh
-source "${src}/tools/build-packages/internal/ca-trust/host.sh"
 
 show_help() {
     cat <<'EOF'
@@ -84,7 +82,11 @@ echo "==> Initializing submodules..."
 git -C "${src}" submodule update --init --recursive
 
 echo "==> Resolving build-env image..."
-image=$("${src}/tools/build-packages/build-dependency-image.sh")
+ca_certs_flag=()
+if (( with_ca_certs )); then
+    ca_certs_flag=(--with-ca-certs)
+fi
+image=$("${src}/tools/build-packages/build-dependency-image.sh" ${ca_certs_flag[@]+"${ca_certs_flag[@]}"})
 # FetchContent build state is compatible only with the image inputs identified
 # by this hash.
 image_hash="${image##*:env-}"
@@ -109,19 +111,15 @@ prepare_build_cache "${src}/.cache" "${image_hash}"
 trust_mount_args=()
 if (( with_ca_certs )); then
     readonly TRUST_STAGE="${stage_dir}/trust"
+    # Sourced here rather than at the top of the script: the submodule is only
+    # guaranteed to exist after the `submodule update` above, and every
+    # invocation that doesn't use --with-ca-certs (including --help) must work
+    # on a fresh clone.
+    # shellcheck source=tools/yscope-dev-utils/exports/docker/ca-trust/host.sh
+    source "${src}/tools/yscope-dev-utils/exports/docker/ca-trust/host.sh"
     echo "==> Staging temporary container CA trust bundle..."
-    stage_host_ca_bundle "${TRUST_STAGE}"
-    if [[ ! -f "${TRUST_STAGE}/ca-bundle.pem" \
-            || ! -r "${TRUST_STAGE}/ca-bundle.pem" \
-            || ! -s "${TRUST_STAGE}/ca-bundle.pem" ]]; then
-        echo >&2 "ERROR: --with-ca-certs did not produce a usable host CA bundle"
-        exit 1
-    fi
-    trust_mount_args=(
-        --mount "type=bind,src=${TRUST_STAGE},dst=${CA_TRUST_CONTAINER_DIR}"
-        --env "CA_TRUST_DIR=${CA_TRUST_CONTAINER_DIR}"
-        --env "CA_TRUST_JVM=1"
-    )
+    ca_trust_stage_or_fail "${TRUST_STAGE}"
+    CA_TRUST_JVM=1 ca_trust_add_run_args trust_mount_args "${TRUST_STAGE}"
 fi
 
 host_uid=$(id -u)
