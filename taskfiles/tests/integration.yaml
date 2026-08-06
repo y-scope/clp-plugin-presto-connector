@@ -13,10 +13,12 @@ tasks:
     cmds:
       - "rm -rf .pytest_cache"
 
-  # Requires `task package`: the cluster installs both plugins from the init-container image it
-  # builds.
   run:
-    desc: "Run the integration tests against a real Presto cluster (requires `task package`)."
+    desc: "Run the integration tests against a real Presto cluster."
+    # The cluster installs both plugins from the init-container image `package` builds, so it has
+    # to run first. Safe to depend on only because `package` takes named vars: while it read
+    # `{{.CLI_ARGS}}`, it would have received this task's own arguments.
+    deps: [":package"]
     dir: "{{.G_INTEGRATION_TESTS_DIR}}"
     env:
       PYTHONDONTWRITEBYTECODE: "1"
