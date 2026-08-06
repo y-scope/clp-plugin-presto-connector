@@ -114,10 +114,9 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
     VELOX_UNREACHABLE();
   }
 
-  // Per-query config carried on the split takes precedence over the
-  // session-property / catalog-config default. The map is empty until
-  // CLP_QUERY_CONFIG populates it; values are validated and normalized to
-  // lowercase "true"/"false" on the coordinator.
+  // Per-query CLP_QUERY_CONFIG markers take precedence over the
+  // session-property / catalog-config default. Values were validated and
+  // normalized to lowercase "true"/"false" on the coordinator.
   bool caseInsensitive = caseInsensitive_;
   auto it = clpSplit->queryConfig_.find(ClpConfig::kCaseInsensitiveSession);
   if (it != clpSplit->queryConfig_.end()) {
