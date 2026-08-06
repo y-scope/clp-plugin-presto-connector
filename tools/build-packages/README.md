@@ -25,7 +25,11 @@ Default outputs are written to `./packages`.
 task package
 ```
 
-A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). Both accept `--output DIR`, `--version VER`, and `--with-ca-certs`; with the task, put `--` before the flags: `task package -- --output DIR`.
+A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). The script accepts `--output DIR`, `--version VER`, and `--with-ca-certs`; the task takes each as a variable instead, so that a task depending on this one does not forward its own arguments here:
+
+```bash
+task package OUTPUT=DIR VERSION=VER WITH_CA_CERTS=1
+```
 
 ### Installer image
 
