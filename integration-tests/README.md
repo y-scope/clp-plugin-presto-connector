@@ -5,9 +5,9 @@ coordinator and a native (C++) worker, both loading the connector plugin.
 
 ## Why a real cluster
 
-The worker plugin leaves Velox symbols undefined for the worker process to resolve at load time, so
-a test binary has nothing to link against. Running queries through a real worker exercises it
-without building Velox into the toolchain image.
+The worker plugin leaves Velox symbols undefined so that the worker process resolves them at load
+time, which means a test binary has nothing to link against. Running queries through a real worker
+exercises the plugin without building Velox into the toolchain image.
 
 ## Running
 
@@ -15,14 +15,18 @@ without building Velox into the toolchain image.
 task integration-tests:run
 ```
 
-That builds the init-container image the cluster installs the plugins from, then brings the cluster
-up and tears it down. `--use-running-cluster` reuses one already up; `--keep-cluster` leaves it
-running afterwards. Markers select subsets (`archive`, `ir`, `pushdown`, `schema`, `udf`), e.g.
-`task integration-tests:run -- -m ir`.
+That task first builds the init-container image that the cluster installs the plugins from. It
+then brings the cluster up, runs the tests, and tears the cluster down again.
+
+Three options change what it does. `--use-running-cluster` runs against a cluster that is already
+up, `--keep-cluster` leaves the cluster running afterwards, and `-m <marker>` selects a subset of
+the tests (`archive`, `ir`, `pushdown`, `schema`, or `udf`). Pass them after `--`, as in `task
+integration-tests:run -- -m ir`.
 
 ### By hand
 
-`task package` builds the installer image the compose file defaults to. Then, from this directory:
+`task package` builds the installer image that the compose file uses by default. Then, from this
+directory:
 
 ```shell
 docker compose up
@@ -44,9 +48,9 @@ Four variables override the defaults:
 | Variable | Default | What it changes |
 | --- | --- | --- |
 | `PRESTO_VERSION` | `0.299` | Tag of both server images |
-| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image `task package` produces |
-| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree the cluster mounts |
-| `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port the coordinator is published on |
+| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image that `task package` produces |
+| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree that the cluster mounts |
+| `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port that the coordinator is published on |
 
 Only the coordinator's port is published, and it defaults to 18080 rather than 8080 to stay clear
 of whatever else is running. The ports inside the containers are fixed and cannot collide with the
