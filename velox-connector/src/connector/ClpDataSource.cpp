@@ -114,12 +114,22 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
     VELOX_UNREACHABLE();
   }
 
+  // Per-query config carried on the split takes precedence over the
+  // session-property / catalog-config default. The map is empty until
+  // CLP_QUERY_CONFIG populates it; values are validated and normalized to
+  // lowercase "true"/"false" on the coordinator.
+  bool caseInsensitive = caseInsensitive_;
+  auto it = clpSplit->queryConfig_.find(ClpConfig::kCaseInsensitiveSession);
+  if (it != clpSplit->queryConfig_.end()) {
+    caseInsensitive = it->second == "true";
+  }
+
   if (ClpConnectorSplit::SplitType::kArchive == clpSplit->type_) {
     cursor_ = std::make_unique<search_lib::ClpArchiveCursor>(
-        inputSource, splitPath, caseInsensitive_);
+        inputSource, splitPath, caseInsensitive);
   } else if (ClpConnectorSplit::SplitType::kIr == clpSplit->type_) {
     cursor_ = std::make_unique<search_lib::ClpIrCursor>(
-        inputSource, splitPath, caseInsensitive_);
+        inputSource, splitPath, caseInsensitive);
   } else {
     VELOX_UNSUPPORTED(
         "Unsupported split type: {}", static_cast<int>(clpSplit->type_));
