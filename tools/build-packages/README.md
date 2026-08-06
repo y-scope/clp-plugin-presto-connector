@@ -25,11 +25,13 @@ Default outputs are written to `./packages`.
 task package
 ```
 
-A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). The script accepts `--output DIR`, `--version VER`, and `--with-ca-certs`; the task takes each as a variable instead, so that a task depending on this one does not forward its own arguments here:
+A thin wrapper over `./tools/build-packages/build-packages.sh` (call that directly if `go-task` isn't installed). The script accepts `--output DIR`, `--version VER`, and `--with-ca-certs`. The task takes each as a variable instead, so that a task that depends on this one does not forward its own arguments here:
 
 ```bash
-task package OUTPUT=DIR VERSION=VER WITH_CA_CERTS=1
+task package BUILD_PACKAGE_OUTPUT=DIR BUILD_PACKAGE_VERSION=VER BUILD_PACKAGE_WITH_CA_CERTS=1
 ```
+
+Each variable may also be set in the environment. The names carry the `BUILD_PACKAGE_` prefix because Task resolves a bare `{{.VERSION}}` from the environment too, and a developer who has exported `VERSION` for something else would otherwise change the build without meaning to.
 
 ### Installer image
 
