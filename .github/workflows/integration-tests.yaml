@@ -48,9 +48,9 @@ jobs:
         with:
           version: "0.11.3"
 
-      - name: "Package the connector"
-        run: "task package"
-
+      # `integration-tests:run` depends on `package`, which builds the init-container image the
+      # cluster installs the plugins from, so there is no separate packaging step.
+      #
       # `--keep-cluster` so the containers outlive a failing test. Without it the session fixture
       # tears the cluster down before the log-capture step runs, and there is nothing left to read.
       # The runner is ephemeral, so nothing needs to clean them up afterwards.
