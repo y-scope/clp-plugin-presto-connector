@@ -22,12 +22,12 @@ needing neither `velox-connector:deps:install-all` nor the build-env image.
 
 ## What belongs here
 
-A header is testable here if nothing it includes reaches Velox. In practice that means no `VELOX_*`
-macros, since each one constructs a Velox exception type, and no `config::ConfigBase`.
+A header is testable here if nothing that it includes reaches Velox. In practice that means no
+`VELOX_*` macros, since each one constructs a Velox exception type, and no `config::ConfigBase`.
 
-Today that leaves the standard library, but the rule is about Velox rather than third-party code in
-general: another dependency is fine as long as this project can build it on its own, which for now
-means fetching it here the way gtest is fetched.
+Today that leaves the standard library, but the rule is about Velox rather than third-party code
+in general: another dependency is fine as long as this project can build it on its own, which for
+now means fetching it here the way that gtest is fetched.
 
 Keep the pure logic in such a header and let the Velox-facing caller wrap it: `ClpS3Url.h` holds
 URL construction while `ClpPackageS3AuthProvider` keeps the `VELOX_CHECK` and the config reads.
