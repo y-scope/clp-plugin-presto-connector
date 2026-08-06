@@ -21,13 +21,13 @@
 namespace facebook::velox::connector::clp::search_lib {
 namespace {
 
-// 2025-04-30T08:50:05Z, the instant the timestamp fixtures store four ways.
+// 2025-04-30T08:50:05Z, the instant that the timestamp fixtures store four ways.
 constexpr int64_t kSeconds{1746003005};
 constexpr int64_t kMilliseconds{1746003005000};
 constexpr int64_t kMicroseconds{1746003005000000};
 constexpr int64_t kNanoseconds{1746003005000000000};
 
-// The thresholds the heuristic switches on: one year of epoch time in each unit.
+// The thresholds that the heuristic switches on: one year of epoch time in each unit.
 constexpr int64_t kMillisecondsThreshold{31536000000};
 constexpr int64_t kMicrosecondsThreshold{31536000000000};
 constexpr int64_t kNanosecondsThreshold{31536000000000000};
