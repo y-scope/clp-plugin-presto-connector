@@ -12,13 +12,13 @@ without building Velox into the toolchain image.
 ## Running
 
 ```shell
-task package    # builds the init-container image the cluster installs the plugins from
 task integration-tests:run
 ```
 
-The session brings the cluster up and tears it down. `--use-running-cluster` reuses one already
-up; `--keep-cluster` leaves it running afterwards. Markers select subsets (`archive`, `ir`,
-`pushdown`, `schema`, `udf`), e.g. `task integration-tests:run -- -m ir`.
+That builds the init-container image the cluster installs the plugins from, then brings the cluster
+up and tears it down. `--use-running-cluster` reuses one already up; `--keep-cluster` leaves it
+running afterwards. Markers select subsets (`archive`, `ir`, `pushdown`, `schema`, `udf`), e.g.
+`task integration-tests:run -- -m ir`.
 
 ### By hand
 
