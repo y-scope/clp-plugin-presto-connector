@@ -14,8 +14,9 @@ from clp_presto_integration_tests.cluster import compose_run, wait_until_ready
 _COORDINATOR_HOST = os.environ.get("CLP_INTEGRATION_TEST_COORDINATOR_HOST", "localhost")
 _COORDINATOR_PORT = int(os.environ.get("CLP_INTEGRATION_TEST_COORDINATOR_PORT", "18080"))
 
-# The directory that docker-compose.yaml mounts into the cluster. This resolves it the same
-# way the compose file does, so that both agree on which fixtures the cluster is serving.
+# The directory that docker-compose.yaml mounts into the cluster. The directory path is
+# resolved in the same way as the compose file, so that both agree on which fixtures the
+# cluster is serving.
 _FIXTURE_DIR = Path(
     os.environ.get(
         "CLP_INTEGRATION_TEST_FIXTURE_DIR",
@@ -40,7 +41,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 @pytest.fixture(scope="session")
 def client(request: pytest.FixtureRequest) -> Iterator[PrestoClient]:
-    """Brings the cluster up for the whole session, and yields a client that is connected to it."""
+    """
+    Yields a client connected to the cluster, for the whole session.
+
+    Brings the cluster up first unless `--use-running-cluster` is set, and tears it down
+    afterwards unless `--keep-cluster` is set.
+    """
     presto = PrestoClient(_COORDINATOR_HOST, _COORDINATOR_PORT)
 
     if request.config.getoption("--use-running-cluster"):

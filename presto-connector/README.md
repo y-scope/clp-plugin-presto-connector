@@ -17,9 +17,9 @@ task presto-connector:build
 task presto-connector:test
 ```
 
-These cover the coordinator in isolation: SQL-to-KQL conversion, plan rewriting, codec round-trips,
-and metadata and split listing against a mock database. For both sides running together, see
-[integration-tests/README.md](../integration-tests/README.md).
+That task runs the coordinator's unit tests, which cover it in isolation: SQL-to-KQL conversion,
+plan rewriting, codec round-trips, and metadata and split listing against a mock database. For both
+sides running together, see [integration-tests/README.md](../integration-tests/README.md).
 
 ## Providers
 
