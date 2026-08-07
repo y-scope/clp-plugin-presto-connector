@@ -27,8 +27,9 @@ image:
     tag: "0.299"
     digest: ""
 
-  # Used by the worker's config-setup init container, and by any `extraInitContainers` that wait on
-  # other resources.
+  # The worker's config-setup init container uses this only as a shell, so it needs no access to the
+  # Kubernetes API and the pods need no RBAC. An `extraInitContainers` entry that actually calls
+  # `kubectl` does, and must be given a service account through `serviceAccountName`.
   kubectl:
     repository: "bitnami/kubectl"
     pullPolicy: "IfNotPresent"
