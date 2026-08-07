@@ -35,7 +35,8 @@ ClpPrestoToVeloxConnector::toVeloxSplit(
             catalogId,
             clpSplit->path,
             static_cast<int>(clpSplit->type),
-            clpSplit->kqlQuery);
+            clpSplit->kqlQuery,
+            clpSplit->queryConfig);
 }
 
 std::unique_ptr<velox::connector::ColumnHandle>

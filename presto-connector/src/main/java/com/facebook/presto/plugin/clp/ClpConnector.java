@@ -28,9 +28,12 @@ import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.function.FunctionMetadataManager;
 import com.facebook.presto.spi.function.StandardFunctionResolution;
+import com.facebook.presto.spi.session.PropertyMetadata;
 import com.facebook.presto.spi.transaction.IsolationLevel;
 
 import javax.inject.Inject;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +50,7 @@ public class ClpConnector
     private final StandardFunctionResolution functionResolution;
     private final ClpSplitFilterProvider splitFilterProvider;
     private final TypeManager typeManager;
+    private final ClpSessionProperties sessionProperties;
 
     @Inject
     public ClpConnector(
@@ -57,7 +61,8 @@ public class ClpConnector
             FunctionMetadataManager functionManager,
             StandardFunctionResolution functionResolution,
             ClpSplitFilterProvider splitFilterProvider,
-            TypeManager typeManager)
+            TypeManager typeManager,
+            ClpSessionProperties sessionProperties)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -67,6 +72,13 @@ public class ClpConnector
         this.functionResolution = requireNonNull(functionResolution, "functionResolution is null");
         this.splitFilterProvider = requireNonNull(splitFilterProvider, "splitFilterProvider is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties()
+    {
+        return sessionProperties.getSessionProperties();
     }
 
     @Override
