@@ -134,7 +134,9 @@ host_gid=$(id -g)
 # write to the image's defaults); build-artifacts.sh activates that setup only
 # when BUILD_CACHE_DIR is present, so CI (which calls it directly) is unaffected.
 # trust_mount_args (built above) adds the CA trust mount and CA_TRUST_DIR env
-# var when --with-ca-certs was passed.
+# var when --with-ca-certs was passed. CPU_TARGET / ARM_BUILD_TARGET forward the
+# worker's target-CPU flag selection (see "Target-CPU flags" in README.md) into
+# the container when set on the host.
 echo "==> Running internal/container/build-artifacts.sh inside ${image}..."
 docker run --rm \
     --user "${host_uid}:${host_gid}" \
@@ -147,6 +149,8 @@ docker run --rm \
     --env "HOME=/tmp/clp-plugin-presto-connector-home" \
     --env "TASK_TEMP_DIR=/tmp/clp-plugin-presto-connector-task" \
     --env MAVEN_OPTS \
+    --env CPU_TARGET \
+    --env ARM_BUILD_TARGET \
     -w /repo \
     "${image}" \
     bash /repo/tools/build-packages/internal/container/build-artifacts.sh \
@@ -160,3 +164,16 @@ if ! compgen -G "${artifact_stage}/*" > /dev/null; then
     exit 1
 fi
 cp -f "${artifact_stage}"/* "${output_dir}/"
+
+# Build the busybox installer image as a fourth distribution channel, from the tarball this
+# run just produced. Source from artifact_stage (this run's fresh staging) rather than
+# output_dir, which may hold tarballs from earlier or other-arch builds.
+echo "==> Building busybox installer image..."
+shopt -s nullglob
+tarballs=("${artifact_stage}"/*.tar.gz)
+shopt -u nullglob
+if (( ${#tarballs[@]} != 1 )); then
+    echo >&2 "ERROR: expected exactly one .tar.gz in staging, found ${#tarballs[@]}"
+    exit 1
+fi
+"${src}/tools/build-packages/build-installer-init-image.sh" --tarball "${tarballs[0]}" --load
