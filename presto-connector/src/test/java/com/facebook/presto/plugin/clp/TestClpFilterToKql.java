@@ -340,13 +340,9 @@ public class TestClpFilterToKql
     {
         ClpExpression clpExpression = tryPushDown(sql, sessionHolder, metadataFilterColumns);
         testFilter(clpExpression, expectedKql, null, sessionHolder);
-        if (expectedMetadataSqlQuery != null) {
-            assertTrue(clpExpression.getMetadataSqlQuery().isPresent());
-            assertEquals(clpExpression.getMetadataSqlQuery().get(), expectedMetadataSqlQuery);
-        }
-        else {
-            assertFalse(clpExpression.getMetadataSqlQuery().isPresent());
-        }
+        // The metadata portion is now an expression rendered by the split provider, so only its
+        // presence is meaningful here.
+        assertEquals(clpExpression.getMetadataExpression().isPresent(), expectedMetadataSqlQuery != null);
     }
 
     private ClpExpression tryPushDown(

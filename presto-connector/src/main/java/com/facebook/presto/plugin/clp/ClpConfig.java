@@ -35,9 +35,8 @@ public class ClpConfig
     private long metadataRefreshInterval = 60;
     private long metadataExpireInterval = 600;
 
-    private String splitFilterConfig;
-    private SplitFilterProviderType splitFilterProviderType = SplitFilterProviderType.MYSQL;
     private SplitProviderType splitProviderType = SplitProviderType.MYSQL;
+    private String splitMetadataConfigPath;
 
     public boolean isPolymorphicTypeEnabled()
     {
@@ -153,27 +152,15 @@ public class ClpConfig
         return this;
     }
 
-    public String getSplitFilterConfig()
+    public String getSplitMetadataConfigPath()
     {
-        return splitFilterConfig;
+        return splitMetadataConfigPath;
     }
 
-    @Config("clp.split-filter-config")
-    public ClpConfig setSplitFilterConfig(String splitFilterConfig)
+    @Config("clp.split-metadata-config-path")
+    public ClpConfig setSplitMetadataConfigPath(String splitMetadataConfigPath)
     {
-        this.splitFilterConfig = splitFilterConfig;
-        return this;
-    }
-
-    public SplitFilterProviderType getSplitFilterProviderType()
-    {
-        return splitFilterProviderType;
-    }
-
-    @Config("clp.split-filter-provider-type")
-    public ClpConfig setSplitFilterProviderType(SplitFilterProviderType splitFilterProviderType)
-    {
-        this.splitFilterProviderType = splitFilterProviderType;
+        this.splitMetadataConfigPath = splitMetadataConfigPath;
         return this;
     }
 
@@ -203,12 +190,6 @@ public class ClpConfig
     }
 
     public enum MetadataProviderType
-    {
-        MYSQL,
-        INTEGRATION_TEST
-    }
-
-    public enum SplitFilterProviderType
     {
         MYSQL,
         INTEGRATION_TEST
