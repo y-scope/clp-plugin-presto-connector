@@ -41,7 +41,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 @pytest.fixture(scope="session")
 def client(request: pytest.FixtureRequest) -> Iterator[PrestoClient]:
-    """Brings the cluster up for the whole session, and yields a client that is connected to it."""
+    """
+    Yields a client connected to the cluster, for the whole session.
+
+    Brings the cluster up first unless `--use-running-cluster` is set, and tears it down
+    afterwards unless `--keep-cluster` is set.
+    """
     presto = PrestoClient(_COORDINATOR_HOST, _COORDINATOR_PORT)
 
     if request.config.getoption("--use-running-cluster"):
