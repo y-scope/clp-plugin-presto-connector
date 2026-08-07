@@ -1,4 +1,4 @@
-"""Gives the tests query access to a coordinator, through Presto's own Python client."""
+"""Provides access to a coordinator through Presto's own Python client."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ _CLUSTER_REQUEST_TIMEOUT_SECONDS = 30
 
 
 class PrestoClient:
-    """Runs statements against one coordinator, in the `clp` catalog's `default` schema."""
+    """A client for one coordinator, scoped to the `clp` catalog's `default` schema."""
 
     def __init__(self, host: str, port: int, user: str = "integration-test") -> None:
         """Stores the connection details. Nothing connects until a statement runs."""
