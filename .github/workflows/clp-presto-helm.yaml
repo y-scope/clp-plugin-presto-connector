@@ -9,7 +9,8 @@ on:
       - "tools/deployment/clp-presto-helm/**"
       - "tools/yscope-dev-utils"
   push:
-    branches: ["main"]
+    # TODO: reduce to ["main"] once the GHCR publish path has been exercised once.
+    branches: ["main", "feat/clp-presto-helm-chart"]
     paths: *monitored_paths
 
   # A manual run publishes one channel, chosen here. It defaults to `snapshot` so that testing the
@@ -130,9 +131,9 @@ jobs:
           done
 
   publish:
-    # `workflow_dispatch` can be run against any branch, so the event alone does not establish that
-    # this chart was reviewed. Publishing is restricted to `main`.
-    if: "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+    # Any branch listed above may publish a snapshot. The release step below is the one restricted
+    # to `main`, because a release tag is what a consumer pins.
+    if: "github.event_name != 'pull_request'"
     needs: "lint"
     runs-on: "ubuntu-24.04"
     timeout-minutes: 10
@@ -159,8 +160,12 @@ jobs:
 
       # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
       # that does not bump it.
+      # Restricted to `main`: a release tag is what a consumer pins, so it must never come from
+      # an unreviewed branch. Snapshots below are disposable and carry the commit in the version.
       - name: "Package and publish the release chart"
-        if: "github.event_name == 'push' || inputs.channel == 'release'"
+        if: >-
+          github.ref == 'refs/heads/main'
+          && (github.event_name == 'push' || inputs.channel == 'release')
         shell: "bash"
         run: |-
           task helm:package
