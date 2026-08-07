@@ -1,0 +1,114 @@
+# A two-node Presto cluster for the integration tests: a Java coordinator and a native (C++)
+# worker, both loading the CLP connector plugin.
+#
+# The plugin's data path exists only in the native worker, so the coordinator is configured with
+# `node-scheduler.include-coordinator=false` and every read is served by the worker.
+#
+# The connector's `INTEGRATION_TEST` metadata and split providers stand in for the metadata
+# database that a real deployment queries, discovering archives by listing a directory. Both
+# catalogs therefore need the fixture tree on the coordinator, whatever the worker reads from.
+#
+# Both use a RELATIVE archive dir, so the split paths that they hand the worker are relative too.
+# Each process resolves them against its own working directory: the coordinator lists them under
+# node.data-dir, the `clp` worker opens them under `/`, and the `clp_s3` worker joins them onto
+# the MinIO endpoint instead. That is why the mounts below sit at different paths.
+#
+# The plugins are installed by the same init-container image that a real deployment uses, which
+# `task package` builds. Each install service writes into a volume, and the corresponding node then
+# mounts that volume as its plugin directory, so the harness exercises the shipped installer rather
+# than a copy of what it would have done.
+
+name: "clp-integration-tests"
+
+x-installer: &installer
+  image: "${CLP_PLUGIN_INSTALLER_IMAGE:-ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT}"
+
+volumes:
+  coordinator-plugin:
+  worker-plugin:
+
+services:
+  minio:
+    image: "minio/minio:RELEASE.2025-04-22T22-12-26Z"
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: "3s"
+      timeout: "3s"
+      retries: 30
+
+  # Seeds the fixture tree into a bucket named `fixtures`, keyed `<table>/<archive>`. Split paths
+  # are therefore `fixtures/<table>/<archive>`, carrying the bucket themselves, which is why no
+  # catalog configures one.
+  seed-fixtures:
+    image: "minio/mc:RELEASE.2025-04-16T18-13-26Z"
+    depends_on:
+      minio:
+        condition: "service_healthy"
+    volumes:
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+    entrypoint:
+      - "sh"
+      - "-c"
+      - |
+        mc alias set local http://minio:9000 minioadmin minioadmin
+        mc mb --ignore-existing local/fixtures
+        mc cp --recursive /fixtures/ local/fixtures/
+
+  install-coordinator-plugin:
+    <<: *installer
+    environment:
+      COORDINATOR_PLUGIN_INSTALL_PATH: "/out"
+    volumes:
+      - "coordinator-plugin:/out"
+
+  install-worker-plugin:
+    <<: *installer
+    environment:
+      WORKER_PLUGIN_INSTALL_PATH: "/out"
+    volumes:
+      - "worker-plugin:/out"
+
+  coordinator:
+    # TODO: Move to the official prestodb images once they carry what the native worker needs.
+    image: "ghcr.io/y-scope/presto:${PRESTO_VERSION:-0.299}"
+    depends_on:
+      install-coordinator-plugin:
+        condition: "service_completed_successfully"
+    volumes:
+      - "coordinator-plugin:/opt/presto-server/plugin/clp:ro"
+      - "./etc/coordinator:/opt/presto-server/etc:ro"
+      # Under the working directory, which the launcher sets to node.data-dir, so the catalogs'
+      # relative archive dir resolves here.
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/var/lib/presto/data/fixtures:ro"
+    ports:
+      - "${CLP_INTEGRATION_TEST_COORDINATOR_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/v1/info/state | grep -q ACTIVE"]
+      interval: "5s"
+      timeout: "3s"
+      retries: 60
+      start_period: "20s"
+
+  worker:
+    # TODO: Move to the official prestodb images once they carry what the native worker needs.
+    image: "ghcr.io/y-scope/presto-native:${PRESTO_VERSION:-0.299}"
+    # No LD_LIBRARY_PATH needed: packaging patchelfs the `.so` with RUNPATH `$$ORIGIN/lib`, so the
+    # bundled runtime libraries resolve relative to the plugin itself. The plugin scan is
+    # non-recursive, so `lib/` is not itself loaded as a plugin.
+    depends_on:
+      coordinator:
+        condition: "service_healthy"
+      install-worker-plugin:
+        condition: "service_completed_successfully"
+      seed-fixtures:
+        condition: "service_completed_successfully"
+    volumes:
+      - "worker-plugin:/opt/presto-server/plugin/clp:ro"
+      - "./etc/worker:/opt/presto-server/etc:ro"
+      # At the root, this process's working directory, so the `clp` catalog's relative split paths
+      # resolve here. The `clp_s3` catalog never reads through this mount.
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"

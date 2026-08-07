@@ -2,6 +2,7 @@ version: "3"
 
 includes:
   helm: "taskfiles/helm.yaml"
+  integration-tests: "taskfiles/tests/integration.yaml"
   lint: "taskfiles/lint.yaml"
   presto-connector:
     taskfile: "taskfiles/presto-connector/main.yaml"
@@ -11,7 +12,7 @@ includes:
 
 vars:
   DEFAULT_CLP_PLUGIN_BUILD_DIR: "{{.ROOT_DIR}}/build"
-  G_BUILD_DIR: '{{.CLP_PLUGIN_BUILD_DIR | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}'
+  G_BUILD_DIR: "{{.CLP_PLUGIN_BUILD_DIR | default .DEFAULT_CLP_PLUGIN_BUILD_DIR}}"
 
   # The Presto repository that the connectors fetch from, and the commit they are built
   # against. Consumed by both connectors' builds and the tools/presto-deps/ scripts.
@@ -33,12 +34,28 @@ tasks:
       - "mkdir -p '{{.G_BUILD_DIR}}'"
 
   package:
-    desc: "Build .deb/.rpm/.tar.gz packages."
+    desc: >-
+      Build .deb/.rpm/.tar.gz packages. Set BUILD_PACKAGE_OUTPUT, BUILD_PACKAGE_VERSION, or
+      BUILD_PACKAGE_WITH_CA_CERTS to pass options.
+    vars:
+      BUILD_PACKAGE_OUTPUT: "{{.BUILD_PACKAGE_OUTPUT}}"
+      BUILD_PACKAGE_VERSION: "{{.BUILD_PACKAGE_VERSION}}"
+      BUILD_PACKAGE_WITH_CA_CERTS: "{{.BUILD_PACKAGE_WITH_CA_CERTS}}"
     preconditions:
       - sh: "docker buildx version >/dev/null 2>&1"
         msg: "docker (with buildx) is required for local package builds."
     cmds:
-      - "'{{.ROOT_DIR}}/tools/build-packages/build-packages.sh' {{.CLI_ARGS}}"
+      - >-
+        '{{.ROOT_DIR}}/tools/build-packages/build-packages.sh'
+        {{- if .BUILD_PACKAGE_OUTPUT}}
+        --output '{{.BUILD_PACKAGE_OUTPUT}}'
+        {{- end}}
+        {{- if .BUILD_PACKAGE_VERSION}}
+        --version '{{.BUILD_PACKAGE_VERSION}}'
+        {{- end}}
+        {{- if .BUILD_PACKAGE_WITH_CA_CERTS}}
+        --with-ca-certs
+        {{- end}}
 
   validate-dep-sync:
     desc: "Check that dependency pins match the pinned Presto commit and its Velox tree."
