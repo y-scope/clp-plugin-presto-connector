@@ -27,6 +27,13 @@ tasks:
     cmds:
       - "rm -rf '{{.OUTPUT_DIR}}'"
       - "mkdir -p '{{.OUTPUT_DIR}}'"
+
+      # `helm package` refuses to run while a dependency named in `Chart.yaml` is missing from
+      # `charts/`, and `charts/` is a build artifact rather than a tracked directory. `build`
+      # rather than `update` so the resolved versions come from the committed `Chart.lock`.
+      - |-
+        . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        helm dependency build "{{.G_CLP_PRESTO_HELM_CHART_DIR}}"
       - |-
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
         version_args=()
