@@ -1,9 +1,4 @@
-# Values used by `ct lint` to render the S3 storage path, which needs no archive volume.
-metadataDb:
-  host: "clp-database"
-  username: "clp-user"
-  password: "clp-password"
-
+# Values used by `ct lint` to render the S3 storage path.
 archiveStorage:
   type: "s3"
   s3:
@@ -11,3 +6,8 @@ archiveStorage:
     regionCode: "us-east-1"
     accessKeyId: "test-access-key"
     secretAccessKey: "test-secret-key"
+
+metadataDb:
+  host: "clp-database"
+  username: "clp-user"
+  password: "clp-password"
