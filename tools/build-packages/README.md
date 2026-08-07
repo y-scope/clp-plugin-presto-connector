@@ -31,7 +31,7 @@ A thin wrapper over `./tools/build-packages/build-packages.sh` (call that direct
 task package BUILD_PACKAGE_OUTPUT=DIR BUILD_PACKAGE_VERSION=VER BUILD_PACKAGE_WITH_CA_CERTS=1
 ```
 
-Each variable may also be set in the environment. The names carry the `BUILD_PACKAGE_` prefix because Task resolves a bare `{{.VERSION}}` from the environment too, and a developer who has exported `VERSION` for something else would otherwise change the build without meaning to.
+Each variable may also be set in the environment.
 
 ### Installer image
 
