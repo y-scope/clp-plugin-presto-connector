@@ -12,12 +12,15 @@ on:
     branches: ["main"]
     paths: *monitored_paths
 
-  # Publishes a snapshot even on days when nothing touched the chart, so that a broken registry
-  # login or an expired token surfaces here rather than when a release needs it.
-  schedule:
-    - cron: "0 7 * * *"
-
+  # A manual run publishes one channel, chosen here. It defaults to `snapshot` so that testing the
+  # publish path cannot move a release tag that a consumer may already have pinned.
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "Which channel to publish"
+        type: "choice"
+        options: ["snapshot", "release"]
+        default: "snapshot"
 
 permissions: {}
 
@@ -155,10 +158,9 @@ jobs:
         run: "task helm:registry-login REGISTRY=ghcr.io USERNAME=\"$GITHUB_ACTOR\""
 
       # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
-      # that does not bump it. A scheduled run skips it entirely: a release moves on a deliberate
-      # bump, never on a timer.
+      # that does not bump it.
       - name: "Package and publish the release chart"
-        if: "github.event_name != 'schedule'"
+        if: "github.event_name == 'push' || inputs.channel == 'release'"
         shell: "bash"
         run: |-
           task helm:package
@@ -169,10 +171,11 @@ jobs:
       # `g` prefix, as `git describe` writes it, because a numeric-only segment with a leading
       # zero is not a valid prerelease identifier.
       - name: "Package and publish the snapshot chart"
+        if: "github.event_name == 'push' || inputs.channel == 'snapshot'"
         shell: "bash"
         run: |-
           # Package once without a version override to learn what `Chart.yaml` declares. The
-          # release step above supplies this on a push, but a scheduled run skips it.
+          # release step above supplies this on a push, but a snapshot-only run skips it.
           task helm:package
           chart_version="$(basename "$(ls build/clp-presto-helm/*.tgz)" .tgz)"
           chart_version="${chart_version#clp-presto-}"
