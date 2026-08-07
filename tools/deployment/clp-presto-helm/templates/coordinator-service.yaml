@@ -1,28 +1,18 @@
-{{/*
-A stable endpoint for the coordinator, under a name this chart controls.
-
-The Presto chart names its own Service after the release, which for a subchart is the parent's
-release name -- so inside CLP it is called plainly `clp`, next to `clp-database` and `clp-webui`,
-and the chart offers no way to override it. Rather than depend on that name, this adds a second
-Service selecting the same pods, so callers reference something this chart guarantees.
-*/}}
 apiVersion: "v1"
 kind: "Service"
 metadata:
-  name: {{ printf "%s-presto-coordinator" .Release.Name | quote }}
+  name: {{ include "clp-presto.componentFullname" (dict "root" . "component" "coordinator") }}
   labels:
     {{- include "clp-presto.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.coordinatorService.type | quote }}
-  ports:
-    - name: "http"
-      port: {{ .Values.coordinatorService.port | int }}
-      targetPort: "http"
-      protocol: "TCP"
-      {{- if and (eq .Values.coordinatorService.type "NodePort") .Values.coordinatorService.nodePort }}
-      nodePort: {{ .Values.coordinatorService.nodePort | int }}
-      {{- end }}
-  selector:
-    app.kubernetes.io/name: "presto"
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
     app.kubernetes.io/component: "coordinator"
+spec:
+  type: {{ .Values.coordinator.service.type | quote }}
+  selector:
+    {{- include "clp-presto.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: "coordinator"
+  ports:
+    - port: 8889
+      targetPort: "presto-coord"
+      {{- if eq .Values.coordinator.service.type "NodePort" }}
+      nodePort: {{ .Values.coordinator.service.nodePort | int }}
+      {{- end }}
