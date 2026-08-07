@@ -4,3 +4,6 @@
 /packages/
 /presto-connector/target/
 __pycache__/
+
+# Helm pulls dependency tarballs here; `Chart.lock` pins them and is committed instead.
+tools/deployment/clp-presto-helm/charts/

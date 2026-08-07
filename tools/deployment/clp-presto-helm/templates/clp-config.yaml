@@ -1,0 +1,48 @@
+{{- $fsArchives := eq .Values.archiveStorage.type "fs" -}}
+{{/*
+The catalog and the native worker's `velox.properties`. The Presto chart renders a catalog from its
+own `catalog` value, but that value is a literal string it cannot template, so anything derived from
+this chart's structured values has to be rendered here and mounted over it.
+*/}}
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: {{ include "clp-presto.configMapName" . | quote }}
+  labels:
+    {{- include "clp-presto.labels" . | nindent 4 }}
+data:
+  coordinator-clp.properties: |
+    connector.name=clp
+    clp.metadata-provider-type=mysql
+    clp.metadata-db-url=jdbc:mysql://{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port | int }}
+    clp.metadata-db-name={{ .Values.metadataDb.name }}
+    clp.metadata-db-user={{ .Values.metadataDb.username }}
+    clp.metadata-db-password={{ .Values.metadataDb.password }}
+    clp.metadata-table-prefix={{ .Values.metadataDb.tablePrefix }}
+    clp.split-provider-type=mysql
+    clp.split-filter-provider-type=mysql
+    clp.split-filter-config=/opt/presto-server/etc/clp-split-filter.json
+
+  worker-clp.properties: |
+    connector.name=clp
+    {{- if not $fsArchives }}
+    {{- with .Values.archiveStorage.s3 }}
+    clp.storage-type=s3
+    clp.s3-auth-provider=clp_package
+    clp.s3-access-key-id={{ .accessKeyId }}
+    clp.s3-bucket={{ .bucket }}
+    {{- if .endpointUrl }}
+    clp.s3-end-point={{ trimSuffix "/" .endpointUrl }}
+    {{- else }}
+    clp.s3-end-point=https://s3.{{ .regionCode }}.amazonaws.com
+    {{- end }}
+    clp.s3-secret-access-key={{ .secretAccessKey }}
+    {{- end }}
+    {{- end }}
+
+  clp-split-filter.json: |
+    {{ .Values.splitFilter | toJson }}
+
+  # The native worker reads this; the Presto chart has no value for it.
+  velox.properties: |
+    mutable-config=true
