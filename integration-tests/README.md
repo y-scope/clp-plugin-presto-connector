@@ -1,39 +1,73 @@
 # Integration tests
 
-End-to-end tests for the CLP Presto connector, run against a real two-node cluster: a Java
+Integration tests for the CLP Presto connector, run against a real two-node cluster: a Java
 coordinator and a native (C++) worker, both loading the connector plugin.
 
-## Running the cluster
+## Why a real cluster
 
-`task package` builds the installer image the compose file defaults to. Then, from this directory:
+The worker plugin leaves Velox symbols undefined so that the worker process resolves them at load
+time, which means that a test binary has nothing to link against. Running queries through a real
+worker exercises the plugin without building Velox into the toolchain image.
+
+## Running the tests using task
 
 ```shell
-docker compose up
+task integration-tests:run
 ```
 
-The worker waits for the coordinator to report healthy, so a clean `up` ends with both nodes
-running and the worker counted in `activeWorkers`. Query it with any Presto client:
+That task first builds the init-container image that the cluster installs the plugins from. It
+then brings the cluster up, runs the tests, and tears the cluster down again.
+
+Three options change what `task integration-tests:run` does. Pass them after `--`, as in `task
+integration-tests:run -- -m ir`.
+
+- `--use-running-cluster` runs against a cluster that is already up.
+- `--keep-cluster` leaves the cluster running afterwards.
+- `-m <marker>` selects a subset of the tests: `archive`, `ir`, `pushdown`, `schema`, or `udf`.
+
+After `--keep-cluster`, query the cluster with any Presto client:
 
 ```shell
 presto-cli --server localhost:18080 --catalog clp --schema default --execute "SHOW TABLES"
 ```
 
-Tear it down with `docker compose down -v`. The `-v` matters: the plugin directories are volumes,
-so without it the next `up` reuses the previously installed plugin rather than the one you just
-built.
+## Configuration
 
-Four variables override the defaults:
+Four variables override the defaults, on both the task path and a manual `docker compose` run:
 
 | Variable | Default | What it changes |
 | --- | --- | --- |
 | `PRESTO_VERSION` | `0.299` | Tag of both server images |
-| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image `task package` produces |
-| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree the cluster mounts |
-| `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port the coordinator is published on |
+| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image produced by `task package` |
+| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree mounted by the cluster |
+| `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port that the coordinator is published on |
 
 Only the coordinator's port is published, and it defaults to 18080 rather than 8080 to stay clear
 of whatever else is running. The ports inside the containers are fixed and cannot collide with the
 host. If 18080 is taken, `docker compose up` fails with a bind error; set the variable and retry.
+
+## Running the cluster without the tests
+
+Useful when the compose file itself is what you are debugging.
+
+1. Build the installer image that the compose file uses by default:
+
+   ```shell
+   task package
+   ```
+
+2. Bring the cluster up from this directory:
+
+   ```shell
+   docker compose up
+   ```
+
+   The worker waits for the coordinator to report healthy, so a clean `up` ends with both nodes
+   running and the worker counted in `activeWorkers`.
+
+Tear it down with `docker compose down -v`. The `-v` matters: the plugin directories are volumes,
+so without it the next `up` reuses the previously installed plugin rather than the one you just
+built. The task path already passes `--volumes`, so this only applies here.
 
 ## Fixtures
 
