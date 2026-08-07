@@ -1,0 +1,18 @@
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: {{ include "clp-presto.componentFullname" (dict "root" . "component" "coordinator") }}
+  labels:
+    {{- include "clp-presto.labels" . | nindent 4 }}
+    app.kubernetes.io/component: "coordinator"
+spec:
+  type: {{ .Values.coordinator.service.type | quote }}
+  selector:
+    {{- include "clp-presto.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: "coordinator"
+  ports:
+    - port: 8889
+      targetPort: "presto-coord"
+      {{- if eq .Values.coordinator.service.type "NodePort" }}
+      nodePort: {{ .Values.coordinator.service.nodePort | int }}
+      {{- end }}

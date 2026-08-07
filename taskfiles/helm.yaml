@@ -1,0 +1,125 @@
+version: "3"
+
+includes:
+  toolchains: "toolchains.yaml"
+
+vars:
+  G_CLP_PRESTO_HELM_BUILD_DIR: "{{.G_BUILD_DIR}}/clp-presto-helm"
+  G_CLP_PRESTO_HELM_CHART_DIR: "{{.ROOT_DIR}}/tools/deployment/clp-presto-helm"
+  G_CLP_PRESTO_HELM_CHART_NAME: "clp-presto"
+
+  # A throwaway OCI registry for exercising the publish path without pushing anything public.
+  G_TEST_REGISTRY_NAME: "clp-presto-helm-test-registry"
+  G_TEST_REGISTRY_PORT: "5000"
+
+tasks:
+  package:
+    desc: "Packages the clp-presto Helm chart into the build directory."
+    summary: |
+      Packages the chart into the build directory.
+
+      Set VERSION to override the version in `Chart.yaml`. The snapshot channel uses it to stamp a
+      per-commit prerelease without modifying the chart source.
+    vars:
+      OUTPUT_DIR: "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"
+      VERSION: "{{.VERSION}}"
+    deps: ["toolchains:helm"]
+    cmds:
+      - "rm -rf '{{.OUTPUT_DIR}}'"
+      - "mkdir -p '{{.OUTPUT_DIR}}'"
+      - |-
+        . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        version_args=()
+        if [[ -n "{{.VERSION}}" ]] ; then
+          version_args=(--version "{{.VERSION}}")
+        fi
+        helm package "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" \
+          --destination "{{.OUTPUT_DIR}}" \
+          "${version_args[@]}"
+
+  registry-login:
+    desc: "Logs in to an OCI registry."
+    summary: |
+      Logs in to the registry named by REGISTRY, as USERNAME. The password is read from the
+      HELM_REGISTRY_PASSWORD environment variable rather than a task variable, so that it never
+      appears in a process argument list.
+    requires:
+      vars: ["REGISTRY", "USERNAME"]
+    deps: ["toolchains:helm"]
+    cmds:
+      - |-
+        . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        : "${HELM_REGISTRY_PASSWORD:?HELM_REGISTRY_PASSWORD must be set}"
+        helm registry login "{{.REGISTRY}}" \
+          --username "{{.USERNAME}}" \
+          --password-stdin <<< "$HELM_REGISTRY_PASSWORD"
+
+  publish:
+    desc: "Pushes the packaged chart to an OCI registry."
+    summary: |
+      Pushes whatever `helm:package` last wrote to the registry named by OCI_REPO, for example
+      `oci://ghcr.io/y-scope/charts`.
+
+      Set REGISTRY_FLAGS to `--plain-http` for a local test registry, which serves no TLS.
+
+      Set OVERWRITE to `true` for the snapshot channel, where replacing a published version is the
+      intent. Releases leave it unset: GHCR does not enforce tag immutability, so without the check
+      below a push would silently replace a version that a consumer has already pinned.
+    requires:
+      vars: ["OCI_REPO"]
+    vars:
+      REGISTRY_FLAGS: "{{.REGISTRY_FLAGS}}"
+      OVERWRITE: "{{.OVERWRITE}}"
+    deps: ["toolchains:helm"]
+    cmds:
+      - |-
+        . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        chart_name="{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
+        chart_tgz="$(ls "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"/*.tgz)"
+
+        # Strip the known chart-name prefix rather than matching on the last hyphen, so that a
+        # prerelease version containing hyphens survives intact.
+        version="$(basename "${chart_tgz}" .tgz)"
+        version="${version#"${chart_name}-"}"
+
+        if [[ "{{.OVERWRITE}}" != "true" ]] ; then
+          if lookup="$(helm show chart "{{.OCI_REPO}}/${chart_name}" \
+                         --version "${version}" {{.REGISTRY_FLAGS}} 2>&1)" ; then
+            echo "::warning::Chart ${version} is already published, so nothing was pushed." \
+                 "Bump the version in Chart.yaml if the chart changed."
+            exit 0
+          fi
+
+          # Only a missing version makes a push safe. Any other failure, such as an unreachable
+          # registry or an expired token, leaves it unknown whether this version exists, and
+          # pushing on that would replace a chart that a consumer has already pinned.
+          if [[ "${lookup}" != *"not found"* ]] ; then
+            echo "Could not determine whether ${version} is published: ${lookup}" >&2
+            exit 1
+          fi
+        fi
+
+        helm push "${chart_tgz}" "{{.OCI_REPO}}" {{.REGISTRY_FLAGS}}
+
+  test-registry:start:
+    desc: "Starts a throwaway OCI registry for testing chart publishing."
+    cmds:
+      # Always recreate, so that every run starts from an empty registry and the republish guard is
+      # exercised from a known state.
+      - "docker rm --force '{{.G_TEST_REGISTRY_NAME}}' 2> /dev/null || true"
+      - >-
+        docker run --detach --rm
+        --name "{{.G_TEST_REGISTRY_NAME}}"
+        --publish "{{.G_TEST_REGISTRY_PORT}}:5000"
+        registry:2
+
+      # `docker run --detach` returns before the registry listens, so an immediate push would
+      # intermittently fail with a connection refused.
+      - >-
+        until curl -sf 'http://localhost:{{.G_TEST_REGISTRY_PORT}}/v2/' > /dev/null ;
+        do sleep 0.2 ; done
+
+  test-registry:stop:
+    desc: "Stops the throwaway OCI registry."
+    cmds:
+      - "docker rm --force '{{.G_TEST_REGISTRY_NAME}}'"

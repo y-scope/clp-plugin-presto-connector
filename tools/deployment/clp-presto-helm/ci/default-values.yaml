@@ -1,0 +1,10 @@
+# Values used by `ct lint` to render the chart. The chart requires an archive claim when
+# `archiveStorage.type` is "fs", so supply one here.
+archiveStorage:
+  fs:
+    existingClaim: "clp-archives"
+
+metadataDb:
+  host: "clp-database"
+  username: "clp-user"
+  password: "clp-password"
