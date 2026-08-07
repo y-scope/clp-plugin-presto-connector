@@ -1,4 +1,18 @@
 {{- $fsArchives := eq .Values.archiveStorage.type "fs" -}}
+{{- if $fsArchives -}}
+{{/*
+With filesystem archives the worker has to mount them, but the Presto chart takes its volumes as a
+literal list that this chart cannot append to. Checking here turns a silent misconfiguration -- a
+worker that starts, reports healthy, and fails every read -- into a render-time error.
+*/}}
+{{- $names := list -}}
+{{- range .Values.presto.worker.volumes -}}
+{{- $names = append $names .name -}}
+{{- end -}}
+{{- if not (has .Values.archiveStorage.fs.volumeName $names) -}}
+{{- fail (printf "archiveStorage.type is \"fs\", so presto.worker.volumes must include a volume named %q holding the archives, and presto.worker.volumeMounts must mount it. See ci/default-values.yaml." .Values.archiveStorage.fs.volumeName) -}}
+{{- end -}}
+{{- end -}}
 {{/*
 The catalog and the native worker's `velox.properties`. The Presto chart renders a catalog from its
 own `catalog` value, but that value is a literal string it cannot template, so anything derived from

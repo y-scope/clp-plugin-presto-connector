@@ -21,9 +21,14 @@ metadataDb:
   password: ""
 
 archiveStorage:
-  # "fs" or "s3". With "fs", set `global.clp.archiveClaim` and add the matching volume under
-  # `presto.worker.volumes` below.
+  # "fs" or "s3".
   type: "fs"
+
+  fs:
+    # The volume, declared under `presto.worker.volumes`, that holds the archives. The Presto chart
+    # takes its volumes as a literal list, so this chart cannot add it; naming it here lets the
+    # chart check that it is present rather than let the worker fail on every read.
+    volumeName: "clp-archives"
   s3:
     bucket: ""
     regionCode: ""
