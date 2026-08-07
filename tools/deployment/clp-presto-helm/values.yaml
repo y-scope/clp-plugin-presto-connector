@@ -1,14 +1,11 @@
-# Values that the Presto subchart interpolates inside its own templates. Helm cannot compute a
-# subchart's values from a parent's, so anything the subchart has to render lives under `global`,
-# which both charts can read.
+# Helm cannot compute a subchart's values from a parent's, so anything the Presto chart has to
+# interpolate lives under `global`, which every chart in the release can read. The key is named for
+# this chart rather than for CLP, because a parent may have globals of its own.
 global:
-  clp:
+  clpPresto:
     # The image whose entrypoint copies the connector into a shared volume, then exits. It is
     # ABI-coupled to the Presto images below, so the three move together.
     connectorImage: "ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT"
-
-    # Claim holding the archives, read by the worker when `archiveStorage.type` is "fs".
-    archiveClaim: ""
 
 # CLP's metadata database. The connector learns which archives exist from here, so this must be the
 # database that CLP compresses into.
@@ -72,7 +69,7 @@ presto:
   coordinator:
     initContainers:
       - name: "install-clp-plugin"
-        image: "{{ .Values.global.clp.connectorImage }}"
+        image: "{{ .Values.global.clpPresto.connectorImage }}"
         env:
           - name: "COORDINATOR_PLUGIN_INSTALL_PATH"
             value: "/install/coordinator"
@@ -111,7 +108,7 @@ presto:
       plugin.dir=/opt/presto-server/plugin/clp
     initContainers:
       - name: "install-clp-plugin"
-        image: "{{ .Values.global.clp.connectorImage }}"
+        image: "{{ .Values.global.clpPresto.connectorImage }}"
         env:
           - name: "WORKER_PLUGIN_INSTALL_PATH"
             value: "/install/worker"
