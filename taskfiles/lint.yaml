@@ -35,6 +35,7 @@ tasks:
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
         ct lint \
           --chart-dirs="tools/deployment" \
+          --chart-repos="presto=https://prestodb.github.io/presto-helm-charts" \
           --chart-yaml-schema="{{.G_HELM_TOOLCHAIN_DIR}}/etc/chart_schema.yaml" \
           --lint-conf="tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml"
 
