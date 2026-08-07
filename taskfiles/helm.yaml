@@ -8,6 +8,11 @@ vars:
   G_CLP_PRESTO_HELM_CHART_DIR: "{{.ROOT_DIR}}/tools/deployment/clp-presto-helm"
   G_CLP_PRESTO_HELM_CHART_NAME: "clp-presto"
 
+  # The chart this one depends on. `ct lint` and `helm dependency build` both resolve it by name,
+  # so the repository has to be registered before either runs.
+  G_PRESTO_CHART_REPO_NAME: "presto"
+  G_PRESTO_CHART_REPO_URL: "https://prestodb.github.io/presto-helm-charts"
+
   # A throwaway OCI registry for exercising the publish path without pushing anything public.
   G_TEST_REGISTRY_NAME: "clp-presto-helm-test-registry"
   G_TEST_REGISTRY_PORT: "5000"
@@ -30,9 +35,11 @@ tasks:
 
       # `helm package` refuses to run while a dependency named in `Chart.yaml` is missing from
       # `charts/`, and `charts/` is a build artifact rather than a tracked directory. `build`
-      # rather than `update` so the resolved versions come from the committed `Chart.lock`.
+      # rather than `update` so the versions and digests come from the committed `Chart.lock`,
+      # which in turn requires the repository to be registered first.
       - |-
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        helm repo add "{{.G_PRESTO_CHART_REPO_NAME}}" "{{.G_PRESTO_CHART_REPO_URL}}" --force-update
         helm dependency build "{{.G_CLP_PRESTO_HELM_CHART_DIR}}"
       - |-
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
