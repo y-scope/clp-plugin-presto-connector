@@ -1,6 +1,6 @@
-yamale>=6.1.0
-
-# Pinned exactly. The venv installs with `pip install --upgrade`, so a floor resolves to whatever
-# PyPI serves that day, which turns an upstream release into a failure on whichever pull request
-# happens to run next.
+# Pinned exactly, like the `ct` and `helm` binaries in `taskfiles/toolchains.yaml`. `ct lint` shells
+# out to both of these, and the venv installs with `pip install --upgrade`, so a floor would resolve
+# to whatever PyPI serves that day and turn an upstream release into a failure on whichever pull
+# request happens to run next.
+yamale==6.1.0
 yamllint==1.38.0
