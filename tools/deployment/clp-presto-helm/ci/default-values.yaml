@@ -15,7 +15,7 @@ presto:
         emptyDir: {}
       - name: "clp-config"
         configMap:
-          name: "{{ .Values.global.clp.configMapName }}"
+          name: "{{ .Release.Name }}-clp-config"
       - name: "clp-archives"
         persistentVolumeClaim:
           claimName: "{{ .Values.global.clp.archiveClaim }}"
