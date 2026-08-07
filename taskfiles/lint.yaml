@@ -6,6 +6,7 @@ vars:
 tasks:
   check:
     cmds:
+      - task: "check-py"
       - task: "check-yaml"
 
   clean:
@@ -13,7 +14,40 @@ tasks:
 
   fix:
     cmds:
+      - task: "fix-py"
       - task: "fix-yaml"
+
+  check-py:
+    cmds:
+      - task: "py"
+        vars:
+          RUFF_CHECK_FLAGS: ""
+          RUFF_FORMAT_FLAGS: "--diff"
+
+  fix-py:
+    cmds:
+      - task: "py"
+        vars:
+          RUFF_CHECK_FLAGS: "--fix"
+          RUFF_FORMAT_FLAGS: ""
+
+  # The only Python in the repository is the integration-tests project, which pins its own
+  # toolchain in `uv.lock` and carries the `ruff` and `mypy` configuration that they read. These
+  # tasks therefore run through `uv` there, rather than installing linters into the shared venv.
+  py:
+    internal: true
+    vars:
+      UV_PYTHON_PROJECTS:
+        - "{{.ROOT_DIR}}/integration-tests"
+    requires:
+      vars: ["RUFF_CHECK_FLAGS", "RUFF_FORMAT_FLAGS"]
+    cmds:
+      - for:
+          var: "UV_PYTHON_PROJECTS"
+        cmd: |-
+          uv run --directory "{{.ITEM}}" ruff check {{.RUFF_CHECK_FLAGS}} .
+          uv run --directory "{{.ITEM}}" ruff format {{.RUFF_FORMAT_FLAGS}} .
+          uv run --directory "{{.ITEM}}" mypy .
 
   yaml:
     aliases:
