@@ -14,10 +14,11 @@ data:
   coordinator-clp.properties: |
     connector.name=clp
     clp.metadata-provider-type=mysql
-    clp.metadata-db-url=jdbc:mysql://{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port | int }}
+    clp.metadata-db-url=jdbc:mysql://{{ required "metadataDb.host is required" .Values.metadataDb.host }}:{{ .Values.metadataDb.port | int }}
     clp.metadata-db-name={{ .Values.metadataDb.name }}
-    clp.metadata-db-user={{ .Values.metadataDb.username }}
-    clp.metadata-db-password={{ .Values.metadataDb.password }}
+    clp.metadata-db-user={{ required "metadataDb.username is required" .Values.metadataDb.username }}
+    {{- /* Finding: a Java properties file re-reads backslashes, so escape before writing. */}}
+    clp.metadata-db-password={{ required "metadataDb.password is required" .Values.metadataDb.password | replace "\\" "\\\\" }}
     clp.metadata-table-prefix={{ .Values.metadataDb.tablePrefix }}
     clp.split-provider-type=mysql
     clp.split-filter-provider-type=mysql
@@ -36,7 +37,7 @@ data:
     {{- else }}
     clp.s3-end-point=https://s3.{{ .regionCode }}.amazonaws.com
     {{- end }}
-    clp.s3-secret-access-key={{ .secretAccessKey }}
+    clp.s3-secret-access-key={{ .secretAccessKey | replace "\\" "\\\\" }}
     {{- end }}
     {{- end }}
 

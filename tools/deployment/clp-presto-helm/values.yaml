@@ -7,9 +7,6 @@ global:
     # ABI-coupled to the Presto images below, so the three move together.
     connectorImage: "ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT"
 
-    # Name of the ConfigMap this chart renders. Keep in step with `clp-presto.configMapName`.
-    configMapName: "clp-clp-config"
-
     # Claim holding the archives, read by the worker when `archiveStorage.type` is "fs".
     archiveClaim: ""
 
@@ -82,7 +79,7 @@ presto:
         emptyDir: {}
       - name: "clp-config"
         configMap:
-          name: "{{ .Values.global.clp.configMapName }}"
+          name: "{{ .Release.Name }}-clp-config"
     volumeMounts:
       - name: "clp-plugin"
         mountPath: "/opt/presto-server/plugin/clp"
@@ -121,7 +118,7 @@ presto:
         emptyDir: {}
       - name: "clp-config"
         configMap:
-          name: "{{ .Values.global.clp.configMapName }}"
+          name: "{{ .Release.Name }}-clp-config"
     volumeMounts:
       - name: "clp-plugin"
         mountPath: "/opt/presto-server/plugin/clp"
