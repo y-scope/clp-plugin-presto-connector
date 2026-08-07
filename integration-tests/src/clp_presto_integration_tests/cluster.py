@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -16,7 +17,7 @@ _READY_POLL_SECONDS = 5
 
 
 def compose_run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """Runs `docker compose` with `args`. Raises a `RuntimeError` on failure.""
+    """Runs `docker compose` with `args`. Raises a `RuntimeError` on failure."""
     result = subprocess.run(
         ["docker", "compose", *args],
         cwd=_PROJECT_DIR,
@@ -34,8 +35,8 @@ def wait_until_ready(client: PrestoClient) -> None:
     """
     Blocks until the cluster can run queries.
 
-    If the cluster is still not ready when the timeout expires, this raises a `TimeoutError`
-    that carries the containers' recent logs, so that the caller can see why it never started.
+    If the timeout expires first, writes the containers' recent logs to stderr and raises a
+    `TimeoutError`, so that the reason the cluster never started is visible in the report.
     """
     deadline = time.monotonic() + _READY_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
@@ -43,5 +44,6 @@ def wait_until_ready(client: PrestoClient) -> None:
             return
         time.sleep(_READY_POLL_SECONDS)
     logs = compose_run("logs", "--tail", "40", check=False).stdout
-    msg = f"cluster did not become ready in {_READY_TIMEOUT_SECONDS}s\n{logs}"
+    print(logs, file=sys.stderr)
+    msg = f"cluster did not become ready in {_READY_TIMEOUT_SECONDS}s"
     raise TimeoutError(msg)
