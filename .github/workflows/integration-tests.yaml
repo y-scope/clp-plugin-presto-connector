@@ -1,6 +1,4 @@
-# Runs the connector's integration tests against a real Presto cluster built from the stock y-scope
-# images. Packaging runs first: the cluster installs both plugins from the init-container image
-# that `task package` builds.
+# Runs the connector's integration tests against a real Presto cluster.
 
 name: "integration-tests"
 
@@ -28,7 +26,7 @@ permissions: {}
 jobs:
   integration-tests:
     runs-on: "ubuntu-24.04"
-    # Dominated by packaging, which builds the connector inside the build-env image.
+    # Packaging the connector dominates the runtime.
     timeout-minutes: 120
     permissions:
       # To check out the repository.
@@ -48,13 +46,8 @@ jobs:
         with:
           version: "0.11.3"
 
-      # `integration-tests:run` depends on `package`, which builds the init-container image that
-      # the cluster installs the plugins from, so there is no separate packaging step.
-      #
-      # `--keep-cluster` is passed so that the containers outlive a failing test. Without it the
-      # session fixture tears the cluster down before the log-capture step runs, and there is
-      # nothing left to read.
-      # The runner is ephemeral, so nothing needs to clean them up afterwards.
+      # `--keep-cluster` leaves the containers up for the log-capture step below. The runner is
+      # ephemeral, so nothing needs to clean them up.
       - name: "Run the integration tests"
         run: "task integration-tests:run -- --keep-cluster"
 
