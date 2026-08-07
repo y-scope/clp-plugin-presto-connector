@@ -10,3 +10,11 @@ maintainers: [{name: "y-scope", email: "dev@yscope.com", url: "https://yscope.co
 keywords:
   - "presto"
   - "query-engine"
+
+# Presto itself is deployed by the official chart. This chart owns only what makes it a CLP
+# deployment: the connector plugin, the catalog that points at CLP's metadata database, and the
+# archive storage the worker reads.
+dependencies:
+  - name: "presto"
+    version: "0.4.0"
+    repository: "https://prestodb.github.io/presto-helm-charts"
