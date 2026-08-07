@@ -16,7 +16,7 @@ _READY_POLL_SECONDS = 5
 
 
 def compose_run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """Runs `docker compose`, and on failure raises an error that carries its stderr."""
+    """Runs `docker compose` with `args`. Raises a `RuntimeError` on failure.""
     result = subprocess.run(
         ["docker", "compose", *args],
         cwd=_PROJECT_DIR,

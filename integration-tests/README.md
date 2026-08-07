@@ -6,10 +6,10 @@ coordinator and a native (C++) worker, both loading the connector plugin.
 ## Why a real cluster
 
 The worker plugin leaves Velox symbols undefined so that the worker process resolves them at load
-time, which means a test binary has nothing to link against. Running queries through a real worker
-exercises the plugin without building Velox into the toolchain image.
+time, which means that a test binary has nothing to link against. Running queries through a real
+worker exercises the plugin without building Velox into the toolchain image.
 
-## Running
+## Running the tests using task
 
 ```shell
 task integration-tests:run
@@ -48,8 +48,8 @@ Four variables override the defaults:
 | Variable | Default | What it changes |
 | --- | --- | --- |
 | `PRESTO_VERSION` | `0.299` | Tag of both server images |
-| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image that `task package` produces |
-| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree that the cluster mounts |
+| `CLP_PLUGIN_INSTALLER_IMAGE` | `ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT` | Installer image produced by `task package` |
+| `CLP_INTEGRATION_TEST_FIXTURE_DIR` | `./fixtures` | Fixture tree mounted by the cluster |
 | `CLP_INTEGRATION_TEST_COORDINATOR_PORT` | `18080` | Host port that the coordinator is published on |
 
 Only the coordinator's port is published, and it defaults to 18080 rather than 8080 to stay clear
