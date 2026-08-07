@@ -1,30 +1,10 @@
-# Values used by `ct lint` to render the chart with filesystem-backed archives.
+# Values used by `ct lint` to render the chart. The chart requires an archive claim when
+# `archiveStorage.type` is "fs", so supply one here.
+archiveStorage:
+  fs:
+    existingClaim: "clp-archives"
+
 metadataDb:
   host: "clp-database"
   username: "clp-user"
   password: "clp-password"
-
-presto:
-  worker:
-    volumes:
-      - name: "clp-plugin"
-        emptyDir: {}
-      - name: "clp-config"
-        configMap:
-          name: "{{ .Release.Name }}-clp-config"
-      - name: "clp-archives"
-        persistentVolumeClaim:
-          claimName: "clp-archives"
-    volumeMounts:
-      - name: "clp-plugin"
-        mountPath: "/opt/presto-server/plugin/clp"
-        readOnly: true
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/catalog/clp.properties"
-        subPath: "worker-clp.properties"
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/velox.properties"
-        subPath: "velox.properties"
-      - name: "clp-archives"
-        mountPath: "/var/data/archives"
-        readOnly: true

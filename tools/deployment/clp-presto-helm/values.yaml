@@ -1,15 +1,81 @@
-# Helm cannot compute a subchart's values from a parent's, so anything the Presto chart has to
-# interpolate lives under `global`, which every chart in the release can read. The key is named for
-# this chart rather than for CLP, because a parent may have globals of its own.
-global:
-  clpPresto:
-    # The image whose entrypoint copies the connector into a shared volume, then exits. It is
-    # ABI-coupled to the Presto images below, so the three move together.
-    connectorImage: "ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT"
+nameOverride: ""
+fullnameOverride: ""
 
-# CLP's metadata database. The connector learns which archives exist from here, so this must be the
-# database that CLP compresses into.
+# Service account for the coordinator and worker pods. When empty, the namespace's default service
+# account is used.
+serviceAccountName: ""
+
+image:
+  # The CLP connector plugin. This image is not a workload: its entrypoint copies the plugin into a
+  # shared volume that the Presto containers mount, and then exits.
+  connector:
+    repository: "ghcr.io/y-scope/clp-plugin-presto-connector"
+    pullPolicy: "IfNotPresent"
+    tag: "0.1.0-SNAPSHOT"
+    digest: ""
+
+  # NOTE: The connector is a Presto plugin, so it is ABI-coupled to the Presto version below.
+  # Override `coordinator`/`worker` and `connector` together.
+  coordinator:
+    repository: "ghcr.io/y-scope/presto"
+    pullPolicy: "IfNotPresent"
+    tag: "0.299"
+    digest: ""
+  worker:
+    repository: "ghcr.io/y-scope/presto-native"
+    pullPolicy: "IfNotPresent"
+    tag: "0.299"
+    digest: ""
+
+  # The worker's config-setup init container uses this only as a shell, so it needs no access to the
+  # Kubernetes API and the pods need no RBAC. An `extraInitContainers` entry that actually calls
+  # `kubectl` does, and must be given a service account through `serviceAccountName`.
+  kubectl:
+    repository: "bitnami/kubectl"
+    pullPolicy: "IfNotPresent"
+    tag: ""
+    digest: "sha256:98736aabcecb8d3cbcdcd7b132d14b1d67ed99bac2f06d471f06235933103df3"  # v1.36.0
+
+coordinator:
+  service:
+    type: "ClusterIP"  # "NodePort", "ClusterIP", or "LoadBalancer"
+
+    # The service's nodePort. Ignored unless `type` is "NodePort".
+    nodePort: 30889
+  loggingLevel: "INFO"
+  queryMaxMemoryGb: 1
+  queryMaxMemoryPerNodeGb: 1
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # Init containers to run before the plugin is installed. Use this to wait on dependencies that
+  # live outside this chart (e.g. the metadata database).
+  extraInitContainers: []
+  installPlugin:
+    resources: {}
+
+worker:
+  replicas: 1
+  queryMemoryGb: 4
+  systemMemoryGb: 8
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraInitContainers: []
+  installPlugin:
+    resources: {}
+  setupConfigs:
+    resources: {}
+
+# Connection to CLP's metadata database.
 metadataDb:
+  # NOTE: These credentials are rendered into the connector's catalog properties file, which is
+  # currently stored in a ConfigMap and so is readable by anything that can read ConfigMaps in the
+  # namespace. Presto only reads the file off disk, so the catalog volume could project a Secret
+  # instead; that is worth doing before this chart is used with real credentials.
   host: ""
   port: 3306
   name: "clp-db"
@@ -17,117 +83,34 @@ metadataDb:
   username: ""
   password: ""
 
+# Where the worker reads archives from. Must match the CLP deployment's archive output storage.
 archiveStorage:
-  # "fs" or "s3".
-  type: "fs"
-
+  type: "fs"  # "fs" or "s3"
   fs:
-    # The volume, declared under `presto.worker.volumes`, that holds the archives. The Presto chart
-    # takes its volumes as a literal list, so this chart cannot add it; naming it here lets the
-    # chart check that it is present rather than let the worker fail on every read.
-    volumeName: "clp-archives"
+    # An existing PersistentVolumeClaim holding the archives. Required when `type` is "fs".
+    existingClaim: ""
+    mountPath: "/var/data/archives"
   s3:
     bucket: ""
     regionCode: ""
+
+    # Overrides the endpoint derived from `regionCode` when set.
     endpointUrl: ""
     accessKeyId: ""
     secretAccessKey: ""
 
-# A Service for the coordinator under a name this chart controls. The Presto chart names its own
-# Service after the release and offers no override, so callers should use this one.
-coordinatorService:
-  type: "ClusterIP"
-  port: 8889
-  nodePort: null
-
-# Split-filter configuration, rendered to JSON. See
-# https://docs.yscope.com/presto/connector/clp.html#split-filter-config-file
+# Split filter config for the CLP connector.
+# See https://docs.yscope.com/presto/connector/clp.html#split-filter-config-file
 splitFilter: {}
 
-# Everything below is the official Presto chart's value surface, documented at
-# https://github.com/prestodb/presto-helm-charts. Tune Presto itself there rather than here.
-presto:
-  image:
-    repository: "ghcr.io/y-scope/presto"
-    tag: "0.299"
-
-  # The CLP connector's data path exists only in the native worker.
-  prestoCpp:
-    enabled: true
-    image:
-      repository: "ghcr.io/y-scope/presto-native"
-      tag: "0.299"
-
-  # Appended to the coordinator's configuration by the Presto chart. The chart sets the two native
-  # flags itself when `prestoCpp.enabled` is on, but not this one: without it the native worker
-  # cannot deserialize the connector's split and table-layout handles, and every query fails.
-  config: |-
-    query.max-memory=1GB
-    query.max-memory-per-node=1GB
-    use-connector-provided-serialization-codecs=true
-
-  coordinator:
-    initContainers:
-      - name: "install-clp-plugin"
-        image: "{{ .Values.global.clpPresto.connectorImage }}"
-        env:
-          - name: "COORDINATOR_PLUGIN_INSTALL_PATH"
-            value: "/install/coordinator"
-        volumeMounts:
-          - name: "clp-plugin"
-            mountPath: "/install/coordinator"
-    volumes:
-      - name: "clp-plugin"
-        emptyDir: {}
-      - name: "clp-config"
-        configMap:
-          name: "{{ .Release.Name }}-clp-config"
-    volumeMounts:
-      - name: "clp-plugin"
-        mountPath: "/opt/presto-server/plugin/clp"
-        readOnly: true
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/catalog/clp.properties"
-        subPath: "coordinator-clp.properties"
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/clp-split-filter.json"
-        subPath: "clp-split-filter.json"
-
-  worker:
-    # NOTE: This replaces the chart's common `config` rather than merging with it, so every key the
-    # native worker needs has to appear here.
-    config: |-
-      coordinator=false
-      http-server.http.port=8080
-      discovery.uri=http://{{ .Release.Name }}-discovery:8080
-      system-memory-gb=8
-      query-memory-gb=4
-      shutdown-onset-sec=1
-      register-test-functions=false
-      runtime-metrics-collection-enabled=false
-      plugin.dir=/opt/presto-server/plugin/clp
-    initContainers:
-      - name: "install-clp-plugin"
-        image: "{{ .Values.global.clpPresto.connectorImage }}"
-        env:
-          - name: "WORKER_PLUGIN_INSTALL_PATH"
-            value: "/install/worker"
-        volumeMounts:
-          - name: "clp-plugin"
-            mountPath: "/install/worker"
-    volumes:
-      - name: "clp-plugin"
-        emptyDir: {}
-      - name: "clp-config"
-        configMap:
-          name: "{{ .Release.Name }}-clp-config"
-    volumeMounts:
-      - name: "clp-plugin"
-        mountPath: "/opt/presto-server/plugin/clp"
-        readOnly: true
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/catalog/clp.properties"
-        subPath: "worker-clp.properties"
-      - name: "clp-config"
-        mountPath: "/opt/presto-server/etc/velox.properties"
-        subPath: "velox.properties"
+probes:
+  readiness:
+    initialDelaySeconds: 6
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 10
+  liveness:
+    initialDelaySeconds: 180
+    periodSeconds: 30
+    timeoutSeconds: 4
+    failureThreshold: 3

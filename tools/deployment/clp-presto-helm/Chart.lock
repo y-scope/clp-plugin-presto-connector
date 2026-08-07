@@ -1,6 +1,0 @@
-dependencies:
-- name: presto
-  repository: https://prestodb.github.io/presto-helm-charts
-  version: 0.4.0
-digest: sha256:5f6a9eb34f7cf6faf6d9bcad2a0661ce730c833a8fd0077e04420a2f47ee323f
-generated: "2026-08-07T04:52:40.616906844-04:00"
