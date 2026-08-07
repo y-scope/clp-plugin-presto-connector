@@ -34,6 +34,13 @@ archiveStorage:
     accessKeyId: ""
     secretAccessKey: ""
 
+# A Service for the coordinator under a name this chart controls. The Presto chart names its own
+# Service after the release and offers no override, so callers should use this one.
+coordinatorService:
+  type: "ClusterIP"
+  port: 8889
+  nodePort: null
+
 # Split-filter configuration, rendered to JSON. See
 # https://docs.yscope.com/presto/connector/clp.html#split-filter-config-file
 splitFilter: {}
