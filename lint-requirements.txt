@@ -1,3 +1,5 @@
+yamale>=6.1.0
+
 # Pinned exactly. `ruff` and `mypy` are pinned by `integration-tests/uv.lock`, so this is the only
 # linter that could otherwise float, and a floating linter turns an upstream release into a failure
 # on whichever pull request happens to run next.
