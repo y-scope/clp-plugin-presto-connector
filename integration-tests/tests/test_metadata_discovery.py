@@ -15,7 +15,10 @@ pytestmark = pytest.mark.schema
 def test_tables_are_the_fixture_directories(
     client: PrestoClient, fixture_tables: list[str]
 ) -> None:
-    """Each directory under the archive directory becomes a table that is named after it."""
+    """
+    Each directory under the archive directory has a corresponding table that is named
+    after the directory name.
+    """
     rows = client.run(
         "SELECT table_name FROM clp.information_schema.tables"
         " WHERE table_schema = 'default' ORDER BY 1"
