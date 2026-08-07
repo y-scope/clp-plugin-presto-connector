@@ -1,4 +1,4 @@
-"""Gives the tests query access to a coordinator, through Presto's own Python client."""
+"""Provides access to a coordinator through Presto's own Python client."""
 
 from __future__ import annotations
 
