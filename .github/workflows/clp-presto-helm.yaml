@@ -11,6 +11,12 @@ on:
   push:
     branches: ["main"]
     paths: *monitored_paths
+
+  # Publishes a snapshot even on days when nothing touched the chart, so that a broken registry
+  # login or an expired token surfaces here rather than when a release needs it.
+  schedule:
+    - cron: "0 7 * * *"
+
   workflow_dispatch:
 
 permissions: {}
@@ -103,6 +109,23 @@ jobs:
             exit 1
           fi
 
+      # The nightly publishes only this channel, so it is the half that would otherwise first run
+      # unattended. The version pins the SemVer shape that a leading-zero short SHA produces.
+      - name: "Publish and replace a snapshot version"
+        shell: "bash"
+        run: |-
+          version="0.0.0-SNAPSHOT.$(date -u +%Y%m%d).g0123456"
+          task helm:package VERSION="${version}"
+          for attempt in first second ; do
+            output="$(task helm:publish OCI_REPO="$OCI_REPO" REGISTRY_FLAGS=--plain-http \
+                        OVERWRITE=true 2>&1)"
+            echo "${output}"
+            if [[ "${output}" != *"Pushed:"* ]] ; then
+              echo "The ${attempt} snapshot push did not happen; OVERWRITE must bypass the guard."
+              exit 1
+            fi
+          done
+
   publish:
     # `workflow_dispatch` can be run against any branch, so the event alone does not establish that
     # this chart was reviewed. Publishing is restricted to `main`.
@@ -132,8 +155,10 @@ jobs:
         run: "task helm:registry-login REGISTRY=ghcr.io USERNAME=\"$GITHUB_ACTOR\""
 
       # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
-      # that does not bump it.
+      # that does not bump it. A scheduled run skips it entirely: a release moves on a deliberate
+      # bump, never on a timer.
       - name: "Package and publish the release chart"
+        if: "github.event_name != 'schedule'"
         shell: "bash"
         run: |-
           task helm:package
@@ -146,9 +171,12 @@ jobs:
       - name: "Package and publish the snapshot chart"
         shell: "bash"
         run: |-
+          # Package once without a version override to learn what `Chart.yaml` declares. The
+          # release step above supplies this on a push, but a scheduled run skips it.
+          task helm:package
           chart_version="$(basename "$(ls build/clp-presto-helm/*.tgz)" .tgz)"
           chart_version="${chart_version#clp-presto-}"
-          version="${chart_version}-SNAPSHOT.$(date -u +%Y%m%d).g${GITHUB_SHA::7}"
 
+          version="${chart_version}-SNAPSHOT.$(date -u +%Y%m%d).g${GITHUB_SHA::7}"
           task helm:package VERSION="${version}"
           task helm:publish OCI_REPO="$OCI_REPO" OVERWRITE=true
