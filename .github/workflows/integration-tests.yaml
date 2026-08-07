@@ -15,6 +15,10 @@ on:
       - "!**/*.md"
   push:
     branches: ["main"]
+  schedule:
+    # Daily at 00:15 UTC. The suite drives a real cluster, so re-running it against unchanged code
+    # is what surfaces flakiness that the per-commit runs are too sparse to sample.
+    - cron: "15 0 * * *"
   workflow_dispatch:
 
 concurrency:
