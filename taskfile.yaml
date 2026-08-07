@@ -1,6 +1,7 @@
 version: "3"
 
 includes:
+  helm: "taskfiles/helm.yaml"
   lint: "taskfiles/lint.yaml"
   presto-connector:
     taskfile: "taskfiles/presto-connector/main.yaml"

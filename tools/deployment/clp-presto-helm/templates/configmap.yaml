@@ -1,0 +1,109 @@
+{{- $fsArchives := eq .Values.archiveStorage.type "fs" -}}
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: {{ include "clp-presto.componentFullname" (dict "root" . "component" "config") }}
+  labels:
+    {{- include "clp-presto.labels" . | nindent 4 }}
+data:
+  coordinator-catalog-clp.properties: |
+    connector.name=clp
+    clp.metadata-provider-type=mysql
+    clp.metadata-db-url=jdbc:mysql://{{ .Values.metadataDb.host }}:{{ .Values.metadataDb.port | int }}
+    clp.metadata-db-name={{ .Values.metadataDb.name }}
+    clp.metadata-db-user={{ .Values.metadataDb.username }}
+    clp.metadata-db-password={{ .Values.metadataDb.password }}
+    clp.metadata-table-prefix={{ .Values.metadataDb.tablePrefix }}
+    clp.split-provider-type=mysql
+    clp.split-filter-provider-type=mysql
+    clp.split-filter-config=/opt/presto-server/etc/split-filter.json
+
+  coordinator-config-config.properties: |
+    coordinator=true
+    node-scheduler.include-coordinator=false
+    http-server.http.port=8889
+    query.max-memory={{ .Values.coordinator.queryMaxMemoryGb }}GB
+    query.max-memory-per-node={{ .Values.coordinator.queryMaxMemoryPerNodeGb }}GB
+    discovery-server.enabled=true
+    discovery.uri={{ include "clp-presto.discoveryUri" . }}
+    optimizer.optimize-hash-generation=false
+    regex-library=RE2J
+    use-alternative-function-signatures=true
+    inline-sql-functions=false
+    nested-data-serialization-enabled=false
+    native-execution-enabled=true
+    use-connector-provided-serialization-codecs=true
+
+  coordinator-config-jvm.config: |
+    -server
+    -Xmx4G
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=32M
+    -XX:+UseGCOverheadLimit
+    -XX:+ExplicitGCInvokesConcurrent
+    -XX:+HeapDumpOnOutOfMemoryError
+    -XX:+ExitOnOutOfMemoryError
+    -Djdk.attach.allowAttachSelf=true
+
+  coordinator-config-log.properties: |
+    com.facebook.presto={{ .Values.coordinator.loggingLevel }}
+
+  coordinator-config-node.properties: |
+    node.environment=production
+    node.id=presto-coordinator
+
+  coordinator-config-split-filter.json: |
+    {{ .Values.splitFilter | toJson }}
+
+  worker-catalog-clp.properties: |
+    connector.name=clp
+    {{- if not $fsArchives }}
+    {{- with .Values.archiveStorage.s3 }}
+    clp.storage-type=s3
+    clp.s3-auth-provider=clp_package
+    clp.s3-access-key-id={{ .accessKeyId }}
+    clp.s3-bucket={{ .bucket }}
+    {{- if .endpointUrl }}
+    clp.s3-end-point={{ trimSuffix "/" .endpointUrl }}
+    {{- else }}
+    clp.s3-end-point=https://s3.{{ .regionCode }}.amazonaws.com
+    {{- end }}
+    clp.s3-secret-access-key={{ .secretAccessKey }}
+    {{- end }}
+    {{- end }}
+
+  worker-config-config.properties: |
+    discovery.uri={{ include "clp-presto.discoveryUri" . }}
+    http-server.http.port=8889
+    query-memory-gb={{ .Values.worker.queryMemoryGb | int }}
+    shutdown-onset-sec=1
+    system-memory-gb={{ .Values.worker.systemMemoryGb | int }}
+    register-test-functions=false
+    runtime-metrics-collection-enabled=false
+    plugin.dir=/opt/presto-server/plugin/clp
+
+  worker-config-node.properties: |
+    node.environment=production
+    node.location=worker-location
+
+  worker-config-velox.properties: |
+    mutable-config=true
+
+  worker-setup-configs.sh: |
+    #!/bin/sh
+    set -e
+
+    CONFIG_TEMPLATE_DIR="/etc/presto-config"
+    PRESTO_CONFIG_DIR="/opt/presto-server/etc"
+
+    cp "${CONFIG_TEMPLATE_DIR}/worker-config-config.properties" "${PRESTO_CONFIG_DIR}/config.properties"
+    cp "${CONFIG_TEMPLATE_DIR}/worker-config-node.properties" "${PRESTO_CONFIG_DIR}/node.properties"
+
+    # Query coordinator for version and append to config
+    DISCOVERY_URI="{{ include "clp-presto.discoveryUri" . }}"
+    PRESTO_VERSION=$(curl -sf "${DISCOVERY_URI}/v1/info" | jq -r '.nodeVersion.version')
+    echo "presto.version=${PRESTO_VERSION}" >> "${PRESTO_CONFIG_DIR}/config.properties"
+
+    # Set node identity from hostname
+    echo "node.internal-address=$(hostname -i)" >> "${PRESTO_CONFIG_DIR}/node.properties"
+    echo "node.id=$(hostname)" >> "${PRESTO_CONFIG_DIR}/node.properties"

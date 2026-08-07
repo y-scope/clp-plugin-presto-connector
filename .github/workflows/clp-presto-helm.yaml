@@ -1,0 +1,154 @@
+name: "clp-presto-helm"
+
+on:
+  pull_request:
+    paths: &monitored_paths
+      - ".github/workflows/clp-presto-helm.yaml"
+      - "taskfile.yaml"
+      - "taskfiles/**"
+      - "tools/deployment/clp-presto-helm/**"
+      - "tools/yscope-dev-utils"
+  push:
+    branches: ["main"]
+    paths: *monitored_paths
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+
+  # Cancel in-progress jobs for efficiency. Exclude the `main` branch to allow uninterrupted
+  # publishing of Helm charts.
+  cancel-in-progress: "${{github.ref != 'refs/heads/main'}}"
+
+jobs:
+  lint:
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
+        with:
+          submodules: "recursive"
+
+          # Fetch all history for all branches; otherwise, `ct lint` would complain about not
+          # finding the `origin/main` branch.
+          fetch-depth: 0
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-python"
+        with:
+          version: "3.10"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      - name: "Lint Helm charts"
+        shell: "bash"
+        run: "task lint:check-helm"
+
+  # Exercises the publish path against a throwaway registry. Without this, the path would first run
+  # in production, on `main`, where the republish guard can only be observed by misfiring.
+  test-publish:
+    if: "github.event_name == 'pull_request'"
+    needs: "lint"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    services:
+      registry:
+        image: "registry:2"
+        ports: ["5000:5000"]
+    env:
+      OCI_REPO: "oci://localhost:5000/charts"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: "recursive"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      - name: "Package Helm chart"
+        shell: "bash"
+        run: "task helm:package"
+
+      - name: "Publish Helm chart"
+        shell: "bash"
+        run: "task helm:publish OCI_REPO=\"$OCI_REPO\" REGISTRY_FLAGS=--plain-http"
+
+      # Renders the chart pulled back out of the registry, which is the path a consumer takes. The
+      # values come from the repository because `ci/` is excluded from the packaged tarball.
+      - name: "Render the published chart the way a consumer would"
+        shell: "bash"
+        run: |-
+          . "build/toolchains/helm/env"
+          version="$(basename "$(ls build/clp-presto-helm/*.tgz)" .tgz)"
+          version="${version#clp-presto-}"
+          for values in tools/deployment/clp-presto-helm/ci/*.yaml ; do
+            helm template "${OCI_REPO}/clp-presto" \
+              --version "${version}" \
+              --plain-http \
+              --values "${values}" > /dev/null
+          done
+
+      - name: "Republishing the same version pushes nothing"
+        shell: "bash"
+        run: |-
+          output="$(task helm:publish OCI_REPO="$OCI_REPO" REGISTRY_FLAGS=--plain-http 2>&1)"
+          echo "${output}"
+          if [[ "${output}" != *"already published"* ]] ; then
+            echo "Expected the guard to skip the push, but the chart was pushed again."
+            exit 1
+          fi
+
+  publish:
+    # `workflow_dispatch` can be run against any branch, so the event alone does not establish that
+    # this chart was reviewed. Publishing is restricted to `main`.
+    if: "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'"
+    needs: "lint"
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    permissions:
+      # To push the chart to the GitHub Container Registry.
+      packages: "write"
+    env:
+      OCI_REPO: "oci://ghcr.io/y-scope/charts"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: "recursive"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      - name: "Log in to the GitHub Container Registry"
+        shell: "bash"
+        env:
+          HELM_REGISTRY_PASSWORD: "${{secrets.GITHUB_TOKEN}}"
+        run: "task helm:registry-login REGISTRY=ghcr.io USERNAME=\"$GITHUB_ACTOR\""
+
+      # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
+      # that does not bump it.
+      - name: "Package and publish the release chart"
+        shell: "bash"
+        run: |-
+          task helm:package
+          task helm:publish OCI_REPO="$OCI_REPO"
+
+      # A prerelease identifier rather than build metadata: OCI tags disallow `+`, and a SemVer
+      # constraint pinned to a release can never resolve to a prerelease. The short SHA carries a
+      # `g` prefix, as `git describe` writes it, because a numeric-only segment with a leading
+      # zero is not a valid prerelease identifier.
+      - name: "Package and publish the snapshot chart"
+        shell: "bash"
+        run: |-
+          chart_version="$(basename "$(ls build/clp-presto-helm/*.tgz)" .tgz)"
+          chart_version="${chart_version#clp-presto-}"
+          version="${chart_version}-SNAPSHOT.$(date -u +%Y%m%d).g${GITHUB_SHA::7}"
+
+          task helm:package VERSION="${version}"
+          task helm:publish OCI_REPO="$OCI_REPO" OVERWRITE=true
