@@ -20,6 +20,7 @@ data:
 
   coordinator-config-config.properties: |
     coordinator=true
+    presto.version={{ include "clp-presto.prestoVersion" . }}
     node-scheduler.include-coordinator=false
     http-server.http.port=8889
     query.max-memory={{ .Values.coordinator.queryMaxMemoryGb }}GB
@@ -74,6 +75,7 @@ data:
 
   worker-config-config.properties: |
     discovery.uri={{ include "clp-presto.discoveryUri" . }}
+    presto.version={{ include "clp-presto.prestoVersion" . }}
     http-server.http.port=8889
     query-memory-gb={{ .Values.worker.queryMemoryGb | int }}
     shutdown-onset-sec=1
@@ -98,11 +100,6 @@ data:
 
     cp "${CONFIG_TEMPLATE_DIR}/worker-config-config.properties" "${PRESTO_CONFIG_DIR}/config.properties"
     cp "${CONFIG_TEMPLATE_DIR}/worker-config-node.properties" "${PRESTO_CONFIG_DIR}/node.properties"
-
-    # Query coordinator for version and append to config
-    DISCOVERY_URI="{{ include "clp-presto.discoveryUri" . }}"
-    PRESTO_VERSION=$(curl -sf "${DISCOVERY_URI}/v1/info" | jq -r '.nodeVersion.version')
-    echo "presto.version=${PRESTO_VERSION}" >> "${PRESTO_CONFIG_DIR}/config.properties"
 
     # Set node identity from hostname
     echo "node.internal-address=$(hostname -i)" >> "${PRESTO_CONFIG_DIR}/node.properties"

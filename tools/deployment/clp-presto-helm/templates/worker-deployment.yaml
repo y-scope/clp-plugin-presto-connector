@@ -29,19 +29,6 @@ spec:
         {{- with .Values.worker.extraInitContainers }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-
-        # NOTE: `setup-configs` below queries the coordinator for its version, so the coordinator
-        # must be ready first. This requires the pod's service account to be able to list and watch
-        # pods in this namespace.
-        - name: "wait-for-coordinator"
-          {{- include "clp-presto.imageSpec" (dict "root" . "component" "kubectl") | nindent 10 }}
-          command: [
-            "kubectl", "wait",
-            "--for=condition=ready",
-            "pod", "--selector",
-            "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=coordinator",
-            "--timeout=300s"
-          ]
         {{- include "clp-presto.installPluginInitContainer" (dict
             "root" . "component" "worker"
           ) | nindent 8 }}
