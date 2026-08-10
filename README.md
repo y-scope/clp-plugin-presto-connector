@@ -39,6 +39,16 @@ one of the tasks in the table below.
 | `lint:check-yaml`  | Runs the YAML linters.                   |
 | `lint:fix-yaml`    | Runs the YAML linters and fixes issues.  |
 
+## Testing
+
+```shell
+task presto-connector:test        # coordinator plugin, unit tests
+task integration-tests:run        # both plugins, in a real Presto cluster
+```
+
+The worker plugin has no unit tests. [integration-tests/README.md](integration-tests/README.md)
+explains why, and how a real cluster covers it instead.
+
 ## Building installable packages
 
 For details about the `.deb`, `.rpm`, and `.tar.gz` artifacts built in CI, and to build them locally, see [tools/build-packages/README.md](tools/build-packages/README.md).
