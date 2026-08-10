@@ -1,0 +1,74 @@
+# A two-node Presto cluster for the integration tests: a Java coordinator and a native (C++)
+# worker, both loading the CLP connector plugin.
+#
+# The plugin's data path exists only in the native worker, so the coordinator is configured with
+# `node-scheduler.include-coordinator=false` and every read is served by the worker.
+#
+# Archives are served straight off the filesystem by the connector's `INTEGRATION_TEST` metadata
+# and split providers, so no metadata database is needed. The fixture directory is mounted at the
+# SAME path in both services: the coordinator enumerates archives to build splits, and the worker
+# opens the paths that those splits carry.
+#
+# The plugins are installed by the same init-container image that a real deployment uses, which
+# `task package` builds. Each install service writes into a volume, and the corresponding node then
+# mounts that volume as its plugin directory, so the harness exercises the shipped installer rather
+# than a copy of what it would have done.
+
+name: "clp-integration-tests"
+
+x-installer: &installer
+  image: "${CLP_PLUGIN_INSTALLER_IMAGE:-ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT}"
+
+volumes:
+  coordinator-plugin:
+  worker-plugin:
+
+services:
+  install-coordinator-plugin:
+    <<: *installer
+    environment:
+      COORDINATOR_PLUGIN_INSTALL_PATH: "/out"
+    volumes:
+      - "coordinator-plugin:/out"
+
+  install-worker-plugin:
+    <<: *installer
+    environment:
+      WORKER_PLUGIN_INSTALL_PATH: "/out"
+    volumes:
+      - "worker-plugin:/out"
+
+  coordinator:
+    # TODO: Move to the official prestodb images once they carry what the native worker needs.
+    image: "ghcr.io/y-scope/presto:${PRESTO_VERSION:-0.299}"
+    depends_on:
+      install-coordinator-plugin:
+        condition: "service_completed_successfully"
+    volumes:
+      - "coordinator-plugin:/opt/presto-server/plugin/clp:ro"
+      - "./etc/coordinator:/opt/presto-server/etc:ro"
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+    ports:
+      - "${CLP_INTEGRATION_TEST_COORDINATOR_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/v1/info/state | grep -q ACTIVE"]
+      interval: "5s"
+      timeout: "3s"
+      retries: 60
+      start_period: "20s"
+
+  worker:
+    # TODO: Move to the official prestodb images once they carry what the native worker needs.
+    image: "ghcr.io/y-scope/presto-native:${PRESTO_VERSION:-0.299}"
+    # No LD_LIBRARY_PATH needed: packaging patchelfs the `.so` with RUNPATH `$$ORIGIN/lib`, so the
+    # bundled runtime libraries resolve relative to the plugin itself. The plugin scan is
+    # non-recursive, so `lib/` is not itself loaded as a plugin.
+    depends_on:
+      coordinator:
+        condition: "service_healthy"
+      install-worker-plugin:
+        condition: "service_completed_successfully"
+    volumes:
+      - "worker-plugin:/opt/presto-server/plugin/clp:ro"
+      - "./etc/worker:/opt/presto-server/etc:ro"
+      - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
