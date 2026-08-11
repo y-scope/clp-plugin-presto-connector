@@ -34,7 +34,8 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 10
     steps:
       - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
@@ -62,7 +63,8 @@ jobs:
   test-publish:
     if: "github.event_name == 'pull_request'"
     needs: "lint"
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 10
     services:
       registry:
@@ -135,7 +137,8 @@ jobs:
     # to `main`, because a release tag is what a consumer pins.
     if: "github.event_name != 'pull_request'"
     needs: "lint"
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 10
     permissions:
       # To push the chart to the GitHub Container Registry.
