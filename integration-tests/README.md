@@ -16,16 +16,36 @@ task integration-tests:run
 ```
 
 That task first builds the init-container image that the cluster installs the plugins from. It
-then brings the cluster up, runs the tests, and tears the cluster down again.
+then brings the cluster up, runs the tests, and tears the cluster down again, whether or not the
+tests passed.
 
-Three options change what `task integration-tests:run` does. Pass them after `--`, as in `task
-integration-tests:run -- -m ir`.
+The tests themselves run in a container on the cluster's network, because a published port is
+reachable only from a process that shares a network namespace with the Docker daemon, which is not
+the case on a containerized CI runner.
 
-- `--use-running-cluster` runs against a cluster that is already up.
-- `--keep-cluster` leaves the cluster running afterwards.
-- `-m <marker>` selects a subset of the tests: `archive`, `ir`, `pushdown`, `schema`, or `udf`.
+Arguments after `--` go to pytest, as in `task integration-tests:run -- -m ir`. The markers are
+`archive`, `ir`, `pushdown`, `schema`, and `udf`.
 
-After `--keep-cluster`, query the cluster with any Presto client:
+The steps are also available separately, which is what CI uses so that it can capture the
+cluster's logs before stopping it:
+
+```shell
+task integration-tests:up
+task integration-tests:test
+task integration-tests:down
+```
+
+## Running the tests from the host
+
+While the cluster is up, the coordinator is published on the host, so the tests can also be run
+directly, which is easier to attach a debugger to:
+
+```shell
+task integration-tests:up
+cd integration-tests && uv run pytest -m schema
+```
+
+Any Presto client can reach it the same way:
 
 ```shell
 presto-cli --server localhost:18080 --catalog clp --schema default --execute "SHOW TABLES"
