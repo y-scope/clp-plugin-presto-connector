@@ -18,6 +18,8 @@ import com.facebook.presto.plugin.clp.metadata.ClpMetadataProvider;
 import com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider;
 import com.facebook.presto.plugin.clp.metadata.ClpSchemaTreeNodeType;
 import com.facebook.presto.plugin.clp.split.ClpMySqlSplitProvider;
+import com.facebook.presto.sql.relational.FunctionResolution;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.math3.util.Pair;
 
@@ -32,6 +34,7 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 
+import static com.facebook.presto.metadata.FunctionAndTypeManager.createTestFunctionAndTypeManager;
 import static com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider.COLUMN_METADATA_TABLE_COLUMN_NAME;
 import static com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider.COLUMN_METADATA_TABLE_COLUMN_TYPE;
 import static com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider.DATASETS_TABLE_COLUMN_ARCHIVE_STORAGE_DIRECTORY;
@@ -176,7 +179,10 @@ public final class ClpMetadataDbSetUp
                         .setMetadataDbUrl(metadataDbUrl)
                         .setMetadataDbUser(METADATA_DB_USER)
                         .setMetadataDbPassword(METADATA_DB_PASSWORD)
-                        .setMetadataTablePrefix(METADATA_DB_TABLE_PREFIX));
+                        .setMetadataTablePrefix(METADATA_DB_TABLE_PREFIX),
+                new ClpSplitMetadataConfig(new ClpConfig(), createTestFunctionAndTypeManager()),
+                createTestFunctionAndTypeManager(),
+                new FunctionResolution(createTestFunctionAndTypeManager().getFunctionAndTypeResolver()));
     }
 
     public static void tearDown(DbHandle dbHandle)

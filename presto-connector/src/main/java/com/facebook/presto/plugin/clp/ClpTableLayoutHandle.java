@@ -14,6 +14,7 @@
 package com.facebook.presto.plugin.clp;
 
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.relation.RowExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -27,14 +28,17 @@ public class ClpTableLayoutHandle
 {
     private final ClpTableHandle table;
     private final Optional<String> kqlQuery;
-    private final Optional<String> metadataSql;
+    private final Optional<RowExpression> metadataExpression;
 
     @JsonCreator
-    public ClpTableLayoutHandle(@JsonProperty("table") ClpTableHandle table, @JsonProperty("kqlQuery") Optional<String> kqlQuery, @JsonProperty("metadataFilterQuery") Optional<String> metadataSql)
+    public ClpTableLayoutHandle(
+            @JsonProperty("table") ClpTableHandle table,
+            @JsonProperty("kqlQuery") Optional<String> kqlQuery,
+            @JsonProperty("metadataExpression") Optional<RowExpression> metadataExpression)
     {
         this.table = table;
         this.kqlQuery = kqlQuery;
-        this.metadataSql = metadataSql;
+        this.metadataExpression = metadataExpression;
     }
 
     @JsonProperty
@@ -49,10 +53,14 @@ public class ClpTableLayoutHandle
         return kqlQuery;
     }
 
+    /**
+     * @return The predicate to prune splits with, still as an expression: a split provider renders
+     * it against its own metadata columns. Coordinator-side only; never sent to the worker.
+     */
     @JsonProperty
-    public Optional<String> getMetadataSql()
+    public Optional<RowExpression> getMetadataExpression()
     {
-        return metadataSql;
+        return metadataExpression;
     }
 
     @Override
@@ -67,13 +75,13 @@ public class ClpTableLayoutHandle
         ClpTableLayoutHandle that = (ClpTableLayoutHandle) o;
         return Objects.equals(table, that.table) &&
                 Objects.equals(kqlQuery, that.kqlQuery) &&
-                Objects.equals(metadataSql, that.metadataSql);
+                Objects.equals(metadataExpression, that.metadataExpression);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(table, kqlQuery, metadataSql);
+        return Objects.hash(table, kqlQuery, metadataExpression);
     }
 
     @Override
@@ -82,7 +90,7 @@ public class ClpTableLayoutHandle
         return toStringHelper(this)
                 .add("table", table)
                 .add("kqlQuery", kqlQuery)
-                .add("metadataSql", metadataSql)
+                .add("metadataExpression", metadataExpression)
                 .toString();
     }
 }

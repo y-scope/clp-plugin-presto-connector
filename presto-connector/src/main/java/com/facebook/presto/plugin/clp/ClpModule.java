@@ -20,19 +20,15 @@ import com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider;
 import com.facebook.presto.plugin.clp.split.ClpIntegrationTestSplitProvider;
 import com.facebook.presto.plugin.clp.split.ClpMySqlSplitProvider;
 import com.facebook.presto.plugin.clp.split.ClpSplitProvider;
-import com.facebook.presto.plugin.clp.split.filter.ClpIntegrationTestSplitFilterProvider;
-import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
-import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 import com.facebook.presto.spi.PrestoException;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 
 import static com.facebook.airlift.configuration.ConfigBinder.configBinder;
 import static com.facebook.presto.plugin.clp.ClpConfig.MetadataProviderType;
-import static com.facebook.presto.plugin.clp.ClpConfig.SplitFilterProviderType;
 import static com.facebook.presto.plugin.clp.ClpConfig.SplitProviderType;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_METADATA_SOURCE;
-import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_UNSUPPORTED_SPLIT_SOURCE;
 
 public class ClpModule
@@ -45,19 +41,10 @@ public class ClpModule
         binder.bind(ClpMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ClpRecordSetProvider.class).in(Scopes.SINGLETON);
         binder.bind(ClpSplitManager.class).in(Scopes.SINGLETON);
+        binder.bind(ClpSplitMetadataConfig.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(ClpConfig.class);
 
         ClpConfig config = buildConfigObject(ClpConfig.class);
-
-        if (SplitFilterProviderType.MYSQL == config.getSplitFilterProviderType()) {
-            binder.bind(ClpSplitFilterProvider.class).to(ClpMySqlSplitFilterProvider.class).in(Scopes.SINGLETON);
-        }
-        else if (SplitFilterProviderType.INTEGRATION_TEST == config.getSplitFilterProviderType()) {
-            binder.bind(ClpSplitFilterProvider.class).to(ClpIntegrationTestSplitFilterProvider.class).in(Scopes.SINGLETON);
-        }
-        else {
-            throw new PrestoException(CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE, "Unsupported split filter provider type: " + config.getSplitFilterProviderType());
-        }
 
         if (config.getMetadataProviderType() == MetadataProviderType.MYSQL) {
             binder.bind(ClpMetadataProvider.class).to(ClpMySqlMetadataProvider.class).in(Scopes.SINGLETON);
