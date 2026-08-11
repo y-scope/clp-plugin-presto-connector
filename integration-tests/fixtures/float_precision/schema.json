@@ -1,0 +1,10 @@
+[
+  {
+    "name": "timestamp",
+    "type": "Timestamp"
+  },
+  {
+    "name": "floatValue",
+    "type": "Float"
+  }
+]

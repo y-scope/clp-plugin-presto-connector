@@ -24,10 +24,13 @@ import com.facebook.presto.spi.PrestoException;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 
+import com.facebook.presto.plugin.clp.metadata.ClpIntegrationTestMetadataProvider;
 import com.facebook.presto.plugin.clp.metadata.ClpMetadataProvider;
 import com.facebook.presto.plugin.clp.metadata.ClpMySqlMetadataProvider;
+import com.facebook.presto.plugin.clp.split.ClpIntegrationTestSplitProvider;
 import com.facebook.presto.plugin.clp.split.ClpMySqlSplitProvider;
 import com.facebook.presto.plugin.clp.split.ClpSplitProvider;
+import com.facebook.presto.plugin.clp.split.filter.ClpIntegrationTestSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
 import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
 
@@ -46,15 +49,25 @@ public class ClpModule extends AbstractConfigurationAwareModule {
             binder.bind(ClpSplitFilterProvider.class).to(ClpMySqlSplitFilterProvider.class).in(
                     Scopes.SINGLETON
             );
-        } else {
-            throw new PrestoException(
-                    CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE,
-                    "Unsupported split filter provider type: " + config.getSplitFilterProviderType()
-            );
-        }
+        } else
+            if (SplitFilterProviderType.INTEGRATION_TEST == config.getSplitFilterProviderType()) {
+                binder.bind(ClpSplitFilterProvider.class).to(
+                        ClpIntegrationTestSplitFilterProvider.class
+                ).in(Scopes.SINGLETON);
+            } else {
+                throw new PrestoException(
+                        CLP_UNSUPPORTED_SPLIT_FILTER_SOURCE,
+                        "Unsupported split filter provider type: " + config
+                                .getSplitFilterProviderType()
+                );
+            }
 
         if (config.getMetadataProviderType() == MetadataProviderType.MYSQL) {
             binder.bind(ClpMetadataProvider.class).to(ClpMySqlMetadataProvider.class).in(
+                    Scopes.SINGLETON
+            );
+        } else if (config.getMetadataProviderType() == MetadataProviderType.INTEGRATION_TEST) {
+            binder.bind(ClpMetadataProvider.class).to(ClpIntegrationTestMetadataProvider.class).in(
                     Scopes.SINGLETON
             );
         } else {
@@ -66,6 +79,10 @@ public class ClpModule extends AbstractConfigurationAwareModule {
 
         if (config.getSplitProviderType() == SplitProviderType.MYSQL) {
             binder.bind(ClpSplitProvider.class).to(ClpMySqlSplitProvider.class).in(
+                    Scopes.SINGLETON
+            );
+        } else if (config.getSplitProviderType() == SplitProviderType.INTEGRATION_TEST) {
+            binder.bind(ClpSplitProvider.class).to(ClpIntegrationTestSplitProvider.class).in(
                     Scopes.SINGLETON
             );
         } else {

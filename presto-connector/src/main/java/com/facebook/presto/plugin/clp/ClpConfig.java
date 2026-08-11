@@ -14,6 +14,7 @@ package com.facebook.presto.plugin.clp;
 import java.util.regex.Pattern;
 
 import com.facebook.airlift.configuration.Config;
+import com.facebook.airlift.configuration.ConfigDescription;
 import com.facebook.presto.spi.PrestoException;
 
 public class ClpConfig {
@@ -22,6 +23,7 @@ public class ClpConfig {
     private boolean polymorphicTypeEnabled = true;
 
     private MetadataProviderType metadataProviderType = MetadataProviderType.MYSQL;
+    private String integrationTestArchiveDir;
     private String metadataDbUrl;
     private String metadataDbName;
     private String metadataDbUser;
@@ -141,15 +143,24 @@ public class ClpConfig {
         return this;
     }
 
+    public String getIntegrationTestArchiveDir() { return integrationTestArchiveDir; }
+
+    @Config("clp.integration-test-archive-dir")
+    @ConfigDescription("Directory of CLP archives served by the INTEGRATION_TEST providers")
+    public ClpConfig setIntegrationTestArchiveDir(String integrationTestArchiveDir) {
+        this.integrationTestArchiveDir = integrationTestArchiveDir;
+        return this;
+    }
+
     public enum MetadataProviderType {
-        MYSQL
+        MYSQL, INTEGRATION_TEST
     }
 
     public enum SplitFilterProviderType {
-        MYSQL
+        MYSQL, INTEGRATION_TEST
     }
 
     public enum SplitProviderType {
-        MYSQL
+        MYSQL, INTEGRATION_TEST
     }
 }
