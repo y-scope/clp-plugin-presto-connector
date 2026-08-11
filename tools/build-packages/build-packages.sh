@@ -94,8 +94,10 @@ if [[ "${image_hash}" == "${image}" ]]; then
 fi
 
 # Keep container output in temporary staging, then copy it to the requested
-# directory after the build succeeds.
-stage_dir=$(mktemp -d)
+# directory after the build succeeds. Staging sits under the source tree because
+# a containerized runner's Docker daemon cannot bind-mount the job's own /tmp.
+mkdir -p "${src}/.cache"
+stage_dir=$(mktemp -d "${src}/.cache/stage.XXXXXXXX")
 trap 'rm -rf "${stage_dir}"' EXIT
 artifact_stage="${stage_dir}/artifacts"
 mkdir -p "${artifact_stage}"
