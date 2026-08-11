@@ -57,7 +57,8 @@ permissions:
 
 jobs:
   resolve-version:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     outputs:
       version: "${{steps.version.outputs.version}}"
       publish: "${{steps.publish.outputs.publish}}"
@@ -121,10 +122,13 @@ jobs:
       matrix:
         include:
           - arch: "amd64"
-            runner: "ubuntu-24.04"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]' }}
           - arch: "arm64"
-            runner: "ubuntu-24.04-arm"
-    runs-on: "${{matrix.runner}}"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_ARM64 || '["ubuntu-24.04-arm"]' }}
+    runs-on: >-
+      ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 120
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"
@@ -211,10 +215,13 @@ jobs:
       matrix:
         include:
           - arch: "amd64"
-            runner: "ubuntu-24.04"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]' }}
           - arch: "arm64"
-            runner: "ubuntu-24.04-arm"
-    runs-on: "${{matrix.runner}}"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_ARM64 || '["ubuntu-24.04-arm"]' }}
+    runs-on: >-
+      ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 30
     env:
       ARCH: "${{matrix.arch}}"
@@ -282,7 +289,8 @@ jobs:
     if: "${{needs.resolve-version.outputs.publish == 'true'}}"
     permissions:
       packages: "write"
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 15
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"

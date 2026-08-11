@@ -67,7 +67,7 @@ done
 
 # Run the wrapper as the intended artifact owner. Using sudo would make the
 # staging directories and copied artifacts root-owned.
-if (( EUID == 0 )); then
+if (( EUID == 0 )) && [[ -n "${SUDO_USER:-}" ]]; then
     echo >&2 "ERROR: build-packages.sh must run as a non-root user; do not invoke it with sudo."
     exit 1
 fi
