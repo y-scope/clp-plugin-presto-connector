@@ -24,7 +24,8 @@ permissions: {}
 
 jobs:
   velox-connector-unit-tests:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 15
     permissions:
       # To check out the repository.
