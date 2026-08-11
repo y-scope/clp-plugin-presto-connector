@@ -29,7 +29,8 @@ permissions: {}
 
 jobs:
   integration-tests:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]') }}
     # Packaging the connector dominates the runtime.
     timeout-minutes: 120
     permissions:
