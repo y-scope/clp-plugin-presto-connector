@@ -48,6 +48,8 @@ services:
       - "coordinator-plugin:/opt/presto-server/plugin/clp:ro"
       - "./etc/coordinator:/opt/presto-server/etc:ro"
       - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+    # Published for runs from the host; the `tests` service does not use it. CI sets the variable
+    # to 0 so that concurrent runs on one machine cannot collide.
     ports:
       - "${CLP_INTEGRATION_TEST_COORDINATOR_PORT:-18080}:8080"
     healthcheck:
@@ -72,3 +74,19 @@ services:
       - "worker-plugin:/opt/presto-server/plugin/clp:ro"
       - "./etc/worker:/opt/presto-server/etc:ro"
       - "${CLP_INTEGRATION_TEST_FIXTURE_DIR:-./fixtures}:/fixtures:ro"
+
+  # Runs the tests inside the cluster's network, because a published port is reachable only from a
+  # process that shares a network namespace with the Docker daemon, which a containerized CI runner
+  # does not. Mounted read-only so a run cannot leave a root-owned virtual environment behind,
+  # which is why the environment goes elsewhere and the pytest cache is switched off.
+  tests:
+    image: "ghcr.io/astral-sh/uv:python3.10-bookworm-slim@sha256:a041b350d5d9483b538d5af07e9553ee8cbc7fc7fa90c2f7d20d93f18ce9bbd1"
+    profiles: ["test"]
+    working_dir: "/integration-tests"
+    environment:
+      CLP_INTEGRATION_TEST_COORDINATOR_HOST: "coordinator"
+      CLP_INTEGRATION_TEST_COORDINATOR_PORT: "8080"
+      UV_PROJECT_ENVIRONMENT: "/venv"
+    volumes:
+      - ".:/integration-tests:ro"
+    entrypoint: ["uv", "run", "--frozen", "pytest", "-p", "no:cacheprovider"]
