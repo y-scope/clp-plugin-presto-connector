@@ -2,9 +2,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,14 +11,13 @@
  */
 package com.facebook.presto.plugin.clp;
 
-import com.facebook.presto.spi.session.PropertyMetadata;
-import com.google.common.collect.ImmutableList;
-
-import javax.inject.Inject;
+import static com.facebook.presto.spi.session.PropertyMetadata.booleanProperty;
 
 import java.util.List;
+import javax.inject.Inject;
 
-import static com.facebook.presto.spi.session.PropertyMetadata.booleanProperty;
+import com.facebook.presto.spi.session.PropertyMetadata;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Session properties for the CLP connector. Users can override them per
@@ -29,25 +26,22 @@ import static com.facebook.presto.spi.session.PropertyMetadata.booleanProperty;
  * session config, so they don't need to be carried on splits or table
  * handles.
  */
-public class ClpSessionProperties
-{
+public class ClpSessionProperties {
     public static final String CASE_INSENSITIVE = "case_insensitive";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
     @Inject
-    public ClpSessionProperties(ClpConfig config)
-    {
+    public ClpSessionProperties(ClpConfig config) {
         sessionProperties = ImmutableList.of(
                 booleanProperty(
                         CASE_INSENSITIVE,
                         "Match string values case-insensitively in filters pushed down to CLP",
                         config.isCaseInsensitive(),
-                        false));
+                        false
+                )
+        );
     }
 
-    public List<PropertyMetadata<?>> getSessionProperties()
-    {
-        return sessionProperties;
-    }
+    public List<PropertyMetadata<?>> getSessionProperties() { return sessionProperties; }
 }
