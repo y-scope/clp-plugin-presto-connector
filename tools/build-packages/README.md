@@ -53,8 +53,16 @@ therefore shadows the published one in your Docker daemon until you
 
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
-cache, this repository's GHCR package, or a local build, reusing the cached
-image on later runs.
+cache, the container registry, or a local build, reusing the cached image on
+later runs.
+
+Images live under `ghcr.io/<owner>/<repo>` by default, derived from the origin
+remote. `CI_CONTAINER_REGISTRY` and `CI_CONTAINER_REGISTRY_REPO` override the
+host and the path below it, and CI reads them from repository variables
+alongside the `CI_CONTAINER_REGISTRY_USERNAME` / `CI_CONTAINER_REGISTRY_PASSWORD`
+secrets. Set both to the same values CI uses when building locally against a
+private registry, and `docker login` to it first: an unauthenticated pull is not
+an error, it just falls back to rebuilding the image from scratch.
 
 Build state is cached under `.cache/` (`maven/`, `ccache/`,
 `fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),

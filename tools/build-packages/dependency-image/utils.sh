@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Shared dependency-image helpers for tag derivation and Docker builds.
-# Callers decide whether to use a local image, pull from GHCR, or build.
+# Callers decide whether to use a local image, pull from the registry, or build.
 
 _REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." &>/dev/null && pwd)"
 
@@ -19,22 +19,38 @@ image_ref() {
     echo "$1/$2:env-$3"
 }
 
-# Derives this repo's GHCR namespace from its GitHub origin remote.
-image_repo_from_origin() {
-    local remote_url owner_repo
-    remote_url="$(git -C "${_REPO_ROOT}" remote get-url origin)"
-    case "${remote_url}" in
-        https://github.com/*) owner_repo="${remote_url#https://github.com/}" ;;
-        git@github.com:*) owner_repo="${remote_url#git@github.com:}" ;;
-        ssh://git@github.com/*) owner_repo="${remote_url#ssh://git@github.com/}" ;;
-        *)
-            echo >&2 "ERROR: can't derive GHCR image repo from origin remote: ${remote_url}"
-            echo >&2 "       Expected a github.com remote."
-            exit 1
-            ;;
-    esac
-    owner_repo="${owner_repo%.git}"
-    printf 'ghcr.io/%s\n' "$(printf '%s' "${owner_repo}" | tr '[:upper:]' '[:lower:]')"
+# Resolves the image repo that every image reference is built under.
+#
+# `CI_CONTAINER_REGISTRY` and `CI_CONTAINER_REGISTRY_REPO` override the host and the path below it,
+# so that a deployment can publish somewhere other than GHCR. Both default to what this repo has
+# always used, which keeps forks and local builds working without any configuration. CI and a local
+# build must agree here: the build-env image is content-addressed, so a mismatch turns a pull into
+# a rebuild rather than an error.
+resolve_image_repo() {
+    local registry repo remote_url
+    # A scheme is valid for `docker login` but not in an image reference, so accept the value
+    # someone is most likely to paste: a failed pull is not an error, it silently rebuilds.
+    registry="${CI_CONTAINER_REGISTRY:-ghcr.io}"
+    registry="${registry#*://}"
+    registry="${registry%/}"
+    repo="${CI_CONTAINER_REGISTRY_REPO:-}"
+    repo="${repo#/}"
+    repo="${repo%/}"
+    if [[ -z "${repo}" ]]; then
+        remote_url="$(git -C "${_REPO_ROOT}" remote get-url origin)"
+        case "${remote_url}" in
+            https://github.com/*) repo="${remote_url#https://github.com/}" ;;
+            git@github.com:*) repo="${remote_url#git@github.com:}" ;;
+            ssh://git@github.com/*) repo="${remote_url#ssh://git@github.com/}" ;;
+            *)
+                echo >&2 "ERROR: can't derive an image repo from origin remote: ${remote_url}"
+                echo >&2 "       Expected a github.com remote, or set CI_CONTAINER_REGISTRY_REPO."
+                exit 1
+                ;;
+        esac
+        repo="${repo%.git}"
+    fi
+    printf '%s/%s\n' "${registry}" "$(printf '%s' "${repo}" | tr '[:upper:]' '[:lower:]')"
 }
 
 # Validates a package version for use as a Docker tag and prints it unchanged. Docker tags
