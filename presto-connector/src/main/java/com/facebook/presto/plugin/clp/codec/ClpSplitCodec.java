@@ -11,7 +11,9 @@
  */
 package com.facebook.presto.plugin.clp.codec;
 
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.readStringMap;
 import static com.facebook.presto.plugin.clp.codec.CodecUtils.readUtf8String;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeStringMap;
 import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeUtf8String;
 
 import java.io.ByteArrayInputStream;
@@ -20,6 +22,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Map;
 import java.util.Optional;
 
 import com.facebook.presto.spi.ConnectorCodec;
@@ -33,6 +36,8 @@ public class ClpSplitCodec implements ConnectorCodec<ConnectorSplit> {
     // typeOrdinal : writeInt (0 = ARCHIVE, 1 = IR)
     // kqlQueryPresent : writeBoolean
     // [kqlQuery] : 2-byte BE length + UTF-8 bytes, if present
+    // queryConfig : writeStringMap (4-byte BE entry count, then per entry
+    // key and value each as 2-byte BE length + UTF-8 bytes)
 
     @Override
     public byte[] serialize(ConnectorSplit handle) {
@@ -53,6 +58,7 @@ public class ClpSplitCodec implements ConnectorCodec<ConnectorSplit> {
             if (kqlQuery.isPresent()) {
                 writeUtf8String(kqlQuery.get(), out);
             }
+            writeStringMap(split.getQueryConfig(), out);
             return byteOut.toByteArray();
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to serialize ClpSplit", e);
@@ -68,10 +74,11 @@ public class ClpSplitCodec implements ConnectorCodec<ConnectorSplit> {
             ClpSplit.SplitType type = ClpSplit.SplitType.values()[in.readInt()];
             Optional<String> kqlQuery = in.readBoolean() ? Optional.of(readUtf8String(in))
                     : Optional.empty();
+            Map<String, String> queryConfig = readStringMap(in);
             if (in.available() > 0) {
                 throw new IOException("Unexpected trailing bytes in ClpSplit deserialization");
             }
-            return new ClpSplit(path, type, kqlQuery);
+            return new ClpSplit(path, type, kqlQuery, queryConfig);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to deserialize ClpSplit", e);
         }
