@@ -85,65 +85,56 @@ derive_build_env_hash() {
     )
 }
 
-# Stages the host CA bundle into the temporary Docker build context.
-#
-# Args: <destination-path>
-_stage_host_ca_bundle() {
-    local dest="${1:?_stage_host_ca_bundle requires a destination path}"
-    local ca_bundle_candidates=(
-        "${SSL_CERT_FILE:-}"
-        /etc/ssl/certs/ca-certificates.crt
-        /etc/pki/tls/certs/ca-bundle.crt
-        /etc/ssl/cert.pem
-    )
-
-    local src
-    for src in "${ca_bundle_candidates[@]}"; do
-        [[ -f "${src}" && -s "${src}" ]] || continue
-        echo >&2 "==> Staging host CA bundle: ${src} -> ${dest}"
-        if ! cp "${src}" "${dest}"; then
-            echo >&2 "ERROR: failed to stage host CA bundle: ${src}"
-            return 1
-        fi
-        return 0
-    done
-
-    echo >&2 "==> No host CA bundle found; continuing without host CA context."
-    return 1
-}
-
 # ── Docker build ──────────────────────────────────────────────────────────────
 
 # Builds the dependency image.
 #
 # Args:
-#   $1  image tag    — e.g. ghcr.io/owner/build-env:env-<hash>
-#   $2  platform     — linux/amd64 or linux/arm64
-#   $3  output flag  — --push (registry) or --load (local docker)
+#   $1  image tag       — e.g. ghcr.io/owner/build-env:env-<hash>
+#   $2  platform        — linux/amd64 or linux/arm64
+#   $3  output flag     — --push (registry) or --load (local docker)
+#   $4  with CA certs   — 1 to propagate the host's CA trust (optional, off by
+#                         default). For local builds behind a corporate TLS
+#                         gateway; CI has no such gateway and passes nothing, so
+#                         the Dockerfile's empty `ca_trust` stage applies and the
+#                         image keeps its own distro trust store.
 #
 # Requires: docker buildx, git
 build_image() {
-    local tag="$1" platform="$2" output="$3"
+    local tag="$1" platform="$2" output="$3" with_ca_certs="${4:-0}"
 
-    # Expose the host CA bundle as a narrow named build context so the Dockerfile
-    # can bind-mount it during networked RUN steps without baking it into image
-    # layers. Use a real context instead of a BuildKit secret because corporate CA
-    # bundles can exceed BuildKit's 500KiB secret limit.
-    local ca_stage; ca_stage=$(mktemp -d)
+    # stdout of this function is the caller's image ref; keep git chatter off it.
+    ensure_yscope_dev_utils_submodule >&2
+
+    local build_cmd=(
+        docker buildx build
+        --platform "${platform}"
+        --tag "${tag}"
+        "${output}"
+        -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile"
+    )
+
+    # String compare, not (( )): an arithmetic context name-resolves a non-numeric
+    # argument and aborts under `set -u`.
+    if [[ "${with_ca_certs}" != "1" ]]; then
+        build_cmd+=("${_REPO_ROOT}")
+        "${build_cmd[@]}"
+        return
+    fi
+
+    # shellcheck source=tools/yscope-dev-utils/exports/docker/ca-trust/host.sh
+    source "${_REPO_ROOT}/tools/yscope-dev-utils/exports/docker/ca-trust/host.sh"
+
+    local ca_stage
+    ca_stage="$(mktemp -d)"
     (
         trap 'rm -rf "${ca_stage}"' EXIT
 
-        local ca_bundle="${ca_stage}/host-ca"
-        _stage_host_ca_bundle "${ca_bundle}" || : > "${ca_bundle}"
+        ca_trust_stage_or_fail "${ca_stage}"
+        ca_trust_stage_build_context "${ca_stage}"
+        ca_trust_add_build_args build_cmd "${ca_stage}"
 
-        ensure_yscope_dev_utils_submodule
-
-        docker buildx build \
-            --platform "${platform}" \
-            --build-context "host-ca=${ca_stage}" \
-            --tag "${tag}" \
-            "${output}" \
-            -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile" \
-            "${_REPO_ROOT}"
+        build_cmd+=("${_REPO_ROOT}")
+        "${build_cmd[@]}"
     )
 }
