@@ -78,8 +78,7 @@ import org.testng.annotations.Test;
 
 import com.facebook.presto.plugin.clp.optimization.ClpComputePushDown;
 import com.facebook.presto.plugin.clp.optimization.ClpUdfRewriter;
-import com.facebook.presto.plugin.clp.split.filter.ClpMySqlSplitFilterProvider;
-import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 
 @Test(singleThreaded = true)
 public class TestClpUdfRewriter extends TestClpQueryBase {
@@ -93,7 +92,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
     private LocalQueryRunner localQueryRunner;
     private FunctionAndTypeManager functionAndTypeManager;
     private FunctionResolution functionResolution;
-    private ClpSplitFilterProvider splitFilterProvider;
+    private ClpSplitMetadataConfig metadataConfig;
     private PlanNodeIdAllocator planNodeIdAllocator;
     private VariableAllocator variableAllocator;
 
@@ -140,7 +139,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
         functionResolution = new FunctionResolution(
                 functionAndTypeManager.getFunctionAndTypeResolver()
         );
-        splitFilterProvider = new ClpMySqlSplitFilterProvider(new ClpConfig());
+        metadataConfig = new ClpSplitMetadataConfig(new ClpConfig(), functionAndTypeManager);
         planNodeIdAllocator = new PlanNodeIdAllocator();
         variableAllocator = new VariableAllocator();
     }
@@ -175,7 +174,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
         ClpComputePushDown optimizer = new ClpComputePushDown(
                 functionAndTypeManager,
                 functionResolution,
-                splitFilterProvider
+                metadataConfig
         );
         optimizedPlan = optimizer.optimize(
                 optimizedPlan,
@@ -240,7 +239,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
         ClpComputePushDown optimizer = new ClpComputePushDown(
                 functionAndTypeManager,
                 functionResolution,
-                splitFilterProvider
+                metadataConfig
         );
         optimizedPlan = optimizer.optimize(
                 optimizedPlan,
@@ -313,7 +312,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
         ClpComputePushDown optimizer = new ClpComputePushDown(
                 functionAndTypeManager,
                 functionResolution,
-                splitFilterProvider
+                metadataConfig
         );
         optimizedPlan = optimizer.optimize(
                 optimizedPlan,
@@ -378,7 +377,7 @@ public class TestClpUdfRewriter extends TestClpQueryBase {
         ClpComputePushDown optimizer = new ClpComputePushDown(
                 functionAndTypeManager,
                 functionResolution,
-                splitFilterProvider
+                metadataConfig
         );
         optimizedPlan = optimizer.optimize(
                 optimizedPlan,

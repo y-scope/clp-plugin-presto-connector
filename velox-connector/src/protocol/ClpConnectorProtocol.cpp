@@ -141,12 +141,6 @@ void ClpConnectorProtocol::deserialize(
     handle->kqlQuery = std::make_shared<String>(readUtf8String(in));
   }
 
-  // metadataFilterQuery (optional)
-  if (readBoolean(in)) {
-    handle->metadataFilterQuery =
-        std::make_shared<String>(readUtf8String(in));
-  }
-
   proto = handle;
 }
 

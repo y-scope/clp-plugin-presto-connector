@@ -29,20 +29,20 @@ public class ClpExpression {
     // the expression.
     private final Optional<String> pushDownExpression;
 
-    // Optional SQL string extracted from the query plan, which is only made of up of columns in
-    // CLP's metadata database.
-    private final Optional<String> metadataSqlQuery;
+    // The part of the expression that names only metadata columns, kept as an expression so a
+    // split provider can render it against its own metadata store.
+    private final Optional<RowExpression> metadataExpression;
 
     // The remaining (non-translatable) portion of the RowExpression, if any.
     private final Optional<RowExpression> remainingExpression;
 
     public ClpExpression(
             String pushDownExpression,
-            String metadataSqlQuery,
+            RowExpression metadataExpression,
             RowExpression remainingExpression
     ) {
         this.pushDownExpression = Optional.ofNullable(pushDownExpression);
-        this.metadataSqlQuery = Optional.ofNullable(metadataSqlQuery);
+        this.metadataExpression = Optional.ofNullable(metadataExpression);
         this.remainingExpression = Optional.ofNullable(remainingExpression);
     }
 
@@ -63,14 +63,14 @@ public class ClpExpression {
     }
 
     /**
-     * Creates a ClpExpression from a fully translatable KQL string or column name, as well as a
-     * metadata SQL string.
+     * Creates a ClpExpression from a fully translatable KQL string or column name, as well as the
+     * metadata-only portion of the expression.
      *
      * @param pushDownExpression
-     * @param metadataSqlQuery
+     * @param metadataExpression
      */
-    public ClpExpression(String pushDownExpression, String metadataSqlQuery) {
-        this(pushDownExpression, metadataSqlQuery, null);
+    public ClpExpression(String pushDownExpression, RowExpression metadataExpression) {
+        this(pushDownExpression, metadataExpression, null);
     }
 
     /**
@@ -84,7 +84,7 @@ public class ClpExpression {
 
     public Optional<String> getPushDownExpression() { return pushDownExpression; }
 
-    public Optional<String> getMetadataSqlQuery() { return metadataSqlQuery; }
+    public Optional<RowExpression> getMetadataExpression() { return metadataExpression; }
 
     public Optional<RowExpression> getRemainingExpression() { return remainingExpression; }
 }

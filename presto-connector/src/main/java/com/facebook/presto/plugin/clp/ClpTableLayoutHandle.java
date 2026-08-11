@@ -17,22 +17,23 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.relation.RowExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
     private final ClpTableHandle table;
     private final Optional<String> kqlQuery;
-    private final Optional<String> metadataSql;
+    private final Optional<RowExpression> metadataExpression;
 
     @JsonCreator
     public ClpTableLayoutHandle(@JsonProperty("table")
     ClpTableHandle table, @JsonProperty("kqlQuery")
-    Optional<String> kqlQuery, @JsonProperty("metadataFilterQuery")
-    Optional<String> metadataSql) {
+    Optional<String> kqlQuery, @JsonProperty("metadataExpression")
+    Optional<RowExpression> metadataExpression) {
         this.table = table;
         this.kqlQuery = kqlQuery;
-        this.metadataSql = metadataSql;
+        this.metadataExpression = metadataExpression;
     }
 
     @JsonProperty
@@ -41,8 +42,12 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
     @JsonProperty
     public Optional<String> getKqlQuery() { return kqlQuery; }
 
+    /**
+     * @return The predicate to prune splits with, still as an expression: a split provider renders
+     * it against its own metadata columns. Coordinator-side only; never sent to the worker.
+     */
     @JsonProperty
-    public Optional<String> getMetadataSql() { return metadataSql; }
+    public Optional<RowExpression> getMetadataExpression() { return metadataExpression; }
 
     @Override
     public boolean equals(Object o) {
@@ -50,19 +55,19 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
         if (o == null || getClass() != o.getClass()) { return false; }
         ClpTableLayoutHandle that = (ClpTableLayoutHandle)o;
         return Objects.equals(table, that.table) && Objects.equals(kqlQuery, that.kqlQuery)
-                && Objects.equals(metadataSql, that.metadataSql);
+                && Objects.equals(metadataExpression, that.metadataExpression);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(table, kqlQuery, metadataSql);
+        return Objects.hash(table, kqlQuery, metadataExpression);
     }
 
     @Override
     public String toString() {
         return toStringHelper(this).add("table", table).add("kqlQuery", kqlQuery).add(
-                "metadataSql",
-                metadataSql
+                "metadataExpression",
+                metadataExpression
         ).toString();
     }
 }
