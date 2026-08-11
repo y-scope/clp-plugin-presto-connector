@@ -1,11 +1,15 @@
 version: "3"
 
+includes:
+  toolchains: "toolchains.yaml"
+
 vars:
   G_LINT_VENV_DIR: "{{.G_BUILD_DIR}}/lint-venv"
 
 tasks:
   check:
     cmds:
+      - task: "check-helm"
       - task: "check-py"
       - task: "check-yaml"
 
@@ -14,8 +18,26 @@ tasks:
 
   fix:
     cmds:
+      - task: "fix-helm"
       - task: "fix-py"
       - task: "fix-yaml"
+
+  helm:
+    aliases:
+      - "check-helm"
+      - "fix-helm"
+    deps:
+      - "toolchains:helm"
+      - "venv"
+    cmds:
+      - |-
+        . "{{.G_LINT_VENV_DIR}}/bin/activate"
+        . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        ct lint \
+          --chart-dirs="tools/deployment" \
+          --chart-repos="presto=https://prestodb.github.io/presto-helm-charts" \
+          --chart-yaml-schema="{{.G_HELM_TOOLCHAIN_DIR}}/etc/chart_schema.yaml" \
+          --lint-conf="tools/yscope-dev-utils/exports/lint-configs/.yamllint.yml"
 
   check-py:
     cmds:

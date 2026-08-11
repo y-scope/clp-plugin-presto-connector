@@ -1,0 +1,70 @@
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: {{ include "clp-presto.componentFullname" (dict "root" . "component" "coordinator") }}
+  labels:
+    {{- include "clp-presto.labels" . | nindent 4 }}
+    app.kubernetes.io/component: "coordinator"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "clp-presto.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: "coordinator"
+  template:
+    metadata:
+      annotations:
+        {{- include "clp-presto.configChecksumAnnotation" . | nindent 8 }}
+      labels:
+        {{- include "clp-presto.labels" . | nindent 8 }}
+        app.kubernetes.io/component: "coordinator"
+    spec:
+      {{- with .Values.serviceAccountName }}
+      serviceAccountName: {{ . | quote }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      {{- include "clp-presto.schedulingConfigs" .Values.coordinator | nindent 6 }}
+      initContainers:
+        {{- with .Values.coordinator.extraInitContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- include "clp-presto.installPluginInitContainer" (dict
+            "root" . "component" "coordinator"
+          ) | nindent 8 }}
+      containers:
+        - name: "coordinator"
+          {{- include "clp-presto.imageSpec" (dict "root" . "component" "coordinator") | nindent 10 }}
+          {{- include "clp-presto.resources" .Values.coordinator.resources | nindent 10 }}
+          ports:
+            - name: "presto-coord"
+              containerPort: 8889
+          volumeMounts:
+            - name: "presto-catalog"
+              mountPath: "/opt/presto-server/etc/catalog"
+              readOnly: true
+            {{- range list
+              "config.properties"
+              "jvm.config"
+              "log.properties"
+              "node.properties"
+              "split-filter.json" }}
+            - name: "presto-config"
+              mountPath: "/opt/presto-server/etc/{{ . }}"
+              subPath: "coordinator-config-{{ . }}"
+              readOnly: true
+            {{- end }}
+            - name: "presto-plugin"
+              mountPath: "/opt/presto-server/plugin/clp"
+              readOnly: true
+          readinessProbe:
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+            httpGet: &coordinator-health-check
+              path: "/v1/info"
+              port: "presto-coord"
+          livenessProbe:
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+            httpGet: *coordinator-health-check
+      volumes:
+        {{- include "clp-presto.commonVolumes" (dict
+            "root" . "component" "coordinator"
+          ) | nindent 8 }}
