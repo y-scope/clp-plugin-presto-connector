@@ -2,9 +2,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -12,6 +10,13 @@
  * limitations under the License.
  */
 package com.facebook.presto.plugin.clp;
+
+import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.NO_PREFERENCE;
+import static java.util.Objects.requireNonNull;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
@@ -23,89 +28,65 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.NO_PREFERENCE;
-import static java.util.Objects.requireNonNull;
-
-public class ClpSplit
-        implements ConnectorSplit
-{
+public class ClpSplit implements ConnectorSplit {
     private final String path;
     private final SplitType type;
     private final Optional<String> kqlQuery;
     private final Map<String, String> queryConfig;
 
     @JsonCreator
-    public ClpSplit(
-            @JsonProperty("path") String path,
-            @JsonProperty("type") SplitType type,
-            @JsonProperty("kqlQuery") Optional<String> kqlQuery,
-            @JsonProperty("queryConfig") Map<String, String> queryConfig)
-    {
+    public ClpSplit(@JsonProperty("path")
+    String path, @JsonProperty("type")
+    SplitType type, @JsonProperty("kqlQuery")
+    Optional<String> kqlQuery, @JsonProperty("queryConfig")
+    Map<String, String> queryConfig) {
         this.path = requireNonNull(path, "Split path is null");
         this.type = requireNonNull(type, "Split type is null");
         this.kqlQuery = kqlQuery;
         // Sorted for deterministic binary codec output
-        this.queryConfig = queryConfig == null ? ImmutableSortedMap.of() : ImmutableSortedMap.copyOf(queryConfig);
+        this.queryConfig = queryConfig == null ? ImmutableSortedMap.of()
+                : ImmutableSortedMap.copyOf(queryConfig);
     }
 
-    public ClpSplit(String path, SplitType type, Optional<String> kqlQuery)
-    {
+    public ClpSplit(String path, SplitType type, Optional<String> kqlQuery) {
         this(path, type, kqlQuery, ImmutableSortedMap.of());
     }
 
     @JsonProperty
-    public String getPath()
-    {
-        return path;
-    }
+    public String getPath() { return path; }
 
     @JsonProperty
-    public SplitType getType()
-    {
-        return type;
-    }
+    public SplitType getType() { return type; }
 
     @JsonProperty
-    public Optional<String> getKqlQuery()
-    {
-        return kqlQuery;
-    }
+    public Optional<String> getKqlQuery() { return kqlQuery; }
 
     @JsonProperty
-    public Map<String, String> getQueryConfig()
-    {
-        return queryConfig;
-    }
+    public Map<String, String> getQueryConfig() { return queryConfig; }
 
     @Override
-    public NodeSelectionStrategy getNodeSelectionStrategy()
-    {
-        return NO_PREFERENCE;
-    }
+    public NodeSelectionStrategy getNodeSelectionStrategy() { return NO_PREFERENCE; }
 
     @Override
-    public List<HostAddress> getPreferredNodes(NodeProvider nodeProvider)
-    {
+    public List<HostAddress> getPreferredNodes(NodeProvider nodeProvider) {
         return ImmutableList.of();
     }
 
     @Override
-    public Map<String, String> getInfo()
-    {
+    public Map<String, String> getInfo() {
         return ImmutableMap.of(
-                "path", path,
-                "type", type.toString(),
-                "kqlQuery", kqlQuery.orElse("<null>"),
-                "queryConfig", queryConfig.toString());
+                "path",
+                path,
+                "type",
+                type.toString(),
+                "kqlQuery",
+                kqlQuery.orElse("<null>"),
+                "queryConfig",
+                queryConfig.toString()
+        );
     }
 
-    public enum SplitType
-    {
-        ARCHIVE,
-        IR,
+    public enum SplitType {
+        ARCHIVE, IR,
     }
 }

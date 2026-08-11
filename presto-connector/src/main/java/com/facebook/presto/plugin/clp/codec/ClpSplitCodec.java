@@ -2,9 +2,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,9 +11,10 @@
  */
 package com.facebook.presto.plugin.clp.codec;
 
-import com.facebook.presto.plugin.clp.ClpSplit;
-import com.facebook.presto.spi.ConnectorCodec;
-import com.facebook.presto.spi.ConnectorSplit;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.readStringMap;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.readUtf8String;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeStringMap;
+import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeUtf8String;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,31 +25,30 @@ import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.facebook.presto.plugin.clp.codec.CodecUtils.readStringMap;
-import static com.facebook.presto.plugin.clp.codec.CodecUtils.readUtf8String;
-import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeStringMap;
-import static com.facebook.presto.plugin.clp.codec.CodecUtils.writeUtf8String;
+import com.facebook.presto.spi.ConnectorCodec;
+import com.facebook.presto.spi.ConnectorSplit;
 
-public class ClpSplitCodec
-        implements ConnectorCodec<ConnectorSplit>
-{
+import com.facebook.presto.plugin.clp.ClpSplit;
+
+public class ClpSplitCodec implements ConnectorCodec<ConnectorSplit> {
     // Wire format (C++ ClpConnectorProtocol::deserialize for ConnectorSplit):
-    //   path            : 2-byte BE length + UTF-8 bytes
-    //   typeOrdinal     : writeInt (0 = ARCHIVE, 1 = IR)
-    //   kqlQueryPresent : writeBoolean
-    //   [kqlQuery]      : 2-byte BE length + UTF-8 bytes, if present
-    //   queryConfig     : writeStringMap (4-byte BE entry count, then per entry
-    //                     key and value each as 2-byte BE length + UTF-8 bytes)
+    // path : 2-byte BE length + UTF-8 bytes
+    // typeOrdinal : writeInt (0 = ARCHIVE, 1 = IR)
+    // kqlQueryPresent : writeBoolean
+    // [kqlQuery] : 2-byte BE length + UTF-8 bytes, if present
+    // queryConfig : writeStringMap (4-byte BE entry count, then per entry
+    // key and value each as 2-byte BE length + UTF-8 bytes)
 
     @Override
-    public byte[] serialize(ConnectorSplit handle)
-    {
+    public byte[] serialize(ConnectorSplit handle) {
         try {
             if (!(handle instanceof ClpSplit)) {
-                throw new IllegalArgumentException("Expected ClpSplit but got: " +
-                        (handle == null ? "null" : handle.getClass().getName()));
+                throw new IllegalArgumentException(
+                        "Expected ClpSplit but got: " + (handle == null ? "null"
+                                : handle.getClass().getName())
+                );
             }
-            ClpSplit split = (ClpSplit) handle;
+            ClpSplit split = (ClpSplit)handle;
             ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(byteOut);
             writeUtf8String(split.getPath(), out);
@@ -62,30 +60,26 @@ public class ClpSplitCodec
             }
             writeStringMap(split.getQueryConfig(), out);
             return byteOut.toByteArray();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new UncheckedIOException("Failed to serialize ClpSplit", e);
         }
     }
 
     @Override
-    public ConnectorSplit deserialize(byte[] bytes)
-    {
+    public ConnectorSplit deserialize(byte[] bytes) {
         try {
             ByteArrayInputStream byteIn = new ByteArrayInputStream(bytes);
             DataInputStream in = new DataInputStream(byteIn);
             String path = readUtf8String(in);
             ClpSplit.SplitType type = ClpSplit.SplitType.values()[in.readInt()];
-            Optional<String> kqlQuery = in.readBoolean()
-                    ? Optional.of(readUtf8String(in))
+            Optional<String> kqlQuery = in.readBoolean() ? Optional.of(readUtf8String(in))
                     : Optional.empty();
             Map<String, String> queryConfig = readStringMap(in);
             if (in.available() > 0) {
                 throw new IOException("Unexpected trailing bytes in ClpSplit deserialization");
             }
             return new ClpSplit(path, type, kqlQuery, queryConfig);
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new UncheckedIOException("Failed to deserialize ClpSplit", e);
         }
     }
