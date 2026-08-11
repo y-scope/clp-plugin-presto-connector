@@ -38,9 +38,12 @@ class ClpQueryRunner;
 /// CLP-S archive.
 class ClpArchiveCursor final : public BaseClpCursor {
  public:
+  /// @param ignoreCase If true, string values in the query are matched
+  /// case-insensitively.
   explicit ClpArchiveCursor(
       clp_s::InputSource inputSource,
-      std::string_view splitPath);
+      std::string_view splitPath,
+      bool ignoreCase);
   ~ClpArchiveCursor() override;
 
   uint64_t fetchNext(uint64_t numRows) override;
@@ -56,6 +59,7 @@ class ClpArchiveCursor final : public BaseClpCursor {
   ErrorCode loadSplit() override;
 
  private:
+  bool ignoreCase_;
   std::shared_ptr<clp_s::ArchiveReader> archiveReader_;
   clp_s::SchemaReader* schemaReader_;
   int32_t currentSchemaId_{-1};

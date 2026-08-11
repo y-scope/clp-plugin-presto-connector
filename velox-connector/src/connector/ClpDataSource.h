@@ -32,12 +32,15 @@ class ClpS3AuthProviderBase;
 
 class ClpDataSource : public DataSource {
  public:
+  /// @param caseInsensitive If true, string values in pushed-down filters are
+  /// matched case-insensitively.
   ClpDataSource(
       const RowTypePtr& outputType,
       const ConnectorTableHandlePtr& tableHandle,
       const connector::ColumnHandleMap& columnHandles,
       velox::memory::MemoryPool* pool,
-      std::shared_ptr<const ClpConfig>& clpConfig);
+      std::shared_ptr<const ClpConfig>& clpConfig,
+      bool caseInsensitive);
 
   void addSplit(std::shared_ptr<ConnectorSplit> split) override;
 
@@ -73,6 +76,7 @@ class ClpDataSource : public DataSource {
       const std::string& parentName);
 
   ClpConfig::StorageType storageType_;
+  bool caseInsensitive_;
   velox::memory::MemoryPool* pool_;
   RowTypePtr outputType_;
   std::set<std::string> columnUntypedNames_;

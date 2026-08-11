@@ -41,6 +41,7 @@ public class ClpModule extends AbstractConfigurationAwareModule {
         binder.bind(ClpMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ClpRecordSetProvider.class).in(Scopes.SINGLETON);
         binder.bind(ClpSplitManager.class).in(Scopes.SINGLETON);
+        binder.bind(ClpSessionProperties.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(ClpConfig.class);
 
         ClpConfig config = buildConfigObject(ClpConfig.class);
