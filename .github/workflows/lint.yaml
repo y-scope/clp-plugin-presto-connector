@@ -1,0 +1,52 @@
+# Runs the repository's linters. `task lint:check` is the same entry point developers use locally,
+# so a green run here means a green run there.
+#
+# The linters are invoked as separate steps rather than through `lint:check` so that a failure
+# names the language it came from without anyone opening the log.
+#
+# Deliberately no `paths` filter. A filtered workflow that never runs reports as pending forever
+# once it is a required check.
+
+name: "lint"
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: "${{github.workflow}}-${{github.ref}}"
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  lint:
+    runs-on: "ubuntu-24.04"
+    timeout-minutes: 10
+    permissions:
+      # To check out the repository.
+      contents: "read"
+    steps:
+      - name: "Check out repository"
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: "recursive"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-python"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-uv"
+        with:
+          version: "0.11.3"
+
+      - name: "Lint .py files"
+        run: "task lint:check-py"
+
+      - name: "Lint .yaml files"
+        run: "task lint:check-yaml"
