@@ -29,7 +29,8 @@ permissions:
 
 jobs:
   spotless:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 15
     steps:
       - name: "Check out repository"
