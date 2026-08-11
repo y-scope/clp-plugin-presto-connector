@@ -44,6 +44,6 @@ def wait_until_ready(client: PrestoClient) -> None:
             return
         time.sleep(_READY_POLL_SECONDS)
     logs = compose_run("logs", "--tail", "40", check=False).stdout
-    print(logs, file=sys.stderr)
+    sys.stderr.write(logs)
     msg = f"cluster did not become ready in {_READY_TIMEOUT_SECONDS}s"
     raise TimeoutError(msg)
