@@ -36,6 +36,11 @@ jobs:
     permissions:
       # To check out the repository.
       contents: "read"
+    env:
+      # A machine can run more than one job at a time, so two runs would otherwise share container
+      # names and compete for the same host port.
+      COMPOSE_PROJECT_NAME: "clp-it-${{github.run_id}}-${{github.run_attempt}}"
+      CLP_INTEGRATION_TEST_COORDINATOR_PORT: "0"
     steps:
       - name: "Check out repository"
         uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
@@ -51,12 +56,19 @@ jobs:
         with:
           version: "0.11.3"
 
-      # `--keep-cluster` leaves the containers up for the log-capture step below. The runner is
-      # ephemeral, so nothing needs to clean them up.
+      # Separate steps rather than `integration-tests:run`, so the logs can be captured while the
+      # cluster is still up.
+      - name: "Start the cluster"
+        run: "task integration-tests:up"
+
       - name: "Run the integration tests"
-        run: "task integration-tests:run -- --keep-cluster"
+        run: "task integration-tests:test"
 
       - name: "Capture cluster logs on failure"
         if: "failure()"
         working-directory: "integration-tests"
         run: "docker compose logs --tail 200 || true"
+
+      - name: "Stop the cluster"
+        if: "always()"
+        run: "task integration-tests:down"
