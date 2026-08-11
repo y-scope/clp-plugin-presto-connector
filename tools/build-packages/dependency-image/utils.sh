@@ -114,6 +114,13 @@ build_image() {
         -f "${_REPO_ROOT}/tools/build-packages/dependency-image/Dockerfile"
     )
 
+    # Forwarded only when set, so the Dockerfile's nproc default otherwise applies.
+    if [[ -n "${TASK_EXTERNAL_TOOL_CONCURRENCY:-}" ]]; then
+        build_cmd+=(
+            --build-arg "TASK_EXTERNAL_TOOL_CONCURRENCY=${TASK_EXTERNAL_TOOL_CONCURRENCY}"
+        )
+    fi
+
     # String compare, not (( )): an arithmetic context name-resolves a non-numeric
     # argument and aborts under `set -u`.
     if [[ "${with_ca_certs}" != "1" ]]; then

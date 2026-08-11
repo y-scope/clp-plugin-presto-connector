@@ -54,7 +54,10 @@ ENV CLP_PLUGIN_BUILD_DIR=/opt/clp-plugin-presto-connector/build
 ENV CLP_PLUGIN_DEPS_CPP_DIR=/opt/clp-plugin-presto-connector/build/velox-connector/deps/cpp
 ENV TASK_TEMP_DIR=/opt/clp-plugin-presto-connector/.task
 
-# Build one dependency at a time to avoid excessive memory usage from parallel builds.
+# Build one dependency at a time to avoid excessive memory usage from parallel builds. This caps the
+# job count *within* each dependency, which otherwise comes from nproc and can OOM-kill dockerd on a
+# many-core host, seen only as BuildKit ending with a bare "EOF". Empty keeps the nproc default.
+ARG TASK_EXTERNAL_TOOL_CONCURRENCY=
 RUN --mount=type=bind,source=.,target=/repo,readonly \
     --mount=type=bind,from=ca_trust,target=/run/ca-trust \
     if [ -e /run/ca-trust/container.sh ]; then . /run/ca-trust/container.sh; fi \
