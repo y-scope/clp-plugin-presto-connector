@@ -73,10 +73,6 @@ VectorPtr ClpIrCursor::createVector(
 }
 
 ErrorCode ClpIrCursor::loadSplit() {
-  auto networkAuthOption = inputSource_ == InputSource::Filesystem
-      ? NetworkAuthOption{.method = AuthMethod::None}
-      : NetworkAuthOption{.method = AuthMethod::S3PresignedUrlV4};
-
   search::ast::SetTimestampLiteralPrecision timestampPrecisionPass{
       search::ast::TimestampLiteral::Precision::Milliseconds};
   expr_ = timestampPrecisionPass.run(expr_);
@@ -93,10 +89,17 @@ ErrorCode ClpIrCursor::loadSplit() {
   }
   auto queryHandler = std::move(queryHandlerResult).value();
 
+  // An `S3AuthenticationError` from authenticating the request propagates, so
+  // that it fails the query rather than skipping the split. Likewise, a stream
+  // that can't be fetched from S3 (e.g., because S3 rejected the request's
+  // credentials) fails the query below.
   auto irPath = get_path_object_for_raw_path(splitPath_);
-  irReader_ = try_create_reader(irPath, networkAuthOption);
+  irReader_ = try_create_reader(irPath, networkAuthOption_);
   if (nullptr == irReader_) {
     VLOG(2) << "Failed to create IR reader";
+    if (InputSource::Network == inputSource_) {
+      VELOX_FAIL("Failed to open the IR stream from S3.");
+    }
     return ErrorCode::InternalError;
   }
   irReaderZstdWrapper_ =
@@ -118,6 +121,9 @@ ErrorCode ClpIrCursor::loadSplit() {
     auto error = deserializerResult.error();
     VLOG(2) << "Failed to create deserializer for deserialization, error: "
             << error.message();
+    if (InputSource::Network == inputSource_) {
+      VELOX_FAIL("Failed to read the IR stream from S3: {}", error.message());
+    }
     return ErrorCode::InternalError;
   }
   irDeserializer_ = std::make_shared<

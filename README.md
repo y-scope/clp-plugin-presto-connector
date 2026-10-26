@@ -42,12 +42,16 @@ one of the tasks in the table below.
 ## Testing
 
 ```shell
-task presto-connector:test        # coordinator plugin, unit tests
-task integration-tests:run        # both plugins, in a real Presto cluster
+task presto-connector:test                         # coordinator plugin, unit tests
+task velox-connector:test-with-installed-deps      # worker plugin, S3 authentication unit tests
+task integration-tests:run                         # both plugins, in a real Presto cluster
 ```
 
-The worker plugin has no unit tests. [integration-tests/README.md](integration-tests/README.md)
-explains why, and how a real cluster covers it instead.
+The worker plugin's unit tests cover only its S3 authentication, which doesn't depend on Velox,
+and need the worker's installed dependencies (see
+[velox-connector/README.md](velox-connector/README.md)).
+[integration-tests/README.md](integration-tests/README.md) explains how a real cluster covers the
+rest of the worker plugin.
 
 ## Building installable packages
 

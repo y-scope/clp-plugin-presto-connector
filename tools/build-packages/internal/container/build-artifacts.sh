@@ -158,6 +158,9 @@ so_file="${velox_build_dir}/libclp-plugin-velox-connector.so"
 [[ -f "${so_file}" ]] || die "expected .so not found at ${so_file}"
 echo "    -> ${so_file}"
 
+echo "==> Running velox-connector unit tests..."
+task -d "${src}" velox-connector:test-with-installed-deps
+
 # ── Choose the package version ────────────────────────────────────────────────
 
 # Use the Java module's Maven wrapper so every build uses the same Maven
