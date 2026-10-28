@@ -1,0 +1,22 @@
+[
+  {
+    "name": "timestamp",
+    "type": "Timestamp"
+  },
+  {
+    "name": "event.type",
+    "type": "VarString"
+  },
+  {
+    "name": "event.subtype",
+    "type": "VarString"
+  },
+  {
+    "name": "event.severity",
+    "type": "VarString"
+  },
+  {
+    "name": "event.tags",
+    "type": "UnstructuredArray"
+  }
+]

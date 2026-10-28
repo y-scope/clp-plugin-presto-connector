@@ -1,0 +1,21 @@
+Package: clp-plugin-presto-connector
+Version: ${deb_version}
+Architecture: ${PKG_ARCH}
+Section: database
+Priority: optional
+Maintainer: YScope Inc. <support@yscope.com>
+Homepage: https://github.com/y-scope/clp-plugin-presto-connector
+Depends: libc6 (>= 2.28), libstdc++6
+Description: CLP plugins for Presto coordinator (Java) and Velox worker (C++)
+ Bundles both halves of the CLP Presto integration in a single package:
+ .
+   * Java JAR - Presto coordinator connector that exposes CLP datasets as
+     Presto tables.
+   * C++ .so  - Velox worker plugin that pushes CLP-format scans down into
+     the native execution engine.
+ .
+ Compiled on manylinux_2_28 (glibc >= 2.28); compatible with Debian 11+,
+ Ubuntu 20.04+, and other glibc-based Debian-family distros. Non-system
+ native runtime libraries are bundled beside the Velox plugin and loaded
+ through relative RUNPATHs, so the package does not depend on distro
+ OpenSSL/libcurl versions.

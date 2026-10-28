@@ -9,18 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable -fPIC for all targets so STATIC libraries can be linked into a shared library.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Match the Presto worker's AVX2 flags to satisfy Folly's F14LinkCheck<Mode> symbol.
-#
-# NOTE: We need to use the same compilation flags as the Presto worker or else `dlopen` might fail
-# in the worker; specifically because Folly's F14 hash table uses a different implementation
-# depending on the target machine's supported CPU-features, and ABI compatibility is enforced via
-# `F14LinkCheck<Mode>` (if the plugin and worker use different compilation flags, F14's ABI won't be
-# compatible between the two).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-    # Enable `-mavx2` only for x86_64 builds.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-endif()
-
 # ==============================================================================
 # Dependencies
 # ==============================================================================
@@ -46,24 +34,35 @@ include("${LIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS}")
 # ==============================================================================
 include(FetchContent)
 
+set(PRESTO_GIT_URL "" CACHE STRING "Git repository to fetch Presto from.")
 set(PRESTO_GIT_TAG "" CACHE STRING "Presto commit that provides the Velox framework headers.")
-if(PRESTO_GIT_TAG STREQUAL "")
+if(PRESTO_GIT_URL STREQUAL "" OR PRESTO_GIT_TAG STREQUAL "")
     message(FATAL_ERROR
-        "PRESTO_GIT_TAG is not set. Build via `task velox-connector:build`, or set"
-        " PRESTO_GIT_TAG when configuring CMake directly."
+        "PRESTO_GIT_URL and PRESTO_GIT_TAG must be set. Build via"
+        " `task velox-connector:build`, or set them when configuring CMake directly."
     )
 endif()
 
 message(STATUS "Downloading presto for headers (commit: ${PRESTO_GIT_TAG})")
 FetchContent_Declare(
     presto_native_execution
-    GIT_REPOSITORY    https://github.com/prestodb/presto.git
+    GIT_REPOSITORY    "${PRESTO_GIT_URL}"
     GIT_TAG           "${PRESTO_GIT_TAG}"
     GIT_SUBMODULES    "presto-native-execution/velox"
     GIT_SUBMODULES_RECURSE OFF
 )
 FetchContent_MakeAvailable(presto_native_execution)
 set(PRESTO_ROOT ${presto_native_execution_SOURCE_DIR}/presto-native-execution)
+
+# Compile with the same target-CPU flags as the Presto worker, which refuses to load a plugin
+# built with different flags (see cmake/DeriveTargetCpuFlags.cmake).
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/DeriveTargetCpuFlags.cmake")
+derive_target_cpu_flags(
+    VELOX_TARGET_CPU_CXX_FLAGS
+    # Velox's `get_cxx_flags` helper, from the FetchContent checkout pinned above.
+    "${PRESTO_ROOT}/velox/scripts/setup-helper-functions.sh"
+)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")
 
 # ==============================================================================
 # CLP

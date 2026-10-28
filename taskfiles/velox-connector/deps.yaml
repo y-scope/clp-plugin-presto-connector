@@ -6,12 +6,6 @@ includes:
 vars:
   G_DEPS_CPP_CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_DIR}}/cmake-settings"
 
-  # The Presto commit that the Velox connector is built against.
-  #
-  # NOTE: This reference is a commit that hasn't been included in a release yet, but contains the
-  # functionality necessary to implement the Velox connector.
-  G_PRESTO_GIT_TAG: "6e1942b72a9f32191dcd0ba49812f2ac96a25615"
-
   # Library names (must match CMake package names for settings files)
   G_BOOST_LIB_NAME: "Boost"
   G_DOUBLE_CONVERSION_LIB_NAME: "double-conversion"
@@ -125,7 +119,6 @@ tasks:
       - task: "yscope-dev-utils:cmake:build"
         vars:
           BUILD_DIR: "{{.BUILD_DIR}}"
-          JOBS: "{{.G_CPP_MAX_PARALLELISM_PER_BUILD_TASK}}"
       - task: "yscope-dev-utils:cmake:install"
         vars:
           BUILD_DIR: "{{.BUILD_DIR}}"

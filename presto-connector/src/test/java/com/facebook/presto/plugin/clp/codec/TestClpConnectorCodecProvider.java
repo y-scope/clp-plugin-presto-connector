@@ -15,6 +15,7 @@ package com.facebook.presto.plugin.clp.codec;
 
 import com.facebook.presto.common.type.BigintType;
 import com.facebook.presto.common.type.IntegerType;
+import com.facebook.presto.common.type.ParametricType;
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.common.type.TypeManager;
 import com.facebook.presto.common.type.TypeSignature;
@@ -75,6 +76,18 @@ public class TestClpConnectorCodecProvider
         public boolean hasType(TypeSignature signature)
         {
             return getType(signature) != null;
+        }
+
+        @Override
+        public void addType(Type type)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void addParametricType(ParametricType parametricType)
+        {
+            throw new UnsupportedOperationException();
         }
     };
 

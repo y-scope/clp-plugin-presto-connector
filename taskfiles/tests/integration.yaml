@@ -1,0 +1,22 @@
+version: "3"
+
+vars:
+  G_INTEGRATION_TESTS_DIR: "{{.ROOT_DIR}}/integration-tests"
+
+tasks:
+  default:
+    deps: ["run"]
+
+  cache-clear:
+    desc: "Clear the integration tests' pytest cache."
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    cmds:
+      - "rm -rf .pytest_cache"
+
+  run:
+    desc: "Run the integration tests against a real Presto cluster."
+    deps: [":package"]
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    cmd: "uv run pytest {{.CLI_ARGS}}"

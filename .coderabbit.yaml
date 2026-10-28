@@ -5,5 +5,11 @@ reviews:
     - path: "**/*.{cpp,h,hpp,java,js,jsx,tpp,ts,tsx}"
       instructions: >-
         - Prefer `false == <expression>` rather than `!<expression>`.
+    - path: "{.coderabbit.yaml,.dockerignore,.gitattributes,.gitignore,.gitmodules,.github/**}"
+      instructions: >-
+        - Flag any change to these files that isn't part of the PR's stated subject, and call
+          out deletions specifically. Rebasing a long-lived branch can silently revert an
+          unrelated change that landed on the base branch in the meantime, and such a revert
+          looks like an ordinary one-line deletion in the diff.
   profile: "assertive"
   poem: false

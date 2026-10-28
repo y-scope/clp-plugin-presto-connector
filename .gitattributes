@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Resolved by `uv`, not written by hand; collapse it in diffs and exclude it from language stats.
+integration-tests/uv.lock linguist-generated=true

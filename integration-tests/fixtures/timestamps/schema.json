@@ -1,0 +1,14 @@
+[
+  {
+    "name": "timestamp",
+    "type": "Timestamp"
+  },
+  {
+    "name": "timestamp",
+    "type": "Integer"
+  },
+  {
+    "name": "timestamp",
+    "type": "Float"
+  }
+]
