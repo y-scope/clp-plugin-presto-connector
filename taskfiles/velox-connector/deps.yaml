@@ -273,7 +273,7 @@ tasks:
             - "-DCMAKE_INSTALL_MESSAGE=LAZY"
           CMAKE_PACKAGE_NAME: "{{.G_GFLAGS_LIB_NAME}}"
           CMAKE_SETTINGS_DIR: "{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}"
-          TAR_SHA256: "34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf"
+          TAR_SHA256: "f619a51371f41c0ad6837b2a98af9d4643b3371015d873887f7e8d3237320b2f"
           TAR_URL: "https://github.com/gflags/gflags/archive/refs/tags/{{.VERSION}}.tar.gz"
           WORK_DIR: "{{.G_DEPS_CPP_DIR}}"
 
