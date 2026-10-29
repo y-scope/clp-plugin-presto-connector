@@ -39,8 +39,7 @@ services:
       - "worker-plugin:/out"
 
   coordinator:
-    # TODO: Move to the official prestodb images once they carry what the native worker needs.
-    image: "ghcr.io/y-scope/presto:${PRESTO_VERSION:-0.299}"
+    image: "prestodb/presto:${PRESTO_VERSION:-0.299}"
     depends_on:
       install-coordinator-plugin:
         condition: "service_completed_successfully"
@@ -58,8 +57,7 @@ services:
       start_period: "20s"
 
   worker:
-    # TODO: Move to the official prestodb images once they carry what the native worker needs.
-    image: "ghcr.io/y-scope/presto-native:${PRESTO_VERSION:-0.299}"
+    image: "prestodb/presto-native:${PRESTO_VERSION:-0.299}"
     # No LD_LIBRARY_PATH needed: packaging patchelfs the `.so` with RUNPATH `$$ORIGIN/lib`, so the
     # bundled runtime libraries resolve relative to the plugin itself. The plugin scan is
     # non-recursive, so `lib/` is not itself loaded as a plugin.
