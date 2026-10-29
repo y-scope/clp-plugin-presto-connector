@@ -56,9 +56,9 @@
 # Upstream references, at the pinned Presto commit (refresh when bumping the pin in
 # taskfile.yaml):
 # - `get_cxx_flags`:
-#   https://github.com/facebookincubator/velox/blob/0dbf1731fb6e03ae615a40cda8c9b33f7bfb3490/scripts/setup-helper-functions.sh#L91-L187
+#   https://github.com/facebookincubator/velox/blob/1d9c83a941f569adbccb091bd4772ee9f3cd6a01/scripts/setup-helper-functions.sh#L91-L193
 # - upstream's invocation of it:
-#   https://github.com/prestodb/presto/blob/6e1942b72a9f32191dcd0ba49812f2ac96a25615/presto-native-execution/CMakeLists.txt#L20-L31
+#   https://github.com/prestodb/presto/blob/7d5072160258be09def72b18c92022843ee7e9b1/presto-native-execution/CMakeLists.txt#L20-L31
 function(derive_target_cpu_flags OUTPUT_VARIABLE HELPER_SCRIPT)
     # Empty means "let get_cxx_flags auto-detect the build machine's CPU".
     set(CPU_TARGET "$ENV{CPU_TARGET}")
