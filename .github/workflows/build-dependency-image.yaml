@@ -35,7 +35,8 @@ env:
 
 jobs:
   plan:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     permissions:
       contents: "read"
       packages: "read"
@@ -93,10 +94,13 @@ jobs:
       matrix:
         include:
           - arch: "amd64"
-            runner: "ubuntu-24.04"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]' }}
           - arch: "arm64"
-            runner: "ubuntu-24.04-arm"
-    runs-on: "${{matrix.runner}}"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_ARM64 || '["ubuntu-24.04-arm"]' }}
+    runs-on: >-
+      ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 360
 
     steps:
@@ -133,7 +137,8 @@ jobs:
     if: "github.event_name != 'pull_request' && needs.plan.outputs.needs-build == 'true'"
     permissions:
       packages: "write"
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 15
 
     steps:

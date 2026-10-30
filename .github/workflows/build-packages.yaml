@@ -57,7 +57,8 @@ permissions:
 
 jobs:
   resolve-version:
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     outputs:
       version: "${{steps.version.outputs.version}}"
       publish: "${{steps.publish.outputs.publish}}"
@@ -66,6 +67,15 @@ jobs:
         uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
         with:
           persist-credentials: false
+
+      # `mvnw` fetches Maven itself but still needs a JDK, which a self-hosted runner does not
+      # necessarily carry and the GitHub-hosted image happens to provide.
+      - name: "Set up JDK 17"
+        uses: "actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95"  # v5.6.0
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
 
       - name: "Resolve package version"
         id: "version"
@@ -121,10 +131,13 @@ jobs:
       matrix:
         include:
           - arch: "amd64"
-            runner: "ubuntu-24.04"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]' }}
           - arch: "arm64"
-            runner: "ubuntu-24.04-arm"
-    runs-on: "${{matrix.runner}}"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_ARM64 || '["ubuntu-24.04-arm"]' }}
+    runs-on: >-
+      ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 120
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"
@@ -211,10 +224,13 @@ jobs:
       matrix:
         include:
           - arch: "amd64"
-            runner: "ubuntu-24.04"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]' }}
           - arch: "arm64"
-            runner: "ubuntu-24.04-arm"
-    runs-on: "${{matrix.runner}}"
+            runner: >-
+              ${{ vars.GH_RUNNER_LINUX_HEAVY_ARM64 || '["ubuntu-24.04-arm"]' }}
+    runs-on: >-
+      ${{ fromJSON(matrix.runner) }}
     timeout-minutes: 30
     env:
       ARCH: "${{matrix.arch}}"
@@ -282,7 +298,8 @@ jobs:
     if: "${{needs.resolve-version.outputs.publish == 'true'}}"
     permissions:
       packages: "write"
-    runs-on: "ubuntu-24.04"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 15
     env:
       VERSION: "${{needs.resolve-version.outputs.version}}"
