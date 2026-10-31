@@ -11,15 +11,11 @@
  */
 package com.facebook.presto.plugin.clp.optimization;
 
-import static com.facebook.presto.plugin.clp.ClpConnectorFactory.CONNECTOR_NAME;
 import static com.facebook.presto.spi.ConnectorPlanRewriter.rewriteWith;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 
 import com.facebook.airlift.log.Logger;
@@ -37,32 +33,28 @@ import com.facebook.presto.spi.plan.PlanNodeIdAllocator;
 import com.facebook.presto.spi.plan.TableScanNode;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
-import com.google.common.collect.ImmutableSet;
 
 import com.facebook.presto.plugin.clp.ClpExpression;
 import com.facebook.presto.plugin.clp.ClpTableHandle;
 import com.facebook.presto.plugin.clp.ClpTableLayoutHandle;
-import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 
 public class ClpComputePushDown implements ConnectorPlanOptimizer {
     private static final Logger log = Logger.get(ClpComputePushDown.class);
 
     private final FunctionMetadataManager functionManager;
     private final StandardFunctionResolution functionResolution;
-    private final ClpSplitFilterProvider splitFilterProvider;
+    private final ClpSplitMetadataConfig metadataConfig;
     private final ClpQueryConfigExtractor queryConfigExtractor;
 
     public ClpComputePushDown(
             FunctionMetadataManager functionManager,
             StandardFunctionResolution functionResolution,
-            ClpSplitFilterProvider splitFilterProvider
+            ClpSplitMetadataConfig metadataConfig
     ) {
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
         this.functionResolution = requireNonNull(functionResolution, "functionResolution is null");
-        this.splitFilterProvider = requireNonNull(
-                splitFilterProvider,
-                "splitFilterProvider is null"
-        );
+        this.metadataConfig = requireNonNull(metadataConfig, "metadataConfig is null");
         this.queryConfigExtractor = new ClpQueryConfigExtractor(this.functionManager);
     }
 
@@ -76,29 +68,20 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
         Rewriter rewriter = new Rewriter(idAllocator);
         PlanNode optimizedPlanNode = rewriteWith(rewriter, maxSubplan);
 
-        // Throw exception if any required split filters are missing
-        if (!rewriter.tableScopeSet.isEmpty() && !rewriter.hasVisitedFilter) {
-            splitFilterProvider.checkContainsRequiredFilters(rewriter.tableScopeSet, "");
-        }
         return optimizedPlanNode;
     }
 
     private class Rewriter extends ConnectorPlanRewriter<Void> {
         private final PlanNodeIdAllocator idAllocator;
-        private final Set<String> tableScopeSet;
-        private boolean hasVisitedFilter;
 
         public Rewriter(PlanNodeIdAllocator idAllocator) {
             this.idAllocator = idAllocator;
-            hasVisitedFilter = false;
-            tableScopeSet = new HashSet<>();
         }
 
         @Override
         public PlanNode visitTableScan(TableScanNode node, RewriteContext<Void> context) {
             TableHandle tableHandle = node.getTable();
             ClpTableHandle clpTableHandle = (ClpTableHandle)tableHandle.getConnectorHandle();
-            tableScopeSet.add(format("%s.%s", CONNECTOR_NAME, clpTableHandle.getSchemaTableName()));
             return super.visitTableScan(node, context);
         }
 
@@ -110,13 +93,9 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
         }
 
         private PlanNode processFilter(FilterNode filterNode, TableScanNode tableScanNode) {
-            hasVisitedFilter = true;
-
             TableHandle tableHandle = tableScanNode.getTable();
             ClpTableHandle clpTableHandle = (ClpTableHandle)tableHandle.getConnectorHandle();
 
-            String tableScope = CONNECTOR_NAME + "." + clpTableHandle.getSchemaTableName()
-                    .toString();
             Map<VariableReferenceExpression, ColumnHandle> assignments = tableScanNode
                     .getAssignments();
 
@@ -126,40 +105,25 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
                     queryConfig
             );
 
-            Optional<String> kqlQuery = Optional.empty();
-            Optional<String> metadataSqlQuery = Optional.empty();
-            Optional<RowExpression> remainingPredicate = Optional.empty();
-            if (strippedPredicate.isPresent()) {
-                ClpExpression clpExpression = strippedPredicate.get().accept(
-                        new ClpFilterToKqlConverter(
-                                functionResolution,
-                                functionManager,
-                                assignments,
-                                splitFilterProvider.getColumnNames(tableScope)
-                        ),
-                        null
-                );
-                kqlQuery = clpExpression.getPushDownExpression();
-                metadataSqlQuery = clpExpression.getMetadataSqlQuery();
-                remainingPredicate = clpExpression.getRemainingExpression();
-            }
+            ClpExpression clpExpression = strippedPredicate.isPresent() ? strippedPredicate.get()
+                    .accept(
+                            new ClpFilterToKqlConverter(
+                                    functionResolution,
+                                    functionManager,
+                                    assignments,
+                                    metadataConfig.getMetadataColumns(
+                                            clpTableHandle.getSchemaTableName()
+                                    ).keySet()
+                            ),
+                            null
+                    ) : new ClpExpression();
+            Optional<String> kqlQuery = clpExpression.getPushDownExpression();
+            Optional<RowExpression> metadataExpression = clpExpression.getMetadataExpression();
+            Optional<RowExpression> remainingPredicate = clpExpression.getRemainingExpression();
 
-            // Perform required metadata filter checks before handling the KQL query (if kqlQuery
-            // isn't present, we'll return early, skipping subsequent checks).
-            splitFilterProvider.checkContainsRequiredFilters(
-                    ImmutableSet.of(tableScope),
-                    metadataSqlQuery.orElse("")
-            );
-            boolean hasMetadataFilter = metadataSqlQuery.isPresent() && !metadataSqlQuery.get()
-                    .isEmpty();
+            boolean hasMetadataFilter = metadataExpression.isPresent();
             if (hasMetadataFilter) {
-                metadataSqlQuery = Optional.of(
-                        splitFilterProvider.remapSplitFilterPushDownExpression(
-                                tableScope,
-                                metadataSqlQuery.get()
-                        )
-                );
-                log.debug("Metadata SQL query: %s", metadataSqlQuery.get());
+                log.debug("Metadata expression: %s", metadataExpression.get());
             }
 
             if (kqlQuery.isPresent() || hasMetadataFilter || !queryConfig.isEmpty()) {
@@ -170,7 +134,7 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
                 ClpTableLayoutHandle layoutHandle = new ClpTableLayoutHandle(
                         clpTableHandle,
                         kqlQuery,
-                        metadataSqlQuery,
+                        metadataExpression,
                         queryConfig
                 );
                 TableHandle newTableHandle = new TableHandle(
@@ -205,6 +169,5 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
                 return tableScanNode;
             }
         }
-
     }
 }
