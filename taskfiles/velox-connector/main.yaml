@@ -32,16 +32,37 @@ tasks:
           BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
           TARGETS: ["clp-plugin-velox-connector"]
 
+  # The tests link CLP and the AWS SDK (but not Velox), so they need the same installed dependencies
+  # as the plugin.
+  test-with-installed-deps:
+    desc: "Builds and runs the connector's unit tests using dependencies already installed in
+      G_DEPS_CPP_DIR."
+    preconditions:
+      - sh: "test -f '{{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake'"
+        msg: "Installed dependency settings not found; run velox-connector:deps:install-all first."
+    cmds:
+      - task: "generate"
+        vars:
+          BUILD_TESTING: "ON"
+      - task: "utils:cmake:build"
+        vars:
+          BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
+          TARGETS: ["clp-connector-s3-auth-tests"]
+      - "ctest --test-dir '{{.G_VELOX_CONNECTOR_BUILD_DIR}}' --output-on-failure"
+
   clean:
     cmd: "rm -rf '{{.G_VELOX_CONNECTOR_BUILD_DIR}}'"
 
   generate:
     internal: true
+    vars:
+      BUILD_TESTING: "{{default \"OFF\" .BUILD_TESTING}}"
     cmds:
       - task: "utils:cmake:generate"
         vars:
           BUILD_DIR: "{{.G_VELOX_CONNECTOR_BUILD_DIR}}"
           EXTRA_ARGS:
+            - "-DCLP_PLUGIN_BUILD_TESTING={{.BUILD_TESTING}}"
             - "-DLIBCLP_PLUGIN_VELOX_CONNECTOR_DEPS_CMAKE_SETTINGS=\
                 {{.G_DEPS_CPP_CMAKE_SETTINGS_DIR}}/all-deps.cmake"
             - "-DFETCHCONTENT_BASE_DIR={{.G_FETCHCONTENT_BASE_DIR}}"

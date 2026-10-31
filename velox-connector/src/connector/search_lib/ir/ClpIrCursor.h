@@ -30,8 +30,10 @@ class ClpIrCursor final : public BaseClpCursor {
   explicit ClpIrCursor(
       clp_s::InputSource inputSource,
       std::string_view splitPath,
+      clp_s::NetworkAuthOption networkAuthOption,
       bool ignoreCase)
-      : BaseClpCursor(inputSource, splitPath), ignoreCase_(ignoreCase) {}
+      : BaseClpCursor(inputSource, splitPath, std::move(networkAuthOption)),
+        ignoreCase_(ignoreCase) {}
 
   ClpIrCursor(const ClpIrCursor&) = delete;
   ClpIrCursor& operator=(const ClpIrCursor&) = delete;
