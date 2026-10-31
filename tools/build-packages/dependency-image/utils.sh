@@ -19,6 +19,18 @@ image_ref() {
     echo "$1/$2:env-$3"
 }
 
+# Strips leading and trailing slashes so a pasted value joins cleanly.
+_trim_slashes() {
+    local value="${1}"
+    while [[ "${value}" == /* ]]; do
+        value="${value#/}"
+    done
+    while [[ "${value}" == */ ]]; do
+        value="${value%/}"
+    done
+    printf '%s' "${value}"
+}
+
 # Resolves the image repo that every image reference is built under.
 #
 # `CI_CONTAINER_REGISTRY` and `CI_CONTAINER_REGISTRY_REPO` override the host and the path below it,
@@ -32,10 +44,8 @@ resolve_image_repo() {
     # someone is most likely to paste: a failed pull is not an error, it silently rebuilds.
     registry="${CI_CONTAINER_REGISTRY:-ghcr.io}"
     registry="${registry#*://}"
-    registry="${registry%/}"
-    repo="${CI_CONTAINER_REGISTRY_REPO:-}"
-    repo="${repo#/}"
-    repo="${repo%/}"
+    registry="$(_trim_slashes "${registry}")"
+    repo="$(_trim_slashes "${CI_CONTAINER_REGISTRY_REPO:-}")"
     if [[ -z "${repo}" ]]; then
         remote_url="$(git -C "${_REPO_ROOT}" remote get-url origin)"
         case "${remote_url}" in
