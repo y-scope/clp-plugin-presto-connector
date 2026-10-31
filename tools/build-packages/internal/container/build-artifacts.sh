@@ -33,7 +33,7 @@ fi
 # through corporate TLS gateways. CI invokes this script directly without
 # CA_TRUST_DIR, so this is local-only. Sourced before MAVEN_OPTS is read below.
 if [[ -n "${CA_TRUST_DIR:-}" ]]; then
-    source "${src}/tools/build-packages/internal/ca-trust/container.sh"
+    source "${src}/tools/yscope-dev-utils/exports/docker/ca-trust/container.sh"
 fi
 
 # Destination paths used by .deb and .rpm. Environment overrides support a
