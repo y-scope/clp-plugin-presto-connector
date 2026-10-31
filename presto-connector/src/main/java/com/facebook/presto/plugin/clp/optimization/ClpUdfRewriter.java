@@ -14,6 +14,7 @@ package com.facebook.presto.plugin.clp.optimization;
 import static com.facebook.presto.plugin.clp.ClpErrorCode.CLP_PUSHDOWN_UNSUPPORTED_EXPRESSION;
 import static com.facebook.presto.spi.ConnectorPlanRewriter.rewriteWith;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
@@ -213,7 +214,7 @@ public final class ClpUdfRewriter implements ConnectorPlanOptimizer {
             if (expression instanceof CallExpression) {
                 CallExpression call = (CallExpression)expression;
                 String functionName = functionManager.getFunctionMetadata(call.getFunctionHandle())
-                        .getName().getObjectName().toUpperCase();
+                        .getName().getObjectName().toUpperCase(ENGLISH);
 
                 if (inProjectNode && functionName.equals("CLP_GET_JSON_STRING")) {
                     VariableReferenceExpression newValue = variableAllocator.newVariable(
