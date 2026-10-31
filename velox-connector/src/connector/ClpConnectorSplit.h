@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <map>
+
 #include "velox/connectors/Connector.h"
 
 namespace facebook::velox::connector::clp {
@@ -25,11 +27,13 @@ struct ClpConnectorSplit : public connector::ConnectorSplit {
       const std::string& connectorId,
       const std::string& path,
       const int type,
-      std::shared_ptr<std::string> kqlQuery)
+      std::shared_ptr<std::string> kqlQuery,
+      std::map<std::string, std::string> queryConfig)
       : connector::ConnectorSplit(connectorId),
         path_(path),
         type_(static_cast<SplitType>(type)),
-        kqlQuery_(std::move(kqlQuery)) {}
+        kqlQuery_(std::move(kqlQuery)),
+        queryConfig_(std::move(queryConfig)) {}
 
   [[nodiscard]] std::string toString() const override {
     return fmt::format(
@@ -44,6 +48,11 @@ struct ClpConnectorSplit : public connector::ConnectorSplit {
   const std::string path_;
   const SplitType type_;
   std::shared_ptr<std::string> kqlQuery_;
+
+  /// Per-query config options extracted from CLP_QUERY_CONFIG markers on the
+  /// coordinator (keys/values are normalized to lowercase there). Overrides
+  /// the session/catalog-level defaults for this split's query.
+  const std::map<std::string, std::string> queryConfig_;
 };
 
 } // namespace facebook::velox::connector::clp
