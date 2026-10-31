@@ -15,8 +15,26 @@ tasks:
 
   run:
     desc: "Run the integration tests against a real Presto cluster."
+    cmds:
+      - task: "up"
+      # Deferred, so that a failing test still tears the cluster down.
+      - defer: {task: "down"}
+      - task: "test"
+        vars:
+          CLI_ARGS: "{{.CLI_ARGS}}"
+
+  up:
+    desc: "Start the Presto cluster."
     deps: [":package"]
     dir: "{{.G_INTEGRATION_TESTS_DIR}}"
-    env:
-      PYTHONDONTWRITEBYTECODE: "1"
-    cmd: "uv run pytest {{.CLI_ARGS}}"
+    cmd: "docker compose up --detach"
+
+  test:
+    desc: "Run the integration tests against an already-running cluster."
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    cmd: "docker compose run --rm tests {{.CLI_ARGS}}"
+
+  down:
+    desc: "Stop the Presto cluster."
+    dir: "{{.G_INTEGRATION_TESTS_DIR}}"
+    cmd: "docker compose down --volumes --remove-orphans"

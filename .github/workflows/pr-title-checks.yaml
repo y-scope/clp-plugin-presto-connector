@@ -23,7 +23,8 @@ jobs:
     permissions:
       # For amannn/action-semantic-pull-request
       pull-requests: "read"
-    runs-on: "ubuntu-latest"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     steps:
       # v6.1.1
       - uses: "amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50"

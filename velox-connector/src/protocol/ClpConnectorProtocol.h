@@ -238,6 +238,16 @@ namespace facebook::presto::protocol::clp {
                 std::shared_ptr<ConnectorIndexHandle>& proto) const override {
           VELOX_NYI("ConnectorIndexHandle not implemented");
         }
+
+        // --- ConnectorMergeTableHandle ---
+        void to_json(json& j, const std::shared_ptr<ConnectorMergeTableHandle>& proto)
+        const override {
+          VELOX_NYI("ConnectorMergeTableHandle not implemented");
+        }
+        void from_json(const json& j, std::shared_ptr<ConnectorMergeTableHandle>& proto)
+        const override {
+          VELOX_NYI("ConnectorMergeTableHandle not implemented");
+        }
     };
 
 } // namespace facebook::presto::protocol::clp

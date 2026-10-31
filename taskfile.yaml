@@ -16,7 +16,7 @@ vars:
   # The Presto repository that the connectors fetch from, and the commit they are built
   # against. Consumed by both connectors' builds and the tools/presto-deps/ scripts.
   G_PRESTO_GIT_URL: "https://github.com/prestodb/presto.git"
-  G_PRESTO_GIT_TAG: "6e1942b72a9f32191dcd0ba49812f2ac96a25615"
+  G_PRESTO_GIT_TAG: "7d5072160258be09def72b18c92022843ee7e9b1"
 
 tasks:
   clean:
