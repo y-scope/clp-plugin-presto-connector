@@ -33,7 +33,7 @@ import com.facebook.presto.spi.transaction.IsolationLevel;
 
 import com.facebook.presto.plugin.clp.codec.ClpConnectorCodecProvider;
 import com.facebook.presto.plugin.clp.optimization.ClpPlanOptimizerProvider;
-import com.facebook.presto.plugin.clp.split.filter.ClpSplitFilterProvider;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 
 public class ClpConnector implements Connector {
     private static final Logger log = Logger.get(ClpConnector.class);
@@ -44,7 +44,7 @@ public class ClpConnector implements Connector {
     private final ClpSplitManager splitManager;
     private final FunctionMetadataManager functionManager;
     private final StandardFunctionResolution functionResolution;
-    private final ClpSplitFilterProvider splitFilterProvider;
+    private final ClpSplitMetadataConfig metadataConfig;
     private final TypeManager typeManager;
     private final ClpSessionProperties sessionProperties;
 
@@ -56,7 +56,7 @@ public class ClpConnector implements Connector {
             ClpSplitManager splitManager,
             FunctionMetadataManager functionManager,
             StandardFunctionResolution functionResolution,
-            ClpSplitFilterProvider splitFilterProvider,
+            ClpSplitMetadataConfig metadataConfig,
             TypeManager typeManager,
             ClpSessionProperties sessionProperties
     ) {
@@ -66,10 +66,7 @@ public class ClpConnector implements Connector {
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
         this.functionResolution = requireNonNull(functionResolution, "functionResolution is null");
-        this.splitFilterProvider = requireNonNull(
-                splitFilterProvider,
-                "splitFilterProvider is null"
-        );
+        this.metadataConfig = requireNonNull(metadataConfig, "metadataConfig is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
     }
@@ -81,11 +78,7 @@ public class ClpConnector implements Connector {
 
     @Override
     public ConnectorPlanOptimizerProvider getConnectorPlanOptimizerProvider() {
-        return new ClpPlanOptimizerProvider(
-                functionManager,
-                functionResolution,
-                splitFilterProvider
-        );
+        return new ClpPlanOptimizerProvider(functionManager, functionResolution, metadataConfig);
     }
 
     @Override
