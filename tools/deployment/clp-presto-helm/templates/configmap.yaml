@@ -16,8 +16,7 @@ data:
     clp.metadata-db-password={{ required "metadataDb.password is required" .Values.metadataDb.password | replace "\\" "\\\\" }}
     clp.metadata-table-prefix={{ .Values.metadataDb.tablePrefix }}
     clp.split-provider-type=mysql
-    clp.split-filter-provider-type=mysql
-    clp.split-filter-config=/opt/presto-server/etc/split-filter.json
+    clp.split-metadata-config-path=/opt/presto-server/etc/split-metadata-config.json
 
   coordinator-config-config.properties: |
     coordinator=true
@@ -54,8 +53,8 @@ data:
     node.environment=production
     node.id=presto-coordinator
 
-  coordinator-config-split-filter.json: |
-    {{ .Values.splitFilter | toJson }}
+  coordinator-config-split-metadata-config.json: |
+    {{ .Values.splitMetadataConfig | toJson }}
 
   worker-catalog-clp.properties: |
     connector.name=clp

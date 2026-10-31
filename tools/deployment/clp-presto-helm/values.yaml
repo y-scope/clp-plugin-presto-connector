@@ -99,9 +99,9 @@ archiveStorage:
     accessKeyId: ""
     secretAccessKey: ""
 
-# Split filter config for the CLP connector.
-# See https://docs.yscope.com/presto/connector/clp.html#split-filter-config-file
-splitFilter: {}
+# Metadata columns the coordinator can prune splits on, keyed by scope.
+# See "Pruning splits" in presto-connector/README.md.
+splitMetadataConfig: {}
 
 probes:
   readiness:

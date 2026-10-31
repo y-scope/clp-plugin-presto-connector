@@ -47,7 +47,7 @@ spec:
               "jvm.config"
               "log.properties"
               "node.properties"
-              "split-filter.json" }}
+              "split-metadata-config.json" }}
             - name: "presto-config"
               mountPath: "/opt/presto-server/etc/{{ . }}"
               subPath: "coordinator-config-{{ . }}"
