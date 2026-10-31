@@ -19,6 +19,52 @@ Default outputs are written to `./packages`.
 `coordinator/` contains `clp-plugin-presto-connector.jar`; `worker/` contains
 `libclp-plugin-velox-connector.so` and bundled non-system runtime `.so` files.
 
+## Layout
+
+* `build-dependency-image.sh` — Resolves and prints the build-env image
+  reference; also usable standalone for one-off container runs.
+* `build-installer-init-image.sh` — Builds the busybox init-container installer
+  image from a package tarball, and prints the resulting image reference.
+  Shared by local builds (`--load`) and CI (`--push`, plus `--digest-file` so
+  the multi-arch manifest is assembled from immutable digests rather than
+  mutable per-architecture tags). Also usable standalone against any package
+  tarball.
+* `build-packages.sh` — Local entry point: resolves the build-env image,
+  prepares the build cache and CA trust, runs the container-side build, and
+  then builds and loads the installer image from the tarball it produced.
+* `dependency-image/` — Build-env image definition: the `Dockerfile`,
+  `utils.sh` (image-tag hash derivation, GHCR repo derivation, package-version
+  tag validation, and Docker build helpers — shared with the
+  `build-dependency-image` CI workflow and `build-installer-init-image.sh`),
+  and `use-host-ca.sh` (exposes a host CA bundle to the image's networked build
+  steps).
+* `image/` — Installer image definition consumed by
+  `build-installer-init-image.sh`: the `Dockerfile` (busybox base; stages both
+  plugins under the same install root as the `.deb`/`.rpm` channels) and
+  `entrypoint.sh` (copies each plugin into the mounted directory named by
+  `COORDINATOR_PLUGIN_INSTALL_PATH` / `WORKER_PLUGIN_INSTALL_PATH`).
+* `internal/` — Implementation used by the entry points and CI, not meant to
+  be invoked by users directly.
+  * `build-cache/` — Host/container script pair behind the persistent local
+    build cache: `host.sh` creates the `.cache/` layout (`ccache/` and
+    `maven/` shared across build-env revisions; `build/<key>/` and
+    `fetchcontent/<key>/` namespaced per revision), and `container.sh` points
+    ccache, CMake FetchContent, and Maven at it inside the container.
+    Local-only; CI builds run without it.
+  * `ca-trust/` — Reusable library for propagating host CA certificates into
+    containerized builds behind TLS-intercepting proxies without persisting
+    them in images, caches, or artifacts; see its
+    [README](internal/ca-trust/README.md). Expected to move into
+    `yscope-dev-utils` and be imported back from there.
+  * `container/` — `build-artifacts.sh`, the container-side implementation
+    shared by local and CI builds: validates dependency pins, builds the
+    worker plugin, provisions the pinned Presto commit's Maven artifacts and
+    builds the coordinator plugin, stages one payload (bundling the worker's
+    non-system runtime `.so` dependencies), and emits it as `.deb`, `.rpm`,
+    and relocatable `.tar.gz`.
+* `package-specs/` — `.deb` control-file template and `.rpm` spec consumed by
+  `build-artifacts.sh`.
+
 ## Local usage
 
 ```bash
