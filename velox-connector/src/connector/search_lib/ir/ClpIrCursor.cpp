@@ -82,11 +82,13 @@ ErrorCode ClpIrCursor::loadSplit() {
   expr_ = timestampPrecisionPass.run(expr_);
 
   auto projections = splitFieldsToNamesAndTypes();
+  // QueryHandler::create takes case_sensitive_match, the inverse of
+  // ignoreCase_.
   auto queryHandlerResult{QueryHandlerType::create(
       projectionResolutionCallback_,
       std::move(expr_),
       projections,
-      ignoreCase_)};
+      false == ignoreCase_)};
   if (!queryHandlerResult) {
     VLOG(2) << "Failed to create query handler for deserialization.";
     return ErrorCode::InternalError;
