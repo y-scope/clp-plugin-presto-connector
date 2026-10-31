@@ -34,14 +34,14 @@ tasks:
     deps: [":package"]
     dir: "{{.G_INTEGRATION_TESTS_DIR}}"
     env:
-      CLP_PLUGIN_INSTALLER_IMAGE: "{{.G_INSTALLER_IMAGE}}"
+      CLP_PLUGIN_INSTALLER_IMAGE: "{{.CLP_PLUGIN_INSTALLER_IMAGE | default .G_INSTALLER_IMAGE}}"
     cmd: "docker compose up --detach"
 
   test:
     desc: "Run the integration tests against an already-running cluster."
     dir: "{{.G_INTEGRATION_TESTS_DIR}}"
     env:
-      CLP_PLUGIN_INSTALLER_IMAGE: "{{.G_INSTALLER_IMAGE}}"
+      CLP_PLUGIN_INSTALLER_IMAGE: "{{.CLP_PLUGIN_INSTALLER_IMAGE | default .G_INSTALLER_IMAGE}}"
     cmd: "docker compose run --rm tests {{.CLI_ARGS}}"
 
   down:
