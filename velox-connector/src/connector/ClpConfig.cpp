@@ -54,6 +54,8 @@ ClpConfig::ClpConfig(std::shared_ptr<const config::ConfigBase> config) {
   storageType_ =
       stringToStorageType(config_->get<std::string>(kStorageType, "FS"));
 
+  caseInsensitive_ = config_->get<bool>(kCaseInsensitive, false);
+
   if (StorageType::kS3 == storageType_) {
     // Set up S3 environment variables needed by CLP using configured auth
     // provider
@@ -75,6 +77,10 @@ std::shared_ptr<ClpS3AuthProviderBase> ClpConfig::s3AuthProvider() const {
 
 ClpConfig::StorageType ClpConfig::storageType() const {
   return storageType_;
+}
+
+bool ClpConfig::caseInsensitive() const {
+  return caseInsensitive_;
 }
 
 } // namespace facebook::velox::connector::clp
