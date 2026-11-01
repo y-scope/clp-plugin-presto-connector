@@ -20,8 +20,14 @@ tasks:
 
       Set VERSION to override the version in `Chart.yaml`. The snapshot channel uses it to stamp a
       per-commit prerelease without modifying the chart source.
+
+      Set PIN_IMAGES to `true` to resolve every image tag in `values.yaml` to the digest it
+      currently names, and package a copy of the chart carrying those digests. Publishing uses
+      this, so that a published chart keeps installing the builds that existed when it was
+      published. The chart in the repository is never modified.
     vars:
       OUTPUT_DIR: "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"
+      PIN_IMAGES: "{{.PIN_IMAGES}}"
       VERSION: "{{.VERSION}}"
     deps: ["toolchains:helm"]
     cmds:
@@ -29,11 +35,19 @@ tasks:
       - "mkdir -p '{{.OUTPUT_DIR}}'"
       - |-
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
+        chart_dir="{{.G_CLP_PRESTO_HELM_CHART_DIR}}"
+        if [[ "{{.PIN_IMAGES}}" == "true" ]] ; then
+          # Stage a copy, so that the digests stay out of the chart source.
+          staged_dir="$(mktemp -d)"
+          cp -a "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" "${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
+          chart_dir="${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
+          python3 "{{.ROOT_DIR}}/tools/deployment/pin-helm-image-digests.py" "${chart_dir}/values.yaml"
+        fi
         version_args=()
         if [[ -n "{{.VERSION}}" ]] ; then
           version_args=(--version "{{.VERSION}}")
         fi
-        helm package "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" \
+        helm package "${chart_dir}" \
           --destination "{{.OUTPUT_DIR}}" \
           "${version_args[@]}"
 

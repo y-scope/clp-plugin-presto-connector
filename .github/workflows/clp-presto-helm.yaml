@@ -171,7 +171,7 @@ jobs:
           && (github.event_name == 'push' || inputs.channel == 'release')
         shell: "bash"
         run: |-
-          task helm:package
+          task helm:package PIN_IMAGES=true
           task helm:publish OCI_REPO="$OCI_REPO"
 
       # A prerelease identifier rather than build metadata: OCI tags disallow `+`, and a SemVer
@@ -189,7 +189,7 @@ jobs:
           chart_version="${chart_version#clp-presto-}"
 
           version="${chart_version}-SNAPSHOT.$(date -u +%Y%m%d).g${GITHUB_SHA::7}"
-          task helm:package VERSION="${version}"
+          task helm:package VERSION="${version}" PIN_IMAGES=true
           task helm:publish OCI_REPO="$OCI_REPO" OVERWRITE=true
 
   # The chart pairs a moving connector tag with fixed Presto images, and the two are ABI-coupled: a
