@@ -53,14 +53,19 @@ tasks:
           RUFF_CHECK_FLAGS: "--fix"
           RUFF_FORMAT_FLAGS: ""
 
-  # The only Python in the repository is the integration-tests project, which pins its own
-  # toolchain in `uv.lock` and carries the `ruff` and `mypy` configuration that they read. These
-  # tasks therefore run through `uv` there, rather than installing linters into the shared venv.
+  # The integration-tests project pins its own toolchain in `uv.lock` and carries the `ruff` and
+  # `mypy` configuration that these tasks read, so they run through `uv` there rather than
+  # installing linters into the shared venv. `tools/deployment` holds standalone scripts, which are
+  # checked against the same configuration but not type-checked; `tools/presto-deps` predates that
+  # configuration and is not covered yet.
   py:
     internal: true
     vars:
       UV_PYTHON_PROJECTS:
         - "{{.ROOT_DIR}}/integration-tests"
+      # Passed explicitly: ruff finds a configuration by walking up from each file, and
+      # `tools/` has none of its own.
+      UV_PYTHON_CONFIG: "{{.ROOT_DIR}}/integration-tests/pyproject.toml"
     requires:
       vars: ["RUFF_CHECK_FLAGS", "RUFF_FORMAT_FLAGS"]
     cmds:
@@ -70,6 +75,12 @@ tasks:
           uv run --directory "{{.ITEM}}" ruff check {{.RUFF_CHECK_FLAGS}} .
           uv run --directory "{{.ITEM}}" ruff format {{.RUFF_FORMAT_FLAGS}} .
           uv run --directory "{{.ITEM}}" mypy .
+      - |-
+        uv run --directory "{{.ROOT_DIR}}/integration-tests" ruff check \
+          --config "{{.UV_PYTHON_CONFIG}}" {{.RUFF_CHECK_FLAGS}} ../tools/deployment
+      - |-
+        uv run --directory "{{.ROOT_DIR}}/integration-tests" ruff format \
+          --config "{{.UV_PYTHON_CONFIG}}" {{.RUFF_FORMAT_FLAGS}} ../tools/deployment
 
   yaml:
     aliases:

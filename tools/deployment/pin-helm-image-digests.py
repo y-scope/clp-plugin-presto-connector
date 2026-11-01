@@ -13,17 +13,19 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from pathlib import Path
 
+EXPECTED_ARGS = 2
+DIGEST_FORMAT = "{{.Manifest.Digest}}"
 COMPONENT_RE = re.compile(r"^  ([A-Za-z0-9_.-]+):\s*$")
 FIELD_RE = re.compile(r"^    ([A-Za-z0-9_.-]+):[ \t]*(.*?)[ \t]*$")
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
-if len(sys.argv) != 2:
+if len(sys.argv) != EXPECTED_ARGS:
     sys.exit(f"usage: {sys.argv[0]} VALUES_FILE")
-path = sys.argv[1]
+values_path = Path(sys.argv[1])
 
-with open(path, encoding="utf-8") as values_file:
-    lines = values_file.readlines()
+lines = values_path.read_text(encoding="utf-8").splitlines(keepends=True)
 
 # Walk the `image:` block, remembering where each component's `digest` value sits.
 components: dict[str, dict] = {}
@@ -71,7 +73,7 @@ unpinned = [
 ]
 
 if not unpinned:
-    print("No image tags to pin.", file=sys.stderr)
+    sys.stderr.write("No image tags to pin.\n")
     sys.exit(0)
 
 for name in unpinned:
@@ -80,15 +82,15 @@ for name in unpinned:
         sys.exit(f"image.{name} has a tag but no repository")
     ref = f"{component['repository']}:{component['tag']}"
     result = subprocess.run(
-        ["docker", "buildx", "imagetools", "inspect", "--format", "{{.Manifest.Digest}}", ref],
+        ["docker", "buildx", "imagetools", "inspect", "--format", DIGEST_FORMAT, ref],  # noqa: S607
         capture_output=True,
         text=True,
+        check=False,
     )
     digest = result.stdout.strip()
     if result.returncode != 0 or not DIGEST_RE.fullmatch(digest):
         sys.exit(f"could not resolve {ref} to a digest: {result.stderr.strip()}")
     lines[component["digest_line"]] = f'    digest: "{digest}"\n'
-    print(f"{ref} -> {digest}", file=sys.stderr)
+    sys.stderr.write(f"{ref} -> {digest}\n")
 
-with open(path, "w", encoding="utf-8") as values_file:
-    values_file.writelines(lines)
+values_path.write_text("".join(lines), encoding="utf-8")
