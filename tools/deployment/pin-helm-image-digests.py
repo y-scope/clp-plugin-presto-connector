@@ -81,12 +81,15 @@ for name in unpinned:
     if not component.get("repository"):
         sys.exit(f"image.{name} has a tag but no repository")
     ref = f"{component['repository']}:{component['tag']}"
-    result = subprocess.run(
-        ["docker", "buildx", "imagetools", "inspect", "--format", DIGEST_FORMAT, ref],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["docker", "buildx", "imagetools", "inspect", "--format", DIGEST_FORMAT, ref],  # noqa: S607
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        sys.exit("docker is not on PATH; resolving an image tag needs Docker with buildx")
     digest = result.stdout.strip()
     if result.returncode != 0 or not DIGEST_RE.fullmatch(digest):
         sys.exit(f"could not resolve {ref} to a digest: {result.stderr.strip()}")

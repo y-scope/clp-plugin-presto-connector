@@ -24,7 +24,8 @@ tasks:
       Set PIN_IMAGES to `true` to resolve every image tag in `values.yaml` to the digest it
       currently names, and package a copy of the chart carrying those digests. Publishing uses
       this, so that a published chart keeps installing the builds that existed when it was
-      published. The chart in the repository is never modified.
+      published. The chart in the repository is never modified. This needs Docker with the
+      `buildx` plugin.
     vars:
       OUTPUT_DIR: "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"
       PIN_IMAGES: "{{.PIN_IMAGES}}"
@@ -92,7 +93,21 @@ tasks:
       - |-
         . "{{.G_HELM_TOOLCHAIN_ENV_FILE}}"
         chart_name="{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
-        chart_tgz="$(ls "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"/*.tgz)"
+
+        # Exactly one packaged chart: with none, the glob stays literal and `helm push` would be
+        # handed a nonexistent path; with several, it would receive the extras as arguments.
+        chart_tgzs=("{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"/*.tgz)
+        if [[ ! -e "${chart_tgzs[0]:-}" ]] ; then
+          echo "No packaged chart in {{.G_CLP_PRESTO_HELM_BUILD_DIR}};" \
+               "run \`task helm:package\` first." >&2
+          exit 1
+        fi
+        if [[ ${#chart_tgzs[@]} -ne 1 ]] ; then
+          echo "Expected one packaged chart in {{.G_CLP_PRESTO_HELM_BUILD_DIR}}," \
+               "found ${#chart_tgzs[@]}." >&2
+          exit 1
+        fi
+        chart_tgz="${chart_tgzs[0]}"
 
         # Strip the known chart-name prefix rather than matching on the last hyphen, so that a
         # prerelease version containing hyphens survives intact.
