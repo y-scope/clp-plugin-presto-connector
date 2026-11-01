@@ -18,14 +18,14 @@ tasks:
 
   fix:
     cmds:
-      - task: "fix-helm"
       - task: "fix-py"
       - task: "fix-yaml"
 
+  # No `fix-helm`: `ct lint` only reports, so the chart is checked but never "fixed". Keeping a
+  # fix alias would make `lint:fix` fail on a chart that `lint:check` already rejected.
   helm:
     aliases:
       - "check-helm"
-      - "fix-helm"
     deps:
       - "toolchains:helm"
       - "venv"
