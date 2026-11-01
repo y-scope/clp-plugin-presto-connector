@@ -10,11 +10,7 @@ image:
   # shared volume that the Presto containers mount, and then exits.
   connector:
     repository: "ghcr.io/y-scope/clp-plugin-presto-connector"
-    # `Always`: the default tag is a snapshot that the connector's CI moves on every push to `main`,
-    # so a node that kept its old copy would keep running a plugin the tag no longer names. The
-    # image holds only the plugin, so resolving it again costs little even for a release; leaving
-    # this to the installer would mean every user has to remember the override.
-    pullPolicy: "Always"
+    pullPolicy: "IfNotPresent"
     tag: "0.1.0-SNAPSHOT"
     digest: ""
 
