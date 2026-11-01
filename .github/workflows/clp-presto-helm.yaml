@@ -133,9 +133,12 @@ jobs:
           done
 
   publish:
-    # Any branch listed above may publish a snapshot. The release step below is the one restricted
-    # to `main`, because a release tag is what a consumer pins.
-    if: "github.event_name != 'pull_request'"
+    # A push from one of the branches above may publish a snapshot, but a manual run may pick any
+    # branch from the dispatch dropdown, so it is held to `main`. The release step below is
+    # restricted too, because a release tag is what a consumer pins.
+    if: >-
+      github.event_name == 'push'
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: "lint"
     runs-on: >-
       ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
