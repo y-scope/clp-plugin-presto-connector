@@ -11,8 +11,9 @@ image:
   connector:
     repository: "ghcr.io/y-scope/clp-plugin-presto-connector"
     # `Always`: the default tag is a snapshot that the connector's CI moves on every push to `main`,
-    # so a node that kept its old copy would run a plugin that no longer matches the tag. For a
-    # release, set this to `IfNotPresent` together with an immutable tag or a digest.
+    # so a node that kept its old copy would keep running a plugin the tag no longer names. The
+    # image holds only the plugin, so resolving it again costs little even for a release; leaving
+    # this to the installer would mean every user has to remember the override.
     pullPolicy: "Always"
     tag: "0.1.0-SNAPSHOT"
     digest: ""
