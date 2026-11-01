@@ -121,9 +121,6 @@ affinity:
 {{- end }}
 
 {{/*
-The in-cluster URI of the coordinator's HTTP endpoint.
-*/}}
-{{/*
 The `presto.version` both nodes announce. A worker whose value differs from the coordinator's still
 registers and answers health checks, but is never counted in `activeWorkers`, so queries queue
 forever. Deriving it from the chart makes the two agree by construction, which is why neither node
@@ -134,6 +131,9 @@ has to ask the other for it at startup.
 {{- printf "%s-%s" .Chart.Name .Chart.Version -}}
 {{- end }}
 
+{{/*
+The in-cluster URI of the coordinator's HTTP endpoint.
+*/}}
 {{- define "clp-presto.discoveryUri" -}}
 {{- printf "http://%s:8889" (include "clp-presto.componentFullname" (dict "root" . "component" "coordinator")) -}}
 {{- end }}
