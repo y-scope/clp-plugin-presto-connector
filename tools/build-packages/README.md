@@ -67,6 +67,24 @@ to the same values CI uses when building locally against a private registry, and
 `docker login` to it first: an unauthenticated pull is not an error, it just falls
 back to rebuilding the image from scratch.
 
+Both images share that one repository and are told apart by tag: the installer
+uses `:<version>`, and the build-env image uses `:env-<hash>` (per-architecture
+builds add `-<arch>`). The build-env image is not a sub-repository such as
+`<repo>/build-env` because Docker Hub only accepts `<namespace>/<repository>`.
+For Docker Hub, set the registry to `docker.io` and the repository to
+`<namespace>/<name>`:
+
+```bash
+CI_CONTAINER_REGISTRY=docker.io
+CI_CONTAINER_REGISTRY_REPO=myorg/clp-plugin-presto-connector
+```
+
+That publishes `docker.io/myorg/clp-plugin-presto-connector:<version>` and
+`docker.io/myorg/clp-plugin-presto-connector:env-<hash>`. Build-env images from
+before this layout sat at `<repo>/build-env:env-<hash>` and are no longer read,
+so the first build afterwards rebuilds the image once; the old tags can be
+deleted.
+
 Build state is cached under `.cache/` (`maven/`, `ccache/`,
 `fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),
 shared across build-env revisions. `.cache/build/<hash>/` is the container's

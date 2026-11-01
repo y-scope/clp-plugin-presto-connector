@@ -12,11 +12,16 @@ ensure_yscope_dev_utils_submodule() {
 
 # ── Image identity ────────────────────────────────────────────────────────────
 
-# Builds the canonical `:env-<hash>` image reference.
+# Builds the content-addressed build-env image reference.
 #
-# Args: <repo> <image-name> <build-env-hash>
+# The image kind goes in the tag rather than a path component: Docker Hub only accepts
+# `<namespace>/<repository>`, so a `<repo>/build-env` path would be unpublishable there. The two
+# kinds can share a repository because version tags start with a digit (see
+# `package_version_to_image_tag`) while these start with `env-`.
+#
+# Args: <repo> <build-env-hash>
 image_ref() {
-    echo "$1/$2:env-$3"
+    echo "$1:env-$2"
 }
 
 # Strips leading and trailing slashes so a pasted value joins cleanly.
@@ -143,7 +148,7 @@ _stage_host_ca_bundle() {
 # Builds the dependency image.
 #
 # Args:
-#   $1  image tag    — e.g. ghcr.io/owner/build-env:env-<hash>
+#   $1  image tag    — e.g. ghcr.io/owner/repo:env-<hash>
 #   $2  platform     — linux/amd64 or linux/arm64
 #   $3  output flag  — --push (registry) or --load (local docker)
 #

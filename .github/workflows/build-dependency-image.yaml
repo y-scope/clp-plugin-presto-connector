@@ -31,7 +31,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: "build-env"
   # The GitHub token only authenticates to GHCR. The credential fallbacks in the jobs below
   # therefore apply only while this variable is unset or `ghcr.io`: set the username/password
   # secrets with any other registry.
@@ -60,7 +59,7 @@ jobs:
           source tools/build-packages/dependency-image/utils.sh
           build_env_hash=$(derive_build_env_hash)
           image_repo="$(resolve_image_repo)"
-          image=$(image_ref "${image_repo}" "${IMAGE_NAME}" "${build_env_hash}")
+          image=$(image_ref "${image_repo}" "${build_env_hash}")
           echo "ref=${image}" >> "$GITHUB_OUTPUT"
 
       - name: "Log in to the container registry"

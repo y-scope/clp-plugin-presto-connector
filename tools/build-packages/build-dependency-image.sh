@@ -33,7 +33,7 @@ main() {
     echo >&2 "==> Deriving build-env hash..."
     build_env_hash="$(derive_build_env_hash)"
     image_repo="$(resolve_image_repo)"
-    image="$(image_ref "${image_repo}" "build-env" "${build_env_hash}")"
+    image="$(image_ref "${image_repo}" "${build_env_hash}")"
     platform="$(host_platform)"
 
     echo >&2 "    build-env hash: ${build_env_hash}"
