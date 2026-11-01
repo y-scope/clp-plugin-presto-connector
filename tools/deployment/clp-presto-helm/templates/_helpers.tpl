@@ -187,6 +187,21 @@ emptyDir the plugin is installed into.
 {{- end }}
 
 {{/*
+Validates and returns `archiveStorage.type`.
+
+Everything that is not "fs" takes the S3 path, so an unrecognized value (a typo such as "FS", or a
+case slip) would silently configure the other backend. Failing here reports it at render time
+instead of at the worker's first query.
+*/}}
+{{- define "clp-presto.archiveStorageType" -}}
+{{- $type := .Values.archiveStorage.type | default "fs" -}}
+{{- if not (has $type (list "fs" "s3")) -}}
+{{- fail (printf "archiveStorage.type must be \"fs\" or \"s3\", not %q" $type) -}}
+{{- end -}}
+{{- $type -}}
+{{- end }}
+
+{{/*
 The PersistentVolumeClaim holding archives, shared by both components.
 @param {dict} root The root context.
 @param {string} requiredBy Text naming the setting that makes the claim mandatory.

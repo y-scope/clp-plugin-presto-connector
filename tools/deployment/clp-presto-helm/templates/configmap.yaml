@@ -1,4 +1,4 @@
-{{- $fsArchives := eq .Values.archiveStorage.type "fs" -}}
+{{- $fsArchives := eq (include "clp-presto.archiveStorageType" .) "fs" -}}
 apiVersion: "v1"
 kind: "ConfigMap"
 metadata:
@@ -38,7 +38,7 @@ data:
 
   coordinator-config-jvm.config: |
     -server
-    -Xmx4G
+    -Xmx{{ .Values.coordinator.heapSize }}
     -XX:+UseG1GC
     -XX:G1HeapRegionSize=32M
     -XX:+UseGCOverheadLimit
@@ -61,6 +61,12 @@ data:
     connector.name=clp
     {{- if not $fsArchives }}
     {{- with .Values.archiveStorage.s3 }}
+    {{- $_ := required "archiveStorage.s3.bucket is required when archiveStorage.type is \"s3\"" .bucket -}}
+    {{- $_ := required "archiveStorage.s3.accessKeyId is required when archiveStorage.type is \"s3\"" .accessKeyId -}}
+    {{- $_ := required "archiveStorage.s3.secretAccessKey is required when archiveStorage.type is \"s3\"" .secretAccessKey -}}
+    {{- if not .endpointUrl }}
+    {{- $_ := required "archiveStorage.s3.regionCode is required unless archiveStorage.s3.endpointUrl is set" .regionCode -}}
+    {{- end }}
     clp.storage-type=s3
     clp.s3-auth-provider=clp_package
     clp.s3-access-key-id={{ .accessKeyId }}

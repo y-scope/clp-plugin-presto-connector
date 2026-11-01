@@ -43,6 +43,9 @@ coordinator:
     # The service's nodePort. Ignored unless `type` is "NodePort".
     nodePort: 30889
   loggingLevel: "INFO"
+  # Heap for the coordinator's JVM. Keep it below `resources.limits.memory` when that is set: the
+  # heap is not the limit's only consumer, so a heap equal to the limit gets the pod OOMKilled.
+  heapSize: "4G"
   queryMaxMemoryGb: 1
   queryMaxMemoryPerNodeGb: 1
   resources: {}

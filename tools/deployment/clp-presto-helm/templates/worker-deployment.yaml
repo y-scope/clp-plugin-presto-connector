@@ -1,4 +1,4 @@
-{{- $fsArchives := eq .Values.archiveStorage.type "fs" -}}
+{{- $fsArchives := eq (include "clp-presto.archiveStorageType" .) "fs" -}}
 apiVersion: "apps/v1"
 kind: "Deployment"
 metadata:
