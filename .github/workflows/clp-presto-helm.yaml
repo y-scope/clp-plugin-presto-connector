@@ -217,12 +217,37 @@ jobs:
       # Two runs on one machine would otherwise share container names and compete for the port.
       COMPOSE_PROJECT_NAME: "clp-helm-smoke-${{github.run_id}}-${{github.run_attempt}}"
       CLP_INTEGRATION_TEST_COORDINATOR_PORT: "0"
-      # The installer image that `values.yaml` defaults to, so no local packaging is needed.
-      CLP_PLUGIN_INSTALLER_IMAGE: "ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT"
     steps:
       - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
         with:
           persist-credentials: false
+
+          # Renders the chart below, which needs the taskfiles the submodule carries.
+          submodules: "recursive"
+
+      - uses: "./tools/yscope-dev-utils/exports/github/actions/install-go-task"
+        with:
+          version: "3.48.0"
+
+      # Read out of the chart rather than repeated here: this job exists to check the pairing the
+      # chart ships, so a copy of the default image would let the two drift apart silently.
+      - name: "Resolve the connector image the chart defaults to"
+        shell: "bash"
+        run: |-
+          task helm:toolchains:helm
+          . "build/toolchains/helm/env"
+          image="$(helm template clp-presto tools/deployment/clp-presto-helm \
+                     --values tools/deployment/clp-presto-helm/ci/default-values.yaml \
+                     --show-only templates/worker-deployment.yaml |
+                   awk '/name: "install-clp-plugin"/ { found = 1 }
+                        found && /^[[:space:]]*image:/ { print $2; exit }' |
+                   tr -d '"')"
+          if [[ -z "${image}" ]] ; then
+            echo "Could not read the connector image out of the chart." >&2
+            exit 1
+          fi
+          echo "Using the chart's connector image: ${image}"
+          echo "CLP_PLUGIN_INSTALLER_IMAGE=${image}" >> "${GITHUB_ENV}"
 
       - name: "Start the cluster"
         shell: "bash"
