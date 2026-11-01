@@ -17,12 +17,12 @@ image:
   # NOTE: The connector is a Presto plugin, so it is ABI-coupled to the Presto version below.
   # Override `coordinator`/`worker` and `connector` together.
   coordinator:
-    repository: "ghcr.io/y-scope/presto"
+    repository: "prestodb/presto"
     pullPolicy: "IfNotPresent"
     tag: "0.299"
     digest: ""
   worker:
-    repository: "ghcr.io/y-scope/presto-native"
+    repository: "prestodb/presto-native"
     pullPolicy: "IfNotPresent"
     tag: "0.299"
     digest: ""

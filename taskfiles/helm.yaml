@@ -39,9 +39,12 @@ tasks:
         if [[ "{{.PIN_IMAGES}}" == "true" ]] ; then
           # Stage a copy, so that the digests stay out of the chart source.
           staged_dir="$(mktemp -d)"
-          cp -a "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" "${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
+          trap 'rm -rf "${staged_dir}"' EXIT
+          cp -a "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" \
+            "${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
           chart_dir="${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
-          python3 "{{.ROOT_DIR}}/tools/deployment/pin-helm-image-digests.py" "${chart_dir}/values.yaml"
+          python3 "{{.ROOT_DIR}}/tools/deployment/pin-helm-image-digests.py" \
+            "${chart_dir}/values.yaml"
         fi
         version_args=()
         if [[ -n "{{.VERSION}}" ]] ; then

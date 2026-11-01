@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pins a chart's image references to the digests their tags currently resolve to.
+"""
+Pins a chart's image references to the digests their tags currently resolve to.
 
 Rewrites every `image.<component>` block in a values file that has a `tag` and an empty
 `digest`, so that the packaged chart names the exact builds that existed when it was
@@ -13,8 +14,9 @@ import re
 import subprocess
 import sys
 
-COMPONENT_RE = re.compile(r"^  ([A-Za-z0-9]+):\s*$")
-FIELD_RE = re.compile(r"^    ([A-Za-z0-9]+):[ \t]*(.*?)[ \t]*$")
+COMPONENT_RE = re.compile(r"^  ([A-Za-z0-9_.-]+):\s*$")
+FIELD_RE = re.compile(r"^    ([A-Za-z0-9_.-]+):[ \t]*(.*?)[ \t]*$")
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 if len(sys.argv) != 2:
     sys.exit(f"usage: {sys.argv[0]} VALUES_FILE")
@@ -45,12 +47,22 @@ for index, line in enumerate(lines):
     if current is None:
         continue
     if match := FIELD_RE.match(line):
-        name, value = match.group(1), match.group(2).strip('"')
+        # Drop a trailing `# comment`, which the kubectl digest carries.
+        value = match.group(2).split(" #")[0].strip().strip('"')
+        name = match.group(1)
         if name in ("repository", "tag"):
             components[current][name] = value
         elif name == "digest":
             components[current]["digest_value"] = value
             components[current]["digest_line"] = index
+
+# A tagged image without a `digest` field cannot be pinned, and silently leaving it on a
+# moving tag would defeat the point, so treat it as an error rather than skipping it.
+for name, component in components.items():
+    if component.get("tag") and component["digest_line"] is None:
+        sys.exit(f"image.{name} has a tag but no digest field to pin")
+    if component["digest_value"] and not DIGEST_RE.fullmatch(component["digest_value"]):
+        sys.exit(f"image.{name} has a malformed digest: {component['digest_value']}")
 
 unpinned = [
     name
@@ -66,8 +78,6 @@ for name in unpinned:
     component = components[name]
     if not component.get("repository"):
         sys.exit(f"image.{name} has a tag but no repository")
-    if component["digest_line"] is None:
-        sys.exit(f"image.{name} has no digest field to pin")
     ref = f"{component['repository']}:{component['tag']}"
     result = subprocess.run(
         ["docker", "buildx", "imagetools", "inspect", "--format", "{{.Manifest.Digest}}", ref],
@@ -75,7 +85,7 @@ for name in unpinned:
         text=True,
     )
     digest = result.stdout.strip()
-    if result.returncode != 0 or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    if result.returncode != 0 or not DIGEST_RE.fullmatch(digest):
         sys.exit(f"could not resolve {ref} to a digest: {result.stderr.strip()}")
     lines[component["digest_line"]] = f'    digest: "{digest}"\n'
     print(f"{ref} -> {digest}", file=sys.stderr)
