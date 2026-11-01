@@ -191,3 +191,54 @@ jobs:
           version="${chart_version}-SNAPSHOT.$(date -u +%Y%m%d).g${GITHUB_SHA::7}"
           task helm:package VERSION="${version}"
           task helm:publish OCI_REPO="$OCI_REPO" OVERWRITE=true
+
+  # The chart pairs a moving connector tag with fixed Presto images, and the two are ABI-coupled: a
+  # snapshot that breaks the pairing still installs and pulls cleanly, then crashes the worker on
+  # the first query. This runs the connector's integration suite against the reference the chart
+  # defaults to, so that a broken snapshot is caught here rather than by a deployment.
+  #
+  # Manual: the suite pulls several GiB of images and takes minutes, which is too much to add to
+  # every snapshot publish.
+  smoke-test:
+    if: "github.event_name == 'workflow_dispatch'"
+    needs: "lint"
+    runs-on: >-
+      ${{ fromJSON(vars.GH_RUNNER_LINUX_HEAVY_X64 || '["ubuntu-24.04"]') }}
+    timeout-minutes: 60
+    permissions:
+      # To check out the repository.
+      contents: "read"
+      # To pull the connector image.
+      packages: "read"
+    env:
+      # Two runs on one machine would otherwise share container names and compete for the port.
+      COMPOSE_PROJECT_NAME: "clp-helm-smoke-${{github.run_id}}-${{github.run_attempt}}"
+      CLP_INTEGRATION_TEST_COORDINATOR_PORT: "0"
+      # The installer image that `values.yaml` defaults to, so no local packaging is needed.
+      CLP_PLUGIN_INSTALLER_IMAGE: "ghcr.io/y-scope/clp-plugin-presto-connector:0.1.0-SNAPSHOT"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: "Start the cluster"
+        shell: "bash"
+        working-directory: "integration-tests"
+        run: "docker compose up --detach"
+
+      - name: "Run the integration tests"
+        shell: "bash"
+        working-directory: "integration-tests"
+        run: "docker compose run --rm tests"
+
+      - name: "Capture cluster logs on failure"
+        if: "failure()"
+        shell: "bash"
+        working-directory: "integration-tests"
+        run: "docker compose logs --tail 200 || true"
+
+      - name: "Stop the cluster"
+        if: "always()"
+        shell: "bash"
+        working-directory: "integration-tests"
+        run: "docker compose down --volumes --remove-orphans"
