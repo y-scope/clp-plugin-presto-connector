@@ -32,6 +32,12 @@ tasks:
             {{- end }}
           INCLUDE_PATTERNS: ["ct", "etc/chart_schema.yaml"]
           NUM_COMPONENTS_TO_STRIP: "0"
+          # Helm and the env file are installed below, into the directory this task checksums, so
+          # leaving them in the checksum would invalidate it on the next run and re-download both
+          # tarballs every time.
+          CHECKSUM_EXCLUDE_PATTERNS:
+            - "*/toolchains/helm/helm"
+            - "*/toolchains/helm/env"
       - |-
         export PATH="{{.G_HELM_TOOLCHAIN_DIR}}:$PATH"
         export HELM_INSTALL_DIR="{{.G_HELM_TOOLCHAIN_DIR}}"
