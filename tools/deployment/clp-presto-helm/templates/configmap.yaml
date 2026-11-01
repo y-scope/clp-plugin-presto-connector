@@ -60,24 +60,24 @@ data:
   worker-catalog-clp.properties: |
     connector.name=clp
     {{- if not $fsArchives }}
-    {{- with .Values.archiveStorage.s3 }}
-    {{- $_ := required "archiveStorage.s3.bucket is required when archiveStorage.type is \"s3\"" .bucket -}}
-    {{- $_ := required "archiveStorage.s3.accessKeyId is required when archiveStorage.type is \"s3\"" .accessKeyId -}}
-    {{- $_ := required "archiveStorage.s3.secretAccessKey is required when archiveStorage.type is \"s3\"" .secretAccessKey -}}
-    {{- if not .endpointUrl }}
-    {{- $_ := required "archiveStorage.s3.regionCode is required unless archiveStorage.s3.endpointUrl is set" .regionCode -}}
+    {{- /* `with` treats an empty map as falsy and would skip the checks, so bind first. */}}
+    {{- $s3 := .Values.archiveStorage.s3 | default dict -}}
+    {{- $_ := required "archiveStorage.s3.bucket is required when archiveStorage.type is \"s3\"" $s3.bucket -}}
+    {{- $_ := required "archiveStorage.s3.accessKeyId is required when archiveStorage.type is \"s3\"" $s3.accessKeyId -}}
+    {{- $_ := required "archiveStorage.s3.secretAccessKey is required when archiveStorage.type is \"s3\"" $s3.secretAccessKey -}}
+    {{- if not $s3.endpointUrl }}
+    {{- $_ := required "archiveStorage.s3.regionCode is required unless archiveStorage.s3.endpointUrl is set" $s3.regionCode -}}
     {{- end }}
     clp.storage-type=s3
     clp.s3-auth-provider=clp_package
-    clp.s3-access-key-id={{ .accessKeyId }}
-    clp.s3-bucket={{ .bucket }}
-    {{- if .endpointUrl }}
-    clp.s3-end-point={{ trimSuffix "/" .endpointUrl }}
+    clp.s3-access-key-id={{ $s3.accessKeyId }}
+    clp.s3-bucket={{ $s3.bucket }}
+    {{- if $s3.endpointUrl }}
+    clp.s3-end-point={{ trimSuffix "/" $s3.endpointUrl }}
     {{- else }}
-    clp.s3-end-point=https://s3.{{ .regionCode }}.amazonaws.com
+    clp.s3-end-point=https://s3.{{ $s3.regionCode }}.amazonaws.com
     {{- end }}
-    clp.s3-secret-access-key={{ .secretAccessKey | replace "\\" "\\\\" }}
-    {{- end }}
+    clp.s3-secret-access-key={{ $s3.secretAccessKey | replace "\\" "\\\\" }}
     {{- end }}
 
   worker-config-config.properties: |
