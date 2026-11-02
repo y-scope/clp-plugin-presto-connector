@@ -19,7 +19,7 @@ tasks:
       Packages the chart into the build directory.
 
       Set VERSION to override the version in `Chart.yaml`. The snapshot channel uses it to stamp a
-      per-commit prerelease without modifying the chart source.
+      prerelease without modifying the chart source.
 
       Set PIN_IMAGES to `true` to resolve every image tag in `values.yaml` to the digest it
       currently names, and package a copy of the chart carrying those digests. Publishing uses
