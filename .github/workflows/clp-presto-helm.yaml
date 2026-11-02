@@ -144,10 +144,12 @@ jobs:
       ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
     timeout-minutes: 10
     permissions:
-      # To push the chart to the GitHub Container Registry.
+      # To push the chart to the GitHub Container Registry. Other registries authenticate with
+      # `secrets.CLP_PRESTO_CHART_REGISTRY_PASSWORD` instead.
       packages: "write"
     env:
-      OCI_REPO: "oci://ghcr.io/y-scope/charts"
+      # Overridable by a repository variable, for publishing to a registry other than GHCR.
+      OCI_REPO: "${{vars.CLP_PRESTO_CHART_OCI_REPO || 'oci://ghcr.io/y-scope/charts'}}"
     steps:
       - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"  # v7.0.1
         with:
@@ -158,11 +160,39 @@ jobs:
         with:
           version: "3.48.0"
 
+      # The workflow token is valid only for GHCR, so the destination decides which credential the
+      # steps below use.
+      - name: "Resolve the registry"
+        id: "registry"
+        shell: "bash"
+        run: |-
+          registry="${OCI_REPO#oci://}"
+          registry="${registry%%/*}"
+          echo "OCI_REGISTRY=${registry}" >> "${GITHUB_ENV}"
+          if [[ "${registry}" == "ghcr.io" ]] ; then
+            echo "uses_github_token=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "uses_github_token=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: "Log in to the GitHub Container Registry"
+        if: "steps.registry.outputs.uses_github_token == 'true'"
         shell: "bash"
         env:
           HELM_REGISTRY_PASSWORD: "${{secrets.GITHUB_TOKEN}}"
         run: "task helm:registry-login REGISTRY=ghcr.io USERNAME=\"$GITHUB_ACTOR\""
+
+      # Never given the workflow token: it is valid only for GHCR, and sending it elsewhere would
+      # leak it to a third party.
+      - name: "Log in to the configured registry"
+        if: "steps.registry.outputs.uses_github_token != 'true'"
+        shell: "bash"
+        env:
+          HELM_REGISTRY_PASSWORD: "${{secrets.CLP_PRESTO_CHART_REGISTRY_PASSWORD}}"
+          HELM_REGISTRY_USERNAME: "${{vars.CLP_PRESTO_CHART_REGISTRY_USERNAME}}"
+        run: |-
+          : "${HELM_REGISTRY_USERNAME:?set CLP_PRESTO_CHART_REGISTRY_USERNAME}"
+          task helm:registry-login REGISTRY="$OCI_REGISTRY" USERNAME="$HELM_REGISTRY_USERNAME"
 
       # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
       # that does not bump it.
