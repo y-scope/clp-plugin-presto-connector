@@ -12,6 +12,7 @@ tasks:
       - task: "check-helm"
       - task: "check-py"
       - task: "check-yaml"
+      - task: "check-java"
 
   clean:
     cmd: "rm -rf '{{.G_LINT_VENV_DIR}}'"
@@ -20,6 +21,15 @@ tasks:
     cmds:
       - task: "fix-py"
       - task: "fix-yaml"
+      - task: "fix-java"
+
+  check-java:
+    cmds:
+      - task: ":presto-connector:lint:check-java"
+
+  fix-java:
+    cmds:
+      - task: ":presto-connector:lint:fix-java"
 
   # No `fix-helm`: `ct lint` only reports, so the chart is checked but never "fixed". Keeping a
   # fix alias would make `lint:fix` fail on a chart that `lint:check` already rejected.
