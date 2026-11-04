@@ -71,6 +71,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VELOX_TARGET_CPU_CXX_FLAGS}")
 # CLP options - only build what the plugin needs.
 set(CLP_BUILD_CLP_REGEX_UTILS OFF CACHE BOOL "Build CLP regex utils")
 set(CLP_BUILD_CLP_S_ARCHIVEWRITER OFF CACHE BOOL "Build CLP-S archive writer")
+set(CLP_BUILD_CLP_S_FFI_SFA OFF CACHE BOOL "Build CLP-S FFI single-file archive reader")
 set(CLP_BUILD_CLP_S_FILTER OFF CACHE BOOL "Build CLP-S filter")
 set(CLP_BUILD_CLP_S_JSONCONSTRUCTOR OFF CACHE BOOL "Build CLP-S JSON constructor")
 set(CLP_BUILD_CLP_S_REDUCER_DEPENDENCIES OFF CACHE BOOL "Build CLP-S reducer dependencies")
@@ -78,13 +79,49 @@ set(CLP_BUILD_CLP_S_SEARCH_SQL OFF CACHE BOOL "Build CLP-S search SQL")
 set(CLP_BUILD_EXECUTABLES OFF CACHE BOOL "Build CLP executables")
 set(CLP_BUILD_TESTING OFF CACHE BOOL "Build CLP tests")
 
-message(STATUS "Downloading CLP (commit: a91e5f71f0715d7d6b3ea7c177e1b39b3e6a24a6)")
+# TODO: Temporary pin. This is the head of y-scope/clp#2614 (in the PR author's fork), which adds the
+# caller-provided S3 credentials that the plugin's S3 authentication needs. Move the pin to a
+# y-scope/clp commit once that PR merges.
+set(CLP_GIT_REPOSITORY "https://github.com/junhaoliao/clp.git")
+set(CLP_GIT_TAG "6e181086321d214eaa55243e2310095cfc2d06a5")
+message(STATUS "Downloading CLP (commit: ${CLP_GIT_TAG})")
 FetchContent_Declare(clp
-  GIT_REPOSITORY https://github.com/y-scope/clp.git
-  GIT_TAG        a91e5f71f0715d7d6b3ea7c177e1b39b3e6a24a6
+  GIT_REPOSITORY ${CLP_GIT_REPOSITORY}
+  GIT_TAG        ${CLP_GIT_TAG}
   SOURCE_SUBDIR components/core
 )
 FetchContent_MakeAvailable(clp)
+
+# ==============================================================================
+# AWS SDK for C++
+# ==============================================================================
+
+# The SDK's package configuration finds the AWS Common Runtime libraries through
+# `CMAKE_PREFIX_PATH`.
+list(APPEND CMAKE_PREFIX_PATH "${AWSSDK_ROOT}")
+find_package(AWSSDK REQUIRED COMPONENTS core)
+
+# ==============================================================================
+# Tests
+# ==============================================================================
+
+option(
+    CLP_PLUGIN_BUILD_TESTING
+    "Build the unit tests for the parts of the plugin that don't depend on Velox."
+    OFF
+)
+if(CLP_PLUGIN_BUILD_TESTING)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY "https://github.com/google/googletest.git"
+        GIT_TAG "v1.17.0"
+    )
+    set(INSTALL_GTEST OFF CACHE BOOL "Install googletest")
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+    include(GoogleTest)
+endif()
 
 # ==============================================================================
 # Plugin target

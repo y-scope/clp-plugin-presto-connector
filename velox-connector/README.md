@@ -37,6 +37,90 @@ cmake --build build/velox-connector -j
 
 The built plugin will be at `build/velox-connector/libclp-plugin-velox-connector.so`.
 
+## Testing
+
+```shell
+task velox-connector:test-with-installed-deps
+```
+
+This builds and runs the unit tests for the plugin's S3 authentication. They link CLP and the AWS
+SDK but not Velox, which only the Presto worker provides. Like `build-with-installed-deps`, the
+task uses the dependencies that `task velox-connector:deps:install-all` installs, so run it where
+those are available, such as inside the build-env image (see
+[tools/build-packages/README.md](../tools/build-packages/README.md)).
+
+## Reading archives from S3
+
+To read archives and IR streams from S3, set the following properties in the worker's catalog file.
+Don't set them in the coordinator's catalog file: the coordinator plugin rejects properties that it
+doesn't use.
+
+* `clp.storage-type`: `s3`. The default, `fs`, reads splits from the worker's filesystem.
+* `clp.s3-end-point`: The S3 endpoint, such as `https://s3.us-east-2.amazonaws.com`, or a
+  virtual-hosted endpoint, such as `https://my-bucket.s3.us-east-2.amazonaws.com`. Requests are
+  signed for the region in the endpoint's host name.
+* `clp.s3-bucket`: The bucket that contains the splits. Omit it if the endpoint or the split paths
+  already include the bucket.
+* `clp.s3-auth-provider`: Where the worker gets the credentials that sign its requests:
+  `clp_package` or `default`, described below.
+
+### `clp_package`: an access key in the catalog
+
+```properties
+connector.name=clp
+clp.storage-type=s3
+clp.s3-auth-provider=clp_package
+clp.s3-end-point=https://s3.us-east-2.amazonaws.com
+clp.s3-bucket=my-bucket
+clp.s3-access-key-id=<access-key-id>
+clp.s3-secret-access-key=<secret-access-key>
+```
+
+`clp.s3-session-token` is optional. The worker never refreshes these credentials, so use `default`
+for credentials that expire.
+
+### `default`: the AWS SDK's default credential provider chain
+
+```properties
+connector.name=clp
+clp.storage-type=s3
+clp.s3-auth-provider=default
+clp.s3-end-point=https://s3.us-east-2.amazonaws.com
+clp.s3-bucket=my-bucket
+```
+
+The worker gets credentials from the AWS SDK for C++'s default credential provider chain, which
+checks these sources in order:
+
+1. The `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` environment variables.
+2. The shared config and credentials files.
+3. Web identity federation, using `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`, which EKS sets
+   for pods whose service account has an IAM role (IRSA).
+4. SSO.
+5. Container credentials, such as ECS task roles or EKS Pod Identity.
+6. The EC2 instance profile, unless `AWS_EC2_METADATA_DISABLED` is `true`.
+
+The SDK caches temporary credentials and refreshes them shortly before they expire, so the worker
+keeps reading archives without a restart. The catalog can't also set `clp.s3-access-key-id`,
+`clp.s3-secret-access-key`, or `clp.s3-session-token`.
+
+For IRSA, the worker needs no credentials in its catalog or image. Its role needs `s3:GetObject` on
+the archives. Since the chain checks environment variables and files first, make sure the worker
+doesn't have static credentials there, and set `AWS_EC2_METADATA_DISABLED=true` if it mustn't fall
+back to the node's instance profile.
+
+### How requests are authenticated
+
+Each catalog has its own credentials (and, with `default`, its own credential cache), and the worker
+never copies them into its environment, so catalogs with different identities can share a worker.
+
+The worker presigns the request for each split just before it sends it, using the catalog's current
+credentials, so refreshed credentials apply to the next split. Each presigned URL is valid for 60
+seconds and never outlives the credentials that signed it. If the credentials are unavailable,
+incomplete, or expire within that time, the query fails with an error that contains no credentials
+or URLs. The query also fails, instead of skipping the split, if S3 rejects the request (e.g.,
+because the credentials lack `s3:GetObject`).
+
 [presto-native-dependency]: https://hub.docker.com/r/prestodb/presto-native-dependency
 [Task]: https://taskfile.dev
 [velox-deps-setup]: https://github.com/facebookincubator/velox#setting-up-dependencies

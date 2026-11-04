@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "clp_s/InputConfig.hpp"
@@ -67,11 +68,17 @@ struct Field {
 /// while supporting projection and batch-oriented retrieval of filtered rows.
 class BaseClpCursor {
  public:
+  /// @param inputSource
+  /// @param splitPath
+  /// @param networkAuthOption How to authenticate the requests for a network
+  /// split.
   explicit BaseClpCursor(
       clp_s::InputSource inputSource,
-      std::string_view splitPath)
+      std::string_view splitPath,
+      clp_s::NetworkAuthOption networkAuthOption)
       : errorCode_(ErrorCode::QueryNotInitialized),
         inputSource_(inputSource),
+        networkAuthOption_(std::move(networkAuthOption)),
         splitPath_(std::string(splitPath)) {}
   virtual ~BaseClpCursor() = default;
 
@@ -123,6 +130,7 @@ class BaseClpCursor {
   ErrorCode errorCode_;
   std::shared_ptr<clp_s::search::ast::Expression> expr_;
   clp_s::InputSource inputSource_;
+  clp_s::NetworkAuthOption networkAuthOption_;
   std::vector<Field> outputColumns_;
   std::string query_;
   std::string splitPath_;
