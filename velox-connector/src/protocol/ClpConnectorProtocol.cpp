@@ -160,8 +160,6 @@ void ClpConnectorProtocol::deserialize(
 
   handle->queryConfig = readStringMap(in);
 
-  handle->queryConfig = readStringMap(in);
-
   proto = handle;
 }
 
