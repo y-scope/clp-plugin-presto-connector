@@ -6,6 +6,9 @@ Rewrites every `image.<component>` block in a values file that has a `tag` and a
 `digest`, so that the packaged chart names the exact builds that existed when it was
 published. Run it on a copy of the chart just before `helm package`; the repository's own
 values file keeps its tags and is never modified.
+
+`--tag COMPONENT=TAG` overrides a component's tag before pinning, for a chart that must reference
+a build its checked-in values do not name, such as an integration branch's own connector image.
 """
 
 from __future__ import annotations
@@ -15,15 +18,30 @@ import subprocess
 import sys
 from pathlib import Path
 
-EXPECTED_ARGS = 2
 DIGEST_FORMAT = "{{.Manifest.Digest}}"
 COMPONENT_RE = re.compile(r"^  ([A-Za-z0-9_.-]+):\s*$")
 FIELD_RE = re.compile(r"^    ([A-Za-z0-9_.-]+):[ \t]*(.*?)[ \t]*$")
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
-if len(sys.argv) != EXPECTED_ARGS:
-    sys.exit(f"usage: {sys.argv[0]} VALUES_FILE")
+# The script name and the values file; each `--tag` then adds its flag and its argument.
+ARGS_WITHOUT_TAGS = 2
+ARGS_PER_TAG = 2
+
+USAGE = f"usage: {sys.argv[0]} VALUES_FILE [--tag COMPONENT=TAG]..."
+if len(sys.argv) < ARGS_WITHOUT_TAGS or sys.argv[1].startswith("--"):
+    sys.exit(USAGE)
 values_path = Path(sys.argv[1])
+
+overrides: dict[str, str] = {}
+remaining = sys.argv[ARGS_WITHOUT_TAGS:]
+while remaining:
+    if remaining[0] != "--tag" or len(remaining) < ARGS_PER_TAG:
+        sys.exit(USAGE)
+    name, separator, tag = remaining[1].partition("=")
+    if not separator or not name or not tag:
+        sys.exit(f"--tag expects COMPONENT=TAG, got {remaining[1]!r}")
+    overrides[name] = tag
+    remaining = remaining[ARGS_PER_TAG:]
 
 lines = values_path.read_text(encoding="utf-8").splitlines(keepends=True)
 
@@ -54,6 +72,8 @@ for index, line in enumerate(lines):
         name = match.group(1)
         if name in ("repository", "tag"):
             components[current][name] = value
+            if name == "tag":
+                components[current]["tag_line"] = index
         elif name == "digest":
             components[current]["digest_value"] = value
             components[current]["digest_line"] = index
@@ -65,6 +85,20 @@ for name, component in components.items():
         sys.exit(f"image.{name} has a tag but no digest field to pin")
     if component["digest_value"] and not DIGEST_RE.fullmatch(component["digest_value"]):
         sys.exit(f"image.{name} has a malformed digest: {component['digest_value']}")
+
+# An overridden tag invalidates any digest already recorded for that component, because the
+# digest was resolved from the tag it replaces.
+for name, tag in overrides.items():
+    if name not in components:
+        sys.exit(f"--tag {name}: {values_path} has no image.{name} block")
+    component = components[name]
+    if component.get("tag_line") is None:
+        sys.exit(f"image.{name} has no tag field to override")
+    component["tag"] = tag
+    lines[component["tag_line"]] = f'    tag: "{tag}"\n'
+    if component["digest_line"] is not None:
+        component["digest_value"] = ""
+        lines[component["digest_line"]] = '    digest: ""\n'
 
 unpinned = [
     name

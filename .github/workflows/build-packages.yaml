@@ -105,6 +105,12 @@ jobs:
               exit 1
             fi
           fi
+          # An integration branch publishes its own image, so it must not reuse the tag the
+          # default branch owns: append the branch name to the version instead.
+          if [[ ${GITHUB_REF_NAME} == integration/* ]]; then
+            source tools/build-packages/dependency-image/utils.sh
+            version="$(branch_image_version "${version}" "${GITHUB_REF_NAME}")"
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "::notice::Package version: ${version}"
 
@@ -113,9 +119,12 @@ jobs:
         env:
           DEFAULT_BRANCH: "${{github.event.repository.default_branch}}"
         run: |-
-          # Publish images only from the default branch and version tags so feature
-          # branches don't overwrite shared tags.
-          if [[ ${GITHUB_REF_NAME} == "${DEFAULT_BRANCH}" || ${GITHUB_REF_TYPE} == tag ]]; then
+          # Publish images only from the default branch, version tags, and integration branches,
+          # so feature branches don't overwrite shared tags. An integration branch resolves a
+          # branch-scoped version above, so it can only move a tag of its own.
+          if [[ ${GITHUB_REF_NAME} == "${DEFAULT_BRANCH}" \
+            || ${GITHUB_REF_TYPE} == tag \
+            || ${GITHUB_REF_NAME} == integration/* ]]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"

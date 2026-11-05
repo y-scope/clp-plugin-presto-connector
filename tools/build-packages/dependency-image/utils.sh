@@ -82,6 +82,15 @@ package_version_to_image_tag() {
     printf '%s\n' "${version}"
 }
 
+# Prints the version a non-default branch publishes under: the project version with the branch name
+# appended, so that a branch never moves the tag the default branch owns. The result still starts
+# with the project version, which keeps it valid as both a package version and a Docker tag.
+#
+# Args: <project-version> <ref-name>
+branch_image_version() {
+    printf '%s-%s\n' "$1" "${2//\//-}"
+}
+
 # Inputs that should change the build-env image tag.
 _BUILD_ENV_HASH_INPUTS=(
     ".dockerignore"

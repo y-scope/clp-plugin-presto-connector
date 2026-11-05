@@ -26,7 +26,11 @@ tasks:
       this, so that a published chart keeps installing the builds that existed when it was
       published. The chart in the repository is never modified. This needs Docker with the
       `buildx` plugin.
+
+      Set CONNECTOR_TAG, with PIN_IMAGES, to pin the connector to a tag other than the one in
+      `values.yaml`, such as an integration branch's own image.
     vars:
+      CONNECTOR_TAG: "{{.CONNECTOR_TAG}}"
       OUTPUT_DIR: "{{.G_CLP_PRESTO_HELM_BUILD_DIR}}"
       PIN_IMAGES: "{{.PIN_IMAGES}}"
       VERSION: "{{.VERSION}}"
@@ -44,8 +48,12 @@ tasks:
           cp -a "{{.G_CLP_PRESTO_HELM_CHART_DIR}}" \
             "${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
           chart_dir="${staged_dir}/{{.G_CLP_PRESTO_HELM_CHART_NAME}}"
+          tag_args=()
+          if [[ -n "{{.CONNECTOR_TAG}}" ]] ; then
+            tag_args=(--tag "connector={{.CONNECTOR_TAG}}")
+          fi
           python3 "{{.ROOT_DIR}}/tools/deployment/pin-helm-image-digests.py" \
-            "${chart_dir}/values.yaml"
+            "${chart_dir}/values.yaml" "${tag_args[@]}"
         fi
         version_args=()
         if [[ -n "{{.VERSION}}" ]] ; then

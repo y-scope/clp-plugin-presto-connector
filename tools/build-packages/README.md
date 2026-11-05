@@ -46,9 +46,11 @@ Run `./tools/build-packages/build-installer-init-image.sh --help` to build it st
 
 In CI, `build-packages.yaml` builds the image per architecture on every run and
 combines them into a multi-arch `:<version>` tag; pushes happen only from the
-default branch and version tags. Local builds load the same `:<version>` tag
-(single-arch, for the build host) — a locally-built image therefore shadows the
-published one in your Docker daemon until you `docker pull` it.
+default branch, version tags, and `integration/*` branches. An integration branch
+appends its own name to the version, so it publishes `:<version>-integration-<branch>`
+and cannot move the tag the default branch owns. Local builds load the same
+`:<version>` tag (single-arch, for the build host) — a locally-built image therefore
+shadows the published one in your Docker daemon until you `docker pull` it.
 
 Each architecture is built by one job that runs this same script, so the tarball
 never has to travel between jobs. The packages are uploaded as build artifacts
