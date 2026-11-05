@@ -1,0 +1,23 @@
+# Values used by `ct lint` to render the chart the way a parent chart consumes it: the parent
+# supplies the catalog Secret and the archives claim, and every release-derived name is rendered
+# with `tpl`.
+fullnameOverride: "{{ .Release.Name }}-clp-presto"
+serviceAccountName: "{{ .Release.Name }}-clp-service-account"
+catalogs:
+  existingSecret: "{{ .Release.Name }}-clp-presto-catalog"
+archiveStorage:
+  type: "fs"
+  fs:
+    existingClaim: "{{ .Release.Name }}-clp-shared-data-archives"
+coordinator:
+  rollOnUpgrade: true
+  podAnnotations:
+    example.com/instance: "{{ .Release.Name }}"
+  extraEnv:
+    - name: "EXAMPLE_INSTANCE"
+      value: "{{ .Release.Name }}"
+worker:
+  rollOnUpgrade: true
+  extraEnv:
+    - name: "EXAMPLE_INSTANCE"
+      value: "{{ .Release.Name }}"

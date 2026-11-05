@@ -1,0 +1,9 @@
+# Values used by `ct lint` to render the S3 path as a subchart: the catalog comes from a parent
+# Secret, so no static keys are needed, but the worker still needs a region for the default
+# credential chain.
+catalogs:
+  existingSecret: "{{ .Release.Name }}-clp-presto-catalog"
+archiveStorage:
+  type: "s3"
+  s3:
+    regionCode: "us-east-1"

@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "clp-presto.labels" . | nindent 4 }}
 data:
+{{- if not .Values.catalogs.existingSecret }}
   coordinator-catalog-clp.properties: |
     connector.name=clp
     clp.metadata-provider-type=mysql
@@ -18,6 +19,30 @@ data:
     clp.split-provider-type=mysql
     clp.split-filter-provider-type=mysql
     clp.split-filter-config=/opt/presto-server/etc/split-filter.json
+
+  worker-catalog-clp.properties: |
+    connector.name=clp
+    {{- if not $fsArchives }}
+    {{- /* `with` treats an empty map as falsy and would skip the checks, so bind first. */}}
+    {{- $s3 := .Values.archiveStorage.s3 | default dict -}}
+    {{- $_ := required "archiveStorage.s3.bucket is required when archiveStorage.type is \"s3\"" $s3.bucket -}}
+    {{- $_ := required "archiveStorage.s3.accessKeyId is required when archiveStorage.type is \"s3\"" $s3.accessKeyId -}}
+    {{- $_ := required "archiveStorage.s3.secretAccessKey is required when archiveStorage.type is \"s3\"" $s3.secretAccessKey -}}
+    {{- if not $s3.endpointUrl }}
+    {{- $_ := required "archiveStorage.s3.regionCode is required unless archiveStorage.s3.endpointUrl is set" $s3.regionCode -}}
+    {{- end }}
+    clp.storage-type=s3
+    clp.s3-auth-provider=clp_package
+    clp.s3-access-key-id={{ $s3.accessKeyId }}
+    clp.s3-bucket={{ $s3.bucket }}
+    {{- if $s3.endpointUrl }}
+    clp.s3-end-point={{ trimSuffix "/" $s3.endpointUrl }}
+    {{- else }}
+    clp.s3-end-point=https://s3.{{ $s3.regionCode }}.amazonaws.com
+    {{- end }}
+    clp.s3-secret-access-key={{ $s3.secretAccessKey | replace "\\" "\\\\" }}
+    {{- end }}
+{{- end }}
 
   coordinator-config-config.properties: |
     coordinator=true
@@ -56,29 +81,6 @@ data:
 
   coordinator-config-split-filter.json: |
     {{ .Values.splitFilter | toJson }}
-
-  worker-catalog-clp.properties: |
-    connector.name=clp
-    {{- if not $fsArchives }}
-    {{- /* `with` treats an empty map as falsy and would skip the checks, so bind first. */}}
-    {{- $s3 := .Values.archiveStorage.s3 | default dict -}}
-    {{- $_ := required "archiveStorage.s3.bucket is required when archiveStorage.type is \"s3\"" $s3.bucket -}}
-    {{- $_ := required "archiveStorage.s3.accessKeyId is required when archiveStorage.type is \"s3\"" $s3.accessKeyId -}}
-    {{- $_ := required "archiveStorage.s3.secretAccessKey is required when archiveStorage.type is \"s3\"" $s3.secretAccessKey -}}
-    {{- if not $s3.endpointUrl }}
-    {{- $_ := required "archiveStorage.s3.regionCode is required unless archiveStorage.s3.endpointUrl is set" $s3.regionCode -}}
-    {{- end }}
-    clp.storage-type=s3
-    clp.s3-auth-provider=clp_package
-    clp.s3-access-key-id={{ $s3.accessKeyId }}
-    clp.s3-bucket={{ $s3.bucket }}
-    {{- if $s3.endpointUrl }}
-    clp.s3-end-point={{ trimSuffix "/" $s3.endpointUrl }}
-    {{- else }}
-    clp.s3-end-point=https://s3.{{ $s3.regionCode }}.amazonaws.com
-    {{- end }}
-    clp.s3-secret-access-key={{ $s3.secretAccessKey | replace "\\" "\\\\" }}
-    {{- end }}
 
   worker-config-config.properties: |
     discovery.uri={{ include "clp-presto.discoveryUri" . }}

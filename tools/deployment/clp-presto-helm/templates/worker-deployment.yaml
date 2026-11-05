@@ -16,18 +16,24 @@ spec:
     metadata:
       annotations:
         {{- include "clp-presto.configChecksumAnnotation" . | nindent 8 }}
+        {{- if .Values.worker.rollOnUpgrade }}
+        checksum/release-revision: {{ .Release.Revision | quote }}
+        {{- end }}
+        {{- with .Values.worker.podAnnotations }}
+        {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "clp-presto.labels" . | nindent 8 }}
         app.kubernetes.io/component: "worker"
     spec:
       {{- with .Values.serviceAccountName }}
-      serviceAccountName: {{ . | quote }}
+      serviceAccountName: {{ include "clp-presto.tplValue" (dict "root" $ "value" .) | quote }}
       {{- end }}
       terminationGracePeriodSeconds: 30
       {{- include "clp-presto.schedulingConfigs" .Values.worker | nindent 6 }}
       initContainers:
         {{- with .Values.worker.extraInitContainers }}
-        {{- toYaml . | nindent 8 }}
+        {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 8 }}
         {{- end }}
         {{- include "clp-presto.installPluginInitContainer" (dict
             "root" . "component" "worker"
@@ -49,6 +55,19 @@ spec:
         - name: "worker"
           {{- include "clp-presto.imageSpec" (dict "root" . "component" "worker") | nindent 10 }}
           {{- include "clp-presto.resources" .Values.worker.resources | nindent 10 }}
+          {{- /* The AWS default credential chain (e.g. IRSA) needs a region for S3. */}}
+          {{- $env := list -}}
+          {{- if and (not $fsArchives) .Values.archiveStorage.s3.regionCode -}}
+          {{- $env = append $env (dict "name" "AWS_REGION" "value" .Values.archiveStorage.s3.regionCode) -}}
+          {{- $env = append $env (dict "name" "AWS_DEFAULT_REGION" "value" .Values.archiveStorage.s3.regionCode) -}}
+          {{- end -}}
+          {{- range .Values.worker.extraEnv -}}
+          {{- $env = append $env . -}}
+          {{- end -}}
+          {{- with $env }}
+          env:
+            {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 12 }}
+          {{- end }}
           ports:
             - name: "presto-worker"
               containerPort: 8889

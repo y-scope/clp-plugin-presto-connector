@@ -1,8 +1,10 @@
 nameOverride: ""
+
+# Rendered with `tpl`, so a parent chart can use a release-derived value such as
+# `{{ include "clp.fullname" . }}-presto`.
 fullnameOverride: ""
 
-# Service account for the coordinator and worker pods. When empty, the namespace's default service
-# account is used.
+# Rendered with `tpl`. When empty, the namespace's default service account is used.
 serviceAccountName: ""
 
 image:
@@ -53,8 +55,16 @@ coordinator:
   tolerations: []
   affinity: {}
 
-  # Init containers to run before the plugin is installed. Use this to wait on dependencies that
-  # live outside this chart (e.g. the metadata database).
+  # Additional environment variables for the coordinator container, rendered with `tpl`.
+  extraEnv: []
+  # Extra pod annotations, rendered with `tpl`.
+  podAnnotations: {}
+  # Roll the pod on every `helm upgrade`. Use this when a parent chart supplies the catalog
+  # through `catalogs.existingSecret` and therefore cannot contribute a content checksum.
+  rollOnUpgrade: false
+
+  # Init containers to run before the plugin is installed, rendered with `tpl`. Use this to wait
+  # on dependencies that live outside this chart (e.g. the metadata database).
   extraInitContainers: []
   installPlugin:
     resources: {}
@@ -67,18 +77,32 @@ worker:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+  # Additional environment variables for the worker container, rendered with `tpl`.
+  extraEnv: []
+  # Extra pod annotations, rendered with `tpl`.
+  podAnnotations: {}
+  # Roll the pod on every `helm upgrade` (see `coordinator.rollOnUpgrade`).
+  rollOnUpgrade: false
+
+  # Init containers, rendered with `tpl`.
   extraInitContainers: []
   installPlugin:
     resources: {}
   setupConfigs:
     resources: {}
 
+# Catalog properties supplied by a parent chart. The Secret must contain the keys
+# "coordinator-catalog-clp.properties" and "worker-catalog-clp.properties". When set, `metadataDb`
+# and the S3 credentials under `archiveStorage` are unused.
+catalogs:
+  existingSecret: ""
+
 # Connection to CLP's metadata database.
+# NOTE: When `catalogs.existingSecret` is set, these values are unused; prefer that mode so the
+# credentials live in a Secret. Otherwise they are rendered into this chart's ConfigMap, which is
+# readable by anything that can read ConfigMaps in the namespace.
 metadataDb:
-  # NOTE: These credentials are rendered into the connector's catalog properties file, which is
-  # currently stored in a ConfigMap and so is readable by anything that can read ConfigMaps in the
-  # namespace. Presto only reads the file off disk, so the catalog volume could project a Secret
-  # instead; that is worth doing before this chart is used with real credentials.
   host: ""
   port: 3306
   name: "clp-db"
@@ -90,11 +114,14 @@ metadataDb:
 archiveStorage:
   type: "fs"  # "fs" or "s3"
   fs:
-    # An existing PersistentVolumeClaim holding the archives. Required when `type` is "fs".
+    # An existing PersistentVolumeClaim holding the archives, rendered with `tpl`. Required when
+    # `type` is "fs".
     existingClaim: ""
     mountPath: "/var/data/archives"
   s3:
     bucket: ""
+    # Also sets AWS_REGION and AWS_DEFAULT_REGION on the worker, which the AWS default credential
+    # chain (e.g. IRSA) needs.
     regionCode: ""
 
     # Overrides the endpoint derived from `regionCode` when set.
