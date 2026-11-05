@@ -133,12 +133,13 @@ jobs:
           done
 
   publish:
-    # A push from one of the branches above may publish a snapshot, but a manual run may pick any
-    # branch from the dispatch dropdown, so it is held to `main`. The release step below is
-    # restricted too, because a release tag is what a consumer pins.
+    # A snapshot may be published from any branch: it is a moving tag that the next publish
+    # replaces, so an unreviewed branch can only move a tag that is already disposable. A release
+    # is published only when a run asks for it, so a branch must be dispatched with that channel
+    # deliberately rather than tagging itself by being pushed.
     if: >-
       github.event_name == 'push'
-      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      || github.event_name == 'workflow_dispatch'
     needs: "lint"
     runs-on: >-
       ${{ fromJSON(vars.GH_RUNNER_LINUX_LIGHT_X64 || '["ubuntu-24.04"]') }}
@@ -196,12 +197,11 @@ jobs:
 
       # The release channel takes its version from `Chart.yaml`, so this is a no-op on every run
       # that does not bump it.
-      # Restricted to `main`: a release tag is what a consumer pins, so it must never come from
-      # an unreviewed branch. Snapshots below are disposable and carry the commit in the version.
+      # Manual only: a release tag is what a consumer pins, so it is never published as a side
+      # effect of a push, and the run has to name the channel. The snapshot below is disposable and
+      # is published on every push.
       - name: "Package and publish the release chart"
-        if: >-
-          github.ref == 'refs/heads/main'
-          && (github.event_name == 'push' || inputs.channel == 'release')
+        if: "github.event_name == 'workflow_dispatch' && inputs.channel == 'release'"
         shell: "bash"
         run: |-
           task helm:package PIN_IMAGES=true
