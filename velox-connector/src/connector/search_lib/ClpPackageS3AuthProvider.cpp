@@ -15,44 +15,44 @@
  */
 
 #include "connector/search_lib/ClpPackageS3AuthProvider.h"
-#include "connector/search_lib/ClpS3Url.h"
+
+#include <memory>
+#include <string>
+
+#include "connector/search_lib/S3Credentials.h"
 #include "velox/common/base/Exceptions.h"
 #include "velox/common/config/Config.h"
 
 namespace facebook::velox::connector::clp {
 
-std::string ClpPackageS3AuthProvider::constructS3Url(
-    std::string_view splitPath) {
-  VELOX_CHECK(!splitPath.empty(), "splitPath cannot be empty");
-  return search_lib::constructS3Url(endPoint_, bucket_, splitPath);
+namespace {
+
+std::shared_ptr<search_lib::S3CredentialsProvider> createCredentialsProvider(
+    const config::ConfigBase& config) {
+  search_lib::S3Credentials credentials{
+      .accessKeyId =
+          config.get<std::string>(ClpPackageS3AuthProvider::kAccessKeyId, ""),
+      .secretAccessKey = config.get<std::string>(
+          ClpPackageS3AuthProvider::kSecretAccessKey, ""),
+      .sessionToken =
+          config.get<std::string>(ClpPackageS3AuthProvider::kSessionToken, ""),
+      .expiration = std::nullopt};
+  VELOX_CHECK(
+      !credentials.accessKeyId.empty(),
+      fmt::format(
+          "{} cannot be empty", ClpPackageS3AuthProvider::kAccessKeyId));
+  VELOX_CHECK(
+      !credentials.secretAccessKey.empty(),
+      fmt::format(
+          "{} cannot be empty", ClpPackageS3AuthProvider::kSecretAccessKey));
+  return std::make_shared<search_lib::StaticS3CredentialsProvider>(
+      std::move(credentials));
 }
 
-bool ClpPackageS3AuthProvider::exportAuthEnvironmentVariables() {
-  endPoint_ = config_->get<std::string>(kEndPoint, "");
-  VELOX_CHECK(!endPoint_.empty(), fmt::format("{} cannot be empty", kEndPoint));
-  endPoint_ = search_lib::normalizeS3EndPoint(endPoint_);
+} // namespace
 
-  bucket_ = config_->get<std::string>(kBucket, "");
-
-  auto accessKeyId = config_->get<std::string>(kAccessKeyId, "");
-  auto secretAccessKey = config_->get<std::string>(kSecretAccessKey, "");
-  auto sessionToken = config_->get<std::string>(kSessionToken, "");
-  VELOX_CHECK(
-      !accessKeyId.empty(), fmt::format("{} cannot be empty", kAccessKeyId));
-  VELOX_CHECK(
-      !secretAccessKey.empty(),
-      fmt::format("{} cannot be empty", kSecretAccessKey));
-
-  setEnvironmentVariable(kEnvAwsAccessKeyId, accessKeyId);
-  setEnvironmentVariable(kEnvAwsSecretAccessKey, secretAccessKey);
-
-  if (!sessionToken.empty()) {
-    setEnvironmentVariable(kEnvAwsSessionToken, sessionToken);
-  } else {
-    unsetEnvironmentVariable(kEnvAwsSessionToken);
-  }
-
-  return true;
-}
+ClpPackageS3AuthProvider::ClpPackageS3AuthProvider(
+    const config::ConfigBase& config)
+    : ClpS3AuthProviderBase(config, createCredentialsProvider(config)) {}
 
 } // namespace facebook::velox::connector::clp

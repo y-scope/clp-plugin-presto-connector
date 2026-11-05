@@ -17,7 +17,10 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <string_view>
+
+#include "clp_s/InputConfig.hpp"
 
 namespace facebook::velox::config {
 class ConfigBase;
@@ -25,47 +28,44 @@ class ConfigBase;
 
 namespace facebook::velox::connector::clp {
 
+namespace search_lib {
+class S3CredentialsProvider;
+} // namespace search_lib
+
+/// Locates a catalog's splits in S3 and authenticates the catalog's requests
+/// for them. Each catalog has its own instance, so its credentials never affect
+/// another catalog's requests or the process's environment.
 class ClpS3AuthProviderBase {
  public:
-  explicit ClpS3AuthProviderBase(
-      std::shared_ptr<const config::ConfigBase> config)
-      : config_(config) {}
+  static constexpr const char* kBucket = "clp.s3-bucket";
+  static constexpr const char* kEndPoint = "clp.s3-end-point";
+
   virtual ~ClpS3AuthProviderBase() = default;
 
   /// Constructs the actual S3 URL so that CLP-s can access the split.
   ///
   /// @param splitPath The current path stored in the split to add.
   /// @return The constructed S3 URL.
-  virtual std::string constructS3Url(std::string_view splitPath) = 0;
+  std::string constructS3Url(std::string_view splitPath) const;
 
-  /// Exports the three environment variables needed by CLP-s
-  /// to system:
-  ///   AWS_ACCESS_KEY_ID
-  ///   AWS_SECRET_ACCESS_KEY
-  ///   AWS_SESSION_TOKEN (optional)
-  /// So that at runtime CLP-S's code can authenticate with S3.
-  ///
-  /// @return Whether environment variable export succeeded or not.
-  virtual bool exportAuthEnvironmentVariables() = 0;
+  /// @return The option with which CLP-s authenticates this catalog's S3
+  /// requests. Copies of it keep the catalog's credentials provider alive.
+  const clp_s::NetworkAuthOption& networkAuthOption() const {
+    return networkAuthOption_;
+  }
 
  protected:
-  /// Sets an environment variable for different OS, then gets the environment
-  /// variable to do a sanity check.
-  ///
-  /// @param key The environment variable name to set.
-  /// @param value The environment variable value to set.
-  /// @return Whether environment variable export succeeded or not.
-  static void setEnvironmentVariable(
-      std::string_view key,
-      std::string_view value);
+  /// @param config The catalog's configuration.
+  /// @param credentialsProvider Supplies the credentials that sign the
+  /// catalog's S3 requests.
+  ClpS3AuthProviderBase(
+      const config::ConfigBase& config,
+      std::shared_ptr<search_lib::S3CredentialsProvider> credentialsProvider);
 
-  /// Unsets an environment variable for different OS, then gets the environment
-  /// variable to do the sanity check.
-  ///
-  /// @param key The environment variable name to unset.
-  static void unsetEnvironmentVariable(std::string_view key);
-
-  std::shared_ptr<const config::ConfigBase> config_;
+ private:
+  std::string bucket_;
+  std::string endPoint_;
+  clp_s::NetworkAuthOption networkAuthOption_;
 };
 
 } // namespace facebook::velox::connector::clp

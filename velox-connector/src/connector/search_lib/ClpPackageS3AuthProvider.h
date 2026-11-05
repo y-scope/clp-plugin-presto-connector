@@ -24,29 +24,15 @@ class ConfigBase;
 
 namespace facebook::velox::connector::clp {
 
+/// Authenticates S3 requests with the access key configured in the catalog
+/// (`clp.s3-auth-provider=clp_package`).
 class ClpPackageS3AuthProvider : public ClpS3AuthProviderBase {
  public:
-  explicit ClpPackageS3AuthProvider(
-      std::shared_ptr<const config::ConfigBase> config)
-      : ClpS3AuthProviderBase(config) {}
-
   static constexpr const char* kAccessKeyId = "clp.s3-access-key-id";
-  static constexpr const char* kBucket = "clp.s3-bucket";
-  static constexpr const char* kEndPoint = "clp.s3-end-point";
   static constexpr const char* kSecretAccessKey = "clp.s3-secret-access-key";
   static constexpr const char* kSessionToken = "clp.s3-session-token";
 
-  static constexpr const char* kEnvAwsAccessKeyId = "AWS_ACCESS_KEY_ID";
-  static constexpr const char* kEnvAwsSecretAccessKey = "AWS_SECRET_ACCESS_KEY";
-  static constexpr const char* kEnvAwsSessionToken = "AWS_SESSION_TOKEN";
-
-  std::string constructS3Url(std::string_view splitPath) override;
-
-  bool exportAuthEnvironmentVariables() override;
-
- private:
-  std::string bucket_;
-  std::string endPoint_;
+  explicit ClpPackageS3AuthProvider(const config::ConfigBase& config);
 };
 
 } // namespace facebook::velox::connector::clp

@@ -235,6 +235,7 @@ Clone with `--recurse-submodules`, or run `git submodule update --init --recursi
 | `task package` | Build installable packages and the installer image |
 | `task presto-connector:test` | Run coordinator unit tests |
 | `task velox-connector:test` | Run standalone C++ unit tests |
+| `task velox-connector:test-with-installed-deps` | Run the worker plugin's S3 authentication unit tests |
 | `task integration-tests:run` | Build, start, test, and stop a real Presto cluster |
 | `task lint:check` | Run the Java, Python, and YAML checks |
 | `task lint:fix` | Apply available lint fixes and run the remaining checks |

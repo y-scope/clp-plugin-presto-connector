@@ -43,6 +43,7 @@ class ClpArchiveCursor final : public BaseClpCursor {
   explicit ClpArchiveCursor(
       clp_s::InputSource inputSource,
       std::string_view splitPath,
+      clp_s::NetworkAuthOption networkAuthOption,
       bool ignoreCase);
   ~ClpArchiveCursor() override;
 

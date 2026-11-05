@@ -105,11 +105,13 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
 
   std::string splitPath = clpSplit->path_;
   clp_s::InputSource inputSource;
+  clp_s::NetworkAuthOption networkAuthOption{.method = clp_s::AuthMethod::None};
   if (ClpConfig::StorageType::kFs == storageType_) {
     inputSource = clp_s::InputSource::Filesystem;
   } else if (ClpConfig::StorageType::kS3 == storageType_) {
     inputSource = clp_s::InputSource::Network;
     splitPath = s3AuthProvider_->constructS3Url(clpSplit->path_);
+    networkAuthOption = s3AuthProvider_->networkAuthOption();
   } else {
     VELOX_UNREACHABLE();
   }
@@ -125,10 +127,10 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
 
   if (ClpConnectorSplit::SplitType::kArchive == clpSplit->type_) {
     cursor_ = std::make_unique<search_lib::ClpArchiveCursor>(
-        inputSource, splitPath, caseInsensitive);
+        inputSource, splitPath, std::move(networkAuthOption), caseInsensitive);
   } else if (ClpConnectorSplit::SplitType::kIr == clpSplit->type_) {
     cursor_ = std::make_unique<search_lib::ClpIrCursor>(
-        inputSource, splitPath, caseInsensitive);
+        inputSource, splitPath, std::move(networkAuthOption), caseInsensitive);
   } else {
     VELOX_UNSUPPORTED(
         "Unsupported split type: {}", static_cast<int>(clpSplit->type_));

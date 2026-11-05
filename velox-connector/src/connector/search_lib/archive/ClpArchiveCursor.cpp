@@ -24,6 +24,7 @@
 #include "clp_s/search/ast/SetTimestampLiteralPrecision.hpp"
 #include "clp_s/search/ast/TimestampLiteral.hpp"
 #include "connector/ClpColumnHandle.h"
+#include "connector/search_lib/S3NetworkAuth.h"
 #include "connector/search_lib/archive/ClpArchiveCursor.h"
 #include "connector/search_lib/archive/ClpArchiveJsonStringVectorLoader.h"
 #include "connector/search_lib/archive/ClpArchiveVectorLoader.h"
@@ -38,8 +39,9 @@ namespace facebook::velox::connector::clp::search_lib {
 ClpArchiveCursor::ClpArchiveCursor(
     clp_s::InputSource inputSource,
     std::string_view splitPath,
+    clp_s::NetworkAuthOption networkAuthOption,
     bool ignoreCase)
-    : BaseClpCursor(inputSource, splitPath),
+    : BaseClpCursor(inputSource, splitPath, std::move(networkAuthOption)),
       ignoreCase_(ignoreCase),
       archiveReader_(std::make_shared<ArchiveReader>()),
       filteredRowIndices_(std::make_shared<std::vector<uint64_t>>()) {}
@@ -79,7 +81,7 @@ uint64_t ClpArchiveCursor::fetchNext(uint64_t numRows) {
 
       schemaReader_ =
           &archiveReader_->read_schema_table(currentSchemaId_, false, false);
-      schemaReader_->initialize_filter_with_column_map(queryRunner_.get());
+      schemaReader_->initialize_filter_with_column_map(*queryRunner_);
 
       errorCode_ = ErrorCode::Success;
       currentSchemaTableLoaded_ = true;
@@ -125,15 +127,20 @@ ClpArchiveCursor::getProjectedColumns() const {
 }
 
 ErrorCode ClpArchiveCursor::loadSplit() {
-  auto networkAuthOption = inputSource_ == InputSource::Filesystem
-      ? NetworkAuthOption{.method = AuthMethod::None}
-      : NetworkAuthOption{.method = AuthMethod::S3PresignedUrlV4};
-
   try {
     archiveReader_->open(
-        get_path_object_for_raw_path(splitPath_), networkAuthOption);
+        get_path_object_for_raw_path(splitPath_), networkAuthOption_);
+  } catch (const S3AuthenticationError&) {
+    // Fail the query rather than treat the split as though it has no matching
+    // rows.
+    throw;
   } catch (std::exception& e) {
     VLOG(2) << "Failed to open archive file: " << e.what();
+    if (InputSource::Network == inputSource_) {
+      // An archive that can't be fetched from S3 (e.g., because S3 rejected
+      // the request's credentials) must also fail the query.
+      VELOX_FAIL("Failed to open the archive from S3.");
+    }
     return ErrorCode::InternalError;
   }
 
@@ -216,7 +223,10 @@ ErrorCode ClpArchiveCursor::loadSplit() {
   }
   projection_->resolve_columns(schemaTree);
 
-  archiveReader_->read_metadata();
+  if (auto result = archiveReader_->read_metadata(); result.has_error()) {
+    VELOX_FAIL(
+        "Failed to read the archive's metadata: {}", result.error().message());
+  }
 
   matchedSchemas_.clear();
   for (auto schemaId : archiveReader_->get_schema_ids()) {
