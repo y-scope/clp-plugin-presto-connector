@@ -58,7 +58,14 @@ artifact storage is unavailable, and the workflow still publishes the images.
 The build runs inside a hash-tagged **build-env image** (`env-<hash>`) based on
 `manylinux_2_28`. `build-dependency-image.sh` resolves it from the local Docker
 cache, the container registry, or a local build, reusing the cached image on
-later runs.
+later runs. It also accepts `--with-ca-certs`, which applies when the image is
+built rather than found or pulled.
+
+`--with-ca-certs` (on either script) propagates the host's CA trust into the
+build for corporate TLS gateways, using
+[yscope-dev-utils' ca-trust library][ca-trust]. It's off by default and nothing
+is baked into any image: the bundle is mounted only for the steps that need the
+network, so CI needs no CA configuration at all.
 
 Images live under `ghcr.io/<owner>/<repo>` by default, derived from the origin
 remote. `CI_CONTAINER_REGISTRY` and `CI_CONTAINER_REGISTRY_REPO` override the
@@ -88,6 +95,8 @@ That publishes `docker.io/myorg/clp-plugin-presto-connector:<version>` and
 before this layout sat at `<repo>/build-env:env-<hash>` and are no longer read,
 so the first build afterwards rebuilds the image once; the old tags can be
 deleted.
+
+[ca-trust]: ../yscope-dev-utils/exports/docker/ca-trust/README.md
 
 Build state is cached under `.cache/` (`maven/`, `ccache/`,
 `fetchcontent/<hash>/`, and `build/<hash>/` for persisted CMake/build state),
