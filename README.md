@@ -241,7 +241,7 @@ WHERE CLP_GET_STRING('method') = 'POST'
 
 This returns the same `req-106`, `/auth/login` row. Other field-access functions include `CLP_GET_DOUBLE`, `CLP_GET_BOOL`, and `CLP_GET_STRING_ARRAY`. Their field paths must be constant strings. `CLP_GET_JSON_STRING()` selects the full record as JSON.
 
-The planner rewrites these functions into typed column references. Supported predicates are translated into CLP queries, and configured metadata filters can exclude archives before they are opened. For MySQL metadata, archive pruning is configured through `clp.split-filter-config`; the Helm chart exposes it through `splitFilter`.
+The planner rewrites these functions into typed column references. Supported predicates are translated into CLP queries, and configured metadata filters can exclude archives before they are opened. For MySQL metadata, archive pruning is configured through `clp.split-metadata-config-path`; the Helm chart exposes it through `splitMetadataConfig`.
 
 ## Current limitations
 
