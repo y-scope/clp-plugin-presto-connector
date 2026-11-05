@@ -6,11 +6,29 @@ Chart name, overridable via `nameOverride`.
 {{- end }}
 
 {{/*
+Renders a value as a template against the root context.
+
+This lets a parent chart pass release-derived values, such as
+`{{ include "clp.fullname" . }}-presto`, without a wrapper script: `.Release` and
+`.Values.global` are shared with subcharts, and template names are global. Only use it for
+values that should be templated; a rendered value appears in the manifest, so never pass a
+secret this way.
+@param {dict} root The root context.
+@param {string} value The value to render.
+@return {string} The rendered value.
+*/}}
+{{- define "clp-presto.tplValue" -}}
+{{- if .value -}}
+{{- tpl (toString .value) .root -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Fully qualified release name, overridable via `fullnameOverride`.
 */}}
 {{- define "clp-presto.fullname" -}}
 {{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- include "clp-presto.tplValue" (dict "root" . "value" .Values.fullnameOverride) | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- $name := default .Chart.Name .Values.nameOverride }}
 {{- if contains $name .Release.Name }}
@@ -168,17 +186,28 @@ checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sh
 {{/*
 The volumes shared by both components: the connector catalog, the full config map, and the
 emptyDir the plugin is installed into.
+
+The catalog comes from an existing Secret when `catalogs.existingSecret` is set, which is how a
+parent chart supplies templated database and S3 credentials without rendering them here.
 @param {dict} root The root context.
 @param {string} component "coordinator" or "worker".
 */}}
 {{- define "clp-presto.commonVolumes" -}}
 {{- $configName := include "clp-presto.componentFullname" (dict "root" .root "component" "config") -}}
 - name: "presto-catalog"
+  {{- if .root.Values.catalogs.existingSecret }}
+  secret:
+    secretName: {{ include "clp-presto.tplValue" (dict "root" .root "value" .root.Values.catalogs.existingSecret) | quote }}
+    items:
+      - key: "{{ .component }}-catalog-clp.properties"
+        path: "clp.properties"
+  {{- else }}
   configMap:
     name: {{ $configName }}
     items:
       - key: "{{ .component }}-catalog-clp.properties"
         path: "clp.properties"
+  {{- end }}
 - name: "presto-config"
   configMap:
     name: {{ $configName }}
@@ -211,5 +240,7 @@ The PersistentVolumeClaim holding archives, shared by both components.
   persistentVolumeClaim:
     claimName: {{ required
       (printf "archiveStorage.fs.existingClaim is required when %s" .requiredBy)
-      .root.Values.archiveStorage.fs.existingClaim | quote }}
+      (include "clp-presto.tplValue" (dict
+        "root" .root "value" .root.Values.archiveStorage.fs.existingClaim
+      )) | quote }}
 {{- end }}

@@ -15,18 +15,24 @@ spec:
     metadata:
       annotations:
         {{- include "clp-presto.configChecksumAnnotation" . | nindent 8 }}
+        {{- if .Values.coordinator.rollOnUpgrade }}
+        checksum/release-revision: {{ .Release.Revision | quote }}
+        {{- end }}
+        {{- with .Values.coordinator.podAnnotations }}
+        {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "clp-presto.labels" . | nindent 8 }}
         app.kubernetes.io/component: "coordinator"
     spec:
       {{- with .Values.serviceAccountName }}
-      serviceAccountName: {{ . | quote }}
+      serviceAccountName: {{ include "clp-presto.tplValue" (dict "root" $ "value" .) | quote }}
       {{- end }}
       terminationGracePeriodSeconds: 30
       {{- include "clp-presto.schedulingConfigs" .Values.coordinator | nindent 6 }}
       initContainers:
         {{- with .Values.coordinator.extraInitContainers }}
-        {{- toYaml . | nindent 8 }}
+        {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 8 }}
         {{- end }}
         {{- include "clp-presto.installPluginInitContainer" (dict
             "root" . "component" "coordinator"
@@ -35,6 +41,10 @@ spec:
         - name: "coordinator"
           {{- include "clp-presto.imageSpec" (dict "root" . "component" "coordinator") | nindent 10 }}
           {{- include "clp-presto.resources" .Values.coordinator.resources | nindent 10 }}
+          {{- with .Values.coordinator.extraEnv }}
+          env:
+            {{- include "clp-presto.tplValue" (dict "root" $ "value" (toYaml .)) | nindent 12 }}
+          {{- end }}
           ports:
             - name: "presto-coord"
               containerPort: 8889
