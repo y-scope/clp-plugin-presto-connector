@@ -1,0 +1,12 @@
+apiVersion: "v2"
+name: "clp-presto"
+description: "A Helm chart for Presto with the CLP connector plugin installed"
+type: "application"
+version: "0.1.0"
+appVersion: "0.1.0-dev"
+home: "https://github.com/y-scope/clp-plugin-presto-connector"
+sources: ["https://github.com/y-scope/clp-plugin-presto-connector"]
+maintainers: [{name: "y-scope", email: "dev@yscope.com", url: "https://yscope.com"}]
+keywords:
+  - "presto"
+  - "query-engine"
