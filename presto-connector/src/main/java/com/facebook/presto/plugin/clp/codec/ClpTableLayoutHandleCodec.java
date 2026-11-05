@@ -38,10 +38,11 @@ public class ClpTableLayoutHandleCodec implements ConnectorCodec<ConnectorTableL
     // [table handle] : serialized by ClpTableHandleCodec
     // kqlQueryPresent : writeBoolean
     // [kqlQuery] : 2-byte BE length + UTF-8 bytes, if present
-    // metadataSqlPresent : writeBoolean
-    // [metadataSql] : 2-byte BE length + UTF-8 bytes, if present
     // queryConfig : writeStringMap (4-byte BE entry count, then per entry
     // key and value each as 2-byte BE length + UTF-8 bytes)
+    //
+    // The metadata expression is coordinator-side only (used during split generation) and is
+    // intentionally not sent to the native worker.
 
     @Override
     public byte[] serialize(ConnectorTableLayoutHandle handle) {
@@ -62,12 +63,6 @@ public class ClpTableLayoutHandleCodec implements ConnectorCodec<ConnectorTableL
             if (kqlQuery.isPresent()) {
                 writeUtf8String(kqlQuery.get(), out);
             }
-            // Serialize metadataSql
-            Optional<String> metadataSql = layoutHandle.getMetadataSql();
-            out.writeBoolean(metadataSql.isPresent());
-            if (metadataSql.isPresent()) {
-                writeUtf8String(metadataSql.get(), out);
-            }
             // Serialize queryConfig
             writeStringMap(layoutHandle.getQueryConfig(), out);
             return byteOut.toByteArray();
@@ -84,9 +79,6 @@ public class ClpTableLayoutHandleCodec implements ConnectorCodec<ConnectorTableL
             // Deserialize kqlQuery
             Optional<String> kqlQuery = in.readBoolean() ? Optional.of(readUtf8String(in))
                     : Optional.empty();
-            // Deserialize metadataSql
-            Optional<String> metadataSql = in.readBoolean() ? Optional.of(readUtf8String(in))
-                    : Optional.empty();
             // Deserialize queryConfig
             Map<String, String> queryConfig = readStringMap(in);
             if (in.available() > 0) {
@@ -94,7 +86,7 @@ public class ClpTableLayoutHandleCodec implements ConnectorCodec<ConnectorTableL
                         "Unexpected trailing bytes in ClpTableLayoutHandle deserialization"
                 );
             }
-            return new ClpTableLayoutHandle(table, kqlQuery, metadataSql, queryConfig);
+            return new ClpTableLayoutHandle(table, kqlQuery, Optional.empty(), queryConfig);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to deserialize ClpTableLayoutHandle", e);
         }

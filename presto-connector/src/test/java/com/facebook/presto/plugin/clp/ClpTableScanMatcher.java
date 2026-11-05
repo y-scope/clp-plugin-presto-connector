@@ -36,8 +36,8 @@ import com.facebook.presto.sql.tree.SymbolReference;
 
 /**
  * Plan-assertion matcher for CLP table scans: matches a {@link TableScanNode} whose layout handle
- * equals the expected one (including kqlQuery, metadataSql, and queryConfig) and whose assignments
- * cover exactly the expected column handles.
+ * equals the expected one (including kqlQuery, metadataExpression, and queryConfig) and whose
+ * assignments cover exactly the expected column handles.
  */
 final class ClpTableScanMatcher implements Matcher {
     private final ClpTableLayoutHandle expectedLayoutHandle;

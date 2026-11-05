@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.relation.RowExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSortedMap;
@@ -25,18 +26,18 @@ import com.google.common.collect.ImmutableSortedMap;
 public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
     private final ClpTableHandle table;
     private final Optional<String> kqlQuery;
-    private final Optional<String> metadataSql;
+    private final Optional<RowExpression> metadataExpression;
     private final Map<String, String> queryConfig;
 
     @JsonCreator
     public ClpTableLayoutHandle(@JsonProperty("table")
     ClpTableHandle table, @JsonProperty("kqlQuery")
-    Optional<String> kqlQuery, @JsonProperty("metadataFilterQuery")
-    Optional<String> metadataSql, @JsonProperty("queryConfig")
+    Optional<String> kqlQuery, @JsonProperty("metadataExpression")
+    Optional<RowExpression> metadataExpression, @JsonProperty("queryConfig")
     Map<String, String> queryConfig) {
         this.table = table;
         this.kqlQuery = kqlQuery;
-        this.metadataSql = metadataSql;
+        this.metadataExpression = metadataExpression;
         // Sorted for deterministic binary codec output
         this.queryConfig = queryConfig == null ? ImmutableSortedMap.of()
                 : ImmutableSortedMap.copyOf(queryConfig);
@@ -45,9 +46,9 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
     public ClpTableLayoutHandle(
             ClpTableHandle table,
             Optional<String> kqlQuery,
-            Optional<String> metadataSql
+            Optional<RowExpression> metadataExpression
     ) {
-        this(table, kqlQuery, metadataSql, ImmutableSortedMap.of());
+        this(table, kqlQuery, metadataExpression, ImmutableSortedMap.of());
     }
 
     @JsonProperty
@@ -56,8 +57,12 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
     @JsonProperty
     public Optional<String> getKqlQuery() { return kqlQuery; }
 
+    /**
+     * @return The predicate to prune splits with, still as an expression: a split provider renders
+     * it against its own metadata columns. Coordinator-side only; never sent to the worker.
+     */
     @JsonProperty
-    public Optional<String> getMetadataSql() { return metadataSql; }
+    public Optional<RowExpression> getMetadataExpression() { return metadataExpression; }
 
     @JsonProperty
     public Map<String, String> getQueryConfig() { return queryConfig; }
@@ -68,7 +73,7 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
         if (o == null || getClass() != o.getClass()) { return false; }
         ClpTableLayoutHandle that = (ClpTableLayoutHandle)o;
         return Objects.equals(table, that.table) && Objects.equals(kqlQuery, that.kqlQuery)
-                && Objects.equals(metadataSql, that.metadataSql) && Objects.equals(
+                && Objects.equals(metadataExpression, that.metadataExpression) && Objects.equals(
                         queryConfig,
                         that.queryConfig
                 );
@@ -76,14 +81,14 @@ public class ClpTableLayoutHandle implements ConnectorTableLayoutHandle {
 
     @Override
     public int hashCode() {
-        return Objects.hash(table, kqlQuery, metadataSql, queryConfig);
+        return Objects.hash(table, kqlQuery, metadataExpression, queryConfig);
     }
 
     @Override
     public String toString() {
         return toStringHelper(this).add("table", table).add("kqlQuery", kqlQuery).add(
-                "metadataSql",
-                metadataSql
+                "metadataExpression",
+                metadataExpression
         ).add("queryConfig", queryConfig).toString();
     }
 }
