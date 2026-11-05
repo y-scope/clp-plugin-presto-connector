@@ -37,6 +37,18 @@ class ClpConfig {
 
   static constexpr const char* kAuthProvider = "clp.s3-auth-provider";
   static constexpr const char* kStorageType = "clp.storage-type";
+  static constexpr const char* kCaseInsensitive = "clp.case-insensitive";
+
+  /// Name of the per-catalog session property that overrides
+  /// `clp.case-insensitive`. Set on the coordinator via
+  /// `SET SESSION <catalog>.case_insensitive = true` and forwarded to workers
+  /// in the session's catalog properties.
+  ///
+  /// NOTE: presto_cpp also merges X-Presto-Extra-Credential pairs into the
+  /// same per-catalog session config map, so an extra credential with this
+  /// key incidentally acts as a session-level override too. This is upstream
+  /// behavior, not a supported configuration route.
+  static constexpr const char* kCaseInsensitiveSession = "case_insensitive";
 
   explicit ClpConfig(std::shared_ptr<const config::ConfigBase> config);
 
@@ -47,11 +59,13 @@ class ClpConfig {
 
   StorageType storageType() const;
   std::shared_ptr<ClpS3AuthProviderBase> s3AuthProvider() const;
+  bool caseInsensitive() const;
 
  private:
   std::shared_ptr<const config::ConfigBase> config_;
   std::shared_ptr<ClpS3AuthProviderBase> s3AuthProvider_;
   StorageType storageType_;
+  bool caseInsensitive_;
 };
 
 } // namespace facebook::velox::connector::clp
