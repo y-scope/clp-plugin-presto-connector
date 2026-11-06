@@ -28,7 +28,13 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTre
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.filter;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import com.facebook.presto.Session;
@@ -42,6 +48,7 @@ import com.facebook.presto.spi.VariableAllocator;
 import com.facebook.presto.spi.WarningCollector;
 import com.facebook.presto.spi.plan.PlanNode;
 import com.facebook.presto.spi.plan.PlanNodeIdAllocator;
+import com.facebook.presto.spi.plan.TableScanNode;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.assertions.PlanAssert;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
@@ -330,5 +337,50 @@ public class TestClpQueryConfig extends TestClpQueryBase {
                         )
                 )
         );
+    }
+
+    /**
+     * The optimizer derives the columns it can prune on from the split-metadata config. A data
+     * column that the config bounds must therefore make a predicate on it produce a metadata
+     * expression; handing the metadata columns themselves to the converter instead leaves the
+     * expression empty, and the scan then lists every archive.
+     */
+    @Test
+    public void testMetadataExpressionComesFromTheSplitMetadataConfig() throws IOException {
+        Path file = Files.createTempFile("split-metadata", ".json");
+        file.toFile().deleteOnExit();
+        Files.write(
+                file,
+                ("{\"\": {\"metaColumns\": {" + "\"begin_fare\": {\"type\": \"bigint\","
+                        + " \"asRangeBoundOf\": \"fare\", \"boundType\": \"LOWER\"},"
+                        + "\"end_fare\": {\"type\": \"bigint\","
+                        + " \"asRangeBoundOf\": \"fare\", \"boundType\": \"UPPER\"}}}}").getBytes(
+                                StandardCharsets.UTF_8
+                        )
+        );
+        metadataConfig = new ClpSplitMetadataConfig(
+                new ClpConfig().setSplitMetadataConfigPath(file.toString()),
+                functionAndTypeManager
+        );
+
+        Session session = transactionSession();
+        ClpTableLayoutHandle layoutHandle = findLayoutHandle(
+                optimize(session, "SELECT * FROM test WHERE fare > 0")
+        );
+        assertNotNull(layoutHandle);
+        assertTrue(layoutHandle.getMetadataExpression().isPresent());
+    }
+
+    private static ClpTableLayoutHandle findLayoutHandle(PlanNode node) {
+        if (node instanceof TableScanNode) {
+            return ((TableScanNode)node).getTable().getLayout().map(
+                    ClpTableLayoutHandle.class::cast
+            ).orElse(null);
+        }
+        for (PlanNode source : node.getSources()) {
+            ClpTableLayoutHandle layoutHandle = findLayoutHandle(source);
+            if (null != layoutHandle) { return layoutHandle; }
+        }
+        return null;
     }
 }
