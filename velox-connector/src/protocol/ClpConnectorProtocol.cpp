@@ -141,9 +141,9 @@ void ClpConnectorProtocol::deserialize(
 //   [table handle]       : deserialized by deserializeClpTableHandle
 //   kqlQueryPresent      : writeBoolean
 //   [kqlQuery]           : CodecUtils.writeUtf8String, if present
-//   metadataSqlPresent   : writeBoolean
-//   [metadataSql]        : CodecUtils.writeUtf8String, if present
 //   queryConfig          : CodecUtils.writeStringMap
+//
+// The metadata expression is coordinator-side only and is not sent to the worker.
 
 void ClpConnectorProtocol::deserialize(
     const std::string& binaryData,
@@ -156,12 +156,6 @@ void ClpConnectorProtocol::deserialize(
   // kqlQuery (optional)
   if (readBoolean(in)) {
     handle->kqlQuery = std::make_shared<String>(readUtf8String(in));
-  }
-
-  // metadataFilterQuery (optional)
-  if (readBoolean(in)) {
-    handle->metadataFilterQuery =
-        std::make_shared<String>(readUtf8String(in));
   }
 
   handle->queryConfig = readStringMap(in);
