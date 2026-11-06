@@ -58,6 +58,7 @@ public class TestClpSplitMetadataConfig {
         assertTrue(config.getMetadataColumns(EVENTS).isEmpty());
         assertTrue(config.getRequiredColumns(EVENTS).isEmpty());
         assertFalse(config.getRangeBounds(EVENTS, "timestamp").isPresent());
+        assertTrue(config.getRangeBoundedColumns(EVENTS).isEmpty());
     }
 
     @Test
@@ -117,6 +118,23 @@ public class TestClpSplitMetadataConfig {
         );
 
         assertFalse(config.getRangeBounds(EVENTS, "timestamp").isPresent());
+    }
+
+    /** The data columns a predicate can prune on are the ones some metadata column bounds. */
+    @Test
+    public void testRangeBoundedColumnsAreTheBoundedDataColumns() throws IOException {
+        ClpSplitMetadataConfig config = load(
+                "{\"\": {\"metaColumns\": {"
+                        + "\"begin_ts\": {\"type\": \"bigint\", \"asRangeBoundOf\": \"timestamp\","
+                        + " \"boundType\": \"LOWER\"},"
+                        + "\"end_ts\": {\"type\": \"bigint\", \"asRangeBoundOf\": \"timestamp\","
+                        + " \"boundType\": \"UPPER\"}," + "\"host\": {\"type\": \"varchar\"},"
+                        + "\"first_seen\": {\"type\": \"bigint\","
+                        + " \"asRangeBoundOf\": \"receive_time\"}}}}"
+        );
+
+        // `host` bounds nothing, and `first_seen` has no bound type, so neither is prunable.
+        assertEquals(config.getRangeBoundedColumns(EVENTS), ImmutableSet.of("timestamp"));
     }
 
     @Test
