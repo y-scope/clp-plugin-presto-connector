@@ -49,3 +49,28 @@ def test_catalog_config_makes_matching_case_insensitive(client: PrestoClient, ta
     """`clp.case-insensitive=true` in the catalog properties is the default for its sessions."""
     rows = client.run(f"SELECT requestId FROM clp_ci.default.{table} {_LOWER_CASE_POST_200}")
     assert rows == _POST_200_REQUEST_ID
+
+
+@pytest.mark.parametrize("table", _TABLES)
+def test_query_config_marker_makes_matching_case_insensitive(
+    client: PrestoClient, table: str
+) -> None:
+    """The marker sets the option from inside the query text, with no session property."""
+    rows = client.run(
+        f"SELECT requestId FROM clp.default.{table} "
+        "WHERE CLP_QUERY_CONFIG('case_insensitive', true)"
+        " AND method = 'post' AND status = 200"
+    )
+    assert rows == _POST_200_REQUEST_ID
+
+
+@pytest.mark.parametrize("table", _TABLES)
+def test_query_config_marker_overrides_the_session(client: PrestoClient, table: str) -> None:
+    """The marker takes precedence over a session property that turns the option on."""
+    rows = client.run(
+        f"SELECT requestId FROM clp.default.{table} "
+        "WHERE CLP_QUERY_CONFIG('case_insensitive', false)"
+        " AND method = 'post' AND status = 200",
+        session_properties=_CASE_INSENSITIVE_SESSION,
+    )
+    assert rows == []
