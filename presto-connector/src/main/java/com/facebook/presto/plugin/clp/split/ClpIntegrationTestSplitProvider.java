@@ -51,7 +51,8 @@ public class ClpIntegrationTestSplitProvider implements ClpSplitProvider {
                                     entry.toString(),
                                     entry.getFileName().toString().endsWith(IR_SUFFIX) ? IR
                                             : ARCHIVE,
-                                    clpTableLayoutHandle.getKqlQuery()
+                                    clpTableLayoutHandle.getKqlQuery(),
+                                    clpTableLayoutHandle.getQueryConfig()
                             )
                     )
             );
