@@ -15,6 +15,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +32,7 @@ import com.google.common.collect.ImmutableSet;
 import org.testng.annotations.Test;
 
 import com.facebook.presto.plugin.clp.optimization.ClpFilterToKqlConverter;
+import com.facebook.presto.plugin.clp.split.metadata.ClpSplitMetadataConfig;
 
 @Test
 public class TestClpFilterToKql extends TestClpQueryBase {
@@ -412,6 +417,42 @@ public class TestClpFilterToKql extends TestClpQueryBase {
         );
     }
 
+    /**
+     * The optimizer derives the prunable columns from the split-metadata config, so a data column
+     * that the config bounds must make predicates on it produce a metadata expression. Handing the
+     * metadata columns themselves to the converter instead leaves the expression empty, and the
+     * scan then reads every archive.
+     */
+    @Test
+    public void testRangeBoundedColumnsComeFromTheMetadataConfig() throws IOException {
+        Path file = Files.createTempFile("split-metadata", ".json");
+        file.toFile().deleteOnExit();
+        Files.write(
+                file,
+                ("{\"\": {\"metaColumns\": {" + "\"begin_timestamp\": {\"type\": \"bigint\","
+                        + " \"asRangeBoundOf\": \"clpTimestamp\", \"boundType\": \"LOWER\"},"
+                        + "\"end_timestamp\": {\"type\": \"bigint\","
+                        + " \"asRangeBoundOf\": \"clpTimestamp\", \"boundType\": \"UPPER\"}}}}")
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+        ClpSplitMetadataConfig metadataConfig = new ClpSplitMetadataConfig(
+                new ClpConfig().setSplitMetadataConfigPath(file.toString()),
+                functionAndTypeManager
+        );
+        Set<String> rangeBoundedColumns = metadataConfig.getRangeBoundedColumns(
+                table.getSchemaTableName()
+        );
+        assertEquals(rangeBoundedColumns, ImmutableSet.of("clpTimestamp"));
+
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+        ClpExpression clpExpression = tryPushDown(
+                "clpTimestamp < TIMESTAMP '2023-01-01 00:00:00.000'",
+                sessionHolder,
+                rangeBoundedColumns
+        );
+        assertTrue(clpExpression.getMetadataExpression().isPresent());
+    }
+
     @Test
     public void testClpWildcardUdf() {
         SessionHolder sessionHolder = new SessionHolder();
@@ -487,22 +528,22 @@ public class TestClpFilterToKql extends TestClpQueryBase {
             String sql,
             String expectedKql,
             String expectedMetadataSqlQuery,
-            Set<String> metadataFilterColumns
+            Set<String> rangeBoundedColumns
     ) {
-        ClpExpression clpExpression = tryPushDown(sql, sessionHolder, metadataFilterColumns);
+        ClpExpression clpExpression = tryPushDown(sql, sessionHolder, rangeBoundedColumns);
         testFilter(clpExpression, expectedKql, null, sessionHolder);
-        if (expectedMetadataSqlQuery != null) {
-            assertTrue(clpExpression.getMetadataSqlQuery().isPresent());
-            assertEquals(clpExpression.getMetadataSqlQuery().get(), expectedMetadataSqlQuery);
-        } else {
-            assertFalse(clpExpression.getMetadataSqlQuery().isPresent());
-        }
+        // The metadata portion is now an expression rendered by the split provider, so only its
+        // presence is meaningful here.
+        assertEquals(
+                clpExpression.getMetadataExpression().isPresent(),
+                expectedMetadataSqlQuery != null
+        );
     }
 
     private ClpExpression tryPushDown(
             String sqlExpression,
             SessionHolder sessionHolder,
-            Set<String> metadataFilterColumns
+            Set<String> rangeBoundedColumns
     ) {
         RowExpression pushDownExpression = getRowExpression(sqlExpression, sessionHolder);
         Map<VariableReferenceExpression, ColumnHandle> assignments = new HashMap<>(
@@ -513,7 +554,7 @@ public class TestClpFilterToKql extends TestClpQueryBase {
                         standardFunctionResolution,
                         functionAndTypeManager,
                         assignments,
-                        metadataFilterColumns
+                        rangeBoundedColumns
                 ),
                 null
         );

@@ -32,8 +32,9 @@ ClpDataSource::ClpDataSource(
     const ConnectorTableHandlePtr& tableHandle,
     const connector::ColumnHandleMap& columnHandles,
     velox::memory::MemoryPool* pool,
-    std::shared_ptr<const ClpConfig>& clpConfig)
-    : pool_(pool), outputType_(outputType) {
+    std::shared_ptr<const ClpConfig>& clpConfig,
+    bool caseInsensitive)
+    : caseInsensitive_(caseInsensitive), pool_(pool), outputType_(outputType) {
   auto clpTableHandle =
       std::dynamic_pointer_cast<const ClpTableHandle>(tableHandle);
   storageType_ = clpConfig->storageType();
@@ -113,12 +114,21 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
     VELOX_UNREACHABLE();
   }
 
+  // Per-query CLP_QUERY_CONFIG markers take precedence over the
+  // session-property / catalog-config default. Values were validated and
+  // normalized to lowercase "true"/"false" on the coordinator.
+  bool caseInsensitive = caseInsensitive_;
+  auto it = clpSplit->queryConfig_.find(ClpConfig::kCaseInsensitiveSession);
+  if (it != clpSplit->queryConfig_.end()) {
+    caseInsensitive = it->second == "true";
+  }
+
   if (ClpConnectorSplit::SplitType::kArchive == clpSplit->type_) {
-    cursor_ =
-        std::make_unique<search_lib::ClpArchiveCursor>(inputSource, splitPath);
+    cursor_ = std::make_unique<search_lib::ClpArchiveCursor>(
+        inputSource, splitPath, caseInsensitive);
   } else if (ClpConnectorSplit::SplitType::kIr == clpSplit->type_) {
-    cursor_ =
-        std::make_unique<search_lib::ClpIrCursor>(inputSource, splitPath, true);
+    cursor_ = std::make_unique<search_lib::ClpIrCursor>(
+        inputSource, splitPath, caseInsensitive);
   } else {
     VELOX_UNSUPPORTED(
         "Unsupported split type: {}", static_cast<int>(clpSplit->type_));

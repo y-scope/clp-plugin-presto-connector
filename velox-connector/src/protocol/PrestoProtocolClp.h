@@ -41,6 +41,7 @@ struct ClpSplit : public ConnectorSplit {
   String path = {};
   SplitType type = {};
   std::shared_ptr<String> kqlQuery = {};
+  Map<String, String> queryConfig = {};
 
   ClpSplit() noexcept { _type = "clp"; }
 };
@@ -55,7 +56,7 @@ struct ClpTableHandle : public ConnectorTableHandle {
 struct ClpTableLayoutHandle : public ConnectorTableLayoutHandle {
     ClpTableHandle table = {};
     std::shared_ptr<String> kqlQuery = {};
-    std::shared_ptr<String> metadataFilterQuery = {};
+    Map<String, String> queryConfig = {};
 
   ClpTableLayoutHandle() noexcept { _type = "clp"; }
 };

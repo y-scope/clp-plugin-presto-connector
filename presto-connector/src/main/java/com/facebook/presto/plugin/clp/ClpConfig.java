@@ -21,6 +21,7 @@ public class ClpConfig {
     public static final Pattern SAFE_SQL_TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]+$");
 
     private boolean polymorphicTypeEnabled = true;
+    private boolean caseInsensitive;
 
     private MetadataProviderType metadataProviderType = MetadataProviderType.MYSQL;
     private String integrationTestArchiveDir;
@@ -32,15 +33,22 @@ public class ClpConfig {
     private long metadataRefreshInterval = 60;
     private long metadataExpireInterval = 600;
 
-    private String splitFilterConfig;
-    private SplitFilterProviderType splitFilterProviderType = SplitFilterProviderType.MYSQL;
     private SplitProviderType splitProviderType = SplitProviderType.MYSQL;
+    private String splitMetadataConfigPath;
 
     public boolean isPolymorphicTypeEnabled() { return polymorphicTypeEnabled; }
 
     @Config("clp.polymorphic-type-enabled")
     public ClpConfig setPolymorphicTypeEnabled(boolean polymorphicTypeEnabled) {
         this.polymorphicTypeEnabled = polymorphicTypeEnabled;
+        return this;
+    }
+
+    public boolean isCaseInsensitive() { return caseInsensitive; }
+
+    @Config("clp.case-insensitive")
+    public ClpConfig setCaseInsensitive(boolean caseInsensitive) {
+        this.caseInsensitive = caseInsensitive;
         return this;
     }
 
@@ -119,19 +127,11 @@ public class ClpConfig {
         return this;
     }
 
-    public String getSplitFilterConfig() { return splitFilterConfig; }
+    public String getSplitMetadataConfigPath() { return splitMetadataConfigPath; }
 
-    @Config("clp.split-filter-config")
-    public ClpConfig setSplitFilterConfig(String splitFilterConfig) {
-        this.splitFilterConfig = splitFilterConfig;
-        return this;
-    }
-
-    public SplitFilterProviderType getSplitFilterProviderType() { return splitFilterProviderType; }
-
-    @Config("clp.split-filter-provider-type")
-    public ClpConfig setSplitFilterProviderType(SplitFilterProviderType splitFilterProviderType) {
-        this.splitFilterProviderType = splitFilterProviderType;
+    @Config("clp.split-metadata-config-path")
+    public ClpConfig setSplitMetadataConfigPath(String splitMetadataConfigPath) {
+        this.splitMetadataConfigPath = splitMetadataConfigPath;
         return this;
     }
 
@@ -153,10 +153,6 @@ public class ClpConfig {
     }
 
     public enum MetadataProviderType {
-        MYSQL, INTEGRATION_TEST
-    }
-
-    public enum SplitFilterProviderType {
         MYSQL, INTEGRATION_TEST
     }
 

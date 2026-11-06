@@ -11,6 +11,7 @@
  */
 package com.facebook.presto.plugin.clp.codec;
 
+import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
 import static org.testng.Assert.assertEquals;
 
 import java.util.List;
@@ -26,6 +27,8 @@ import com.facebook.presto.common.type.TypeSignatureParameter;
 import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.spi.relation.ConstantExpression;
+import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
 import com.facebook.presto.plugin.clp.ClpColumnHandle;
@@ -126,6 +129,27 @@ public class TestClpConnectorCodecProvider {
         assertEquals(deserialized.getPath(), "/data/ir/stream.clp.zst");
         assertEquals(deserialized.getType(), ClpSplit.SplitType.IR);
         assertEquals(deserialized.getKqlQuery(), Optional.empty());
+        assertEquals(deserialized.getQueryConfig(), ImmutableMap.of());
+    }
+
+    @Test
+    public void testSplitRoundtripWithQueryConfig() {
+        ClpSplitCodec codec = new ClpSplitCodec();
+        ClpSplit original = new ClpSplit(
+                "/data/logs/archive.clp",
+                ClpSplit.SplitType.ARCHIVE,
+                Optional.of("LEVEL:ERROR"),
+                ImmutableMap.of("case_insensitive", "true", "another_key", "value")
+        );
+        byte[] bytes = codec.serialize(original);
+        ClpSplit deserialized = (ClpSplit)codec.deserialize(bytes);
+
+        assertEquals(deserialized.getPath(), "/data/logs/archive.clp");
+        assertEquals(deserialized.getKqlQuery(), Optional.of("LEVEL:ERROR"));
+        assertEquals(
+                deserialized.getQueryConfig(),
+                ImmutableMap.of("case_insensitive", "true", "another_key", "value")
+        );
     }
 
     @Test
@@ -159,24 +183,43 @@ public class TestClpConnectorCodecProvider {
         assertEquals(deserialized.getTable().getSchemaTableName().getTableName(), "logs");
         assertEquals(deserialized.getTable().getTablePath(), "/data/logs");
         assertEquals(deserialized.getKqlQuery(), Optional.of("level:ERROR"));
-        assertEquals(deserialized.getMetadataSql(), Optional.empty());
+        assertEquals(deserialized.getMetadataExpression(), Optional.empty());
     }
 
+    /** The metadata expression is coordinator-side only, so the codec must not carry it. */
     @Test
-    public void testTableLayoutHandleRoundtripWithMetadataSql() {
+    public void testTableLayoutHandleDropsTheMetadataExpression() {
         ClpTableLayoutHandleCodec codec = new ClpTableLayoutHandleCodec();
         ClpTableHandle table = new ClpTableHandle(new SchemaTableName("clp", "logs"), "/data");
         ClpTableLayoutHandle original = new ClpTableLayoutHandle(
                 table,
-                Optional.empty(),
-                Optional.of("(end_timestamp > 100)")
+                Optional.of("level:ERROR"),
+                Optional.of(new ConstantExpression(true, BOOLEAN))
         );
         byte[] bytes = codec.serialize(original);
         ClpTableLayoutHandle deserialized = (ClpTableLayoutHandle)codec.deserialize(bytes);
 
-        assertEquals(deserialized.getTable().getSchemaTableName().getSchemaName(), "clp");
-        assertEquals(deserialized.getKqlQuery(), Optional.empty());
-        assertEquals(deserialized.getMetadataSql(), Optional.of("(end_timestamp > 100)"));
+        assertEquals(deserialized.getKqlQuery(), Optional.of("level:ERROR"));
+        assertEquals(deserialized.getMetadataExpression(), Optional.empty());
+        assertEquals(deserialized.getQueryConfig(), ImmutableMap.of());
+    }
+
+    @Test
+    public void testTableLayoutHandleRoundtripWithQueryConfig() {
+        ClpTableLayoutHandleCodec codec = new ClpTableLayoutHandleCodec();
+        ClpTableHandle table = new ClpTableHandle(new SchemaTableName("clp", "logs"), "/data/logs");
+        ClpTableLayoutHandle original = new ClpTableLayoutHandle(
+                table,
+                Optional.of("level:ERROR"),
+                Optional.empty(),
+                ImmutableMap.of("case_insensitive", "true")
+        );
+        byte[] bytes = codec.serialize(original);
+        ClpTableLayoutHandle deserialized = (ClpTableLayoutHandle)codec.deserialize(bytes);
+
+        assertEquals(deserialized.getKqlQuery(), Optional.of("level:ERROR"));
+        assertEquals(deserialized.getMetadataExpression(), Optional.empty());
+        assertEquals(deserialized.getQueryConfig(), ImmutableMap.of("case_insensitive", "true"));
     }
 
     @Test
