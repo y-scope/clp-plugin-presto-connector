@@ -65,7 +65,7 @@ This repository provides the query connector. A [CLP deployment][CLP] handles in
 
 A published Helm chart deploys a Java coordinator and native workers with both CLP plugins installed. It connects to an existing CLP metadata database and archive storage. The published chart pins the coordinator, worker, and connector images together by digest.
 
-The chart is currently available as `0.1.0-SNAPSHOT` from the separate Helm development branch; [PR #77][helm-pr] tracks its integration into `main`. You can install it directly from the registry.
+The chart is currently available as `0.2.0-SNAPSHOT` from the separate Helm development branch; [PR #77][helm-pr] tracks its integration into `main`. You can install it directly from the registry.
 
 With Helm and `kubectl` configured for your cluster, create `clp-presto-values.yaml` with your CLP connection details. For archives on an existing persistent volume:
 
@@ -99,13 +99,13 @@ archiveStorage:
     secretAccessKey: "REPLACE_WITH_SECRET_ACCESS_KEY"
 ```
 
-For a custom S3 endpoint, set `archiveStorage.s3.endpointUrl`. See the [chart values][helm-values] for worker counts, resource settings, storage options, and metadata filters. The current snapshot renders catalog credentials into a Kubernetes ConfigMap; access to that ConfigMap grants access to those credentials.
+For a custom S3 endpoint, set `archiveStorage.s3.endpointUrl`. See the [chart values][helm-values] for worker counts, resource settings, storage options, and metadata filters. By default the chart renders catalog credentials into a Kubernetes ConfigMap, so access to that ConfigMap grants access to those credentials; a parent chart can instead supply a Secret through `catalogs.existingSecret`.
 
 Install the chart:
 
 ```shell
 helm upgrade --install clp-presto oci://ghcr.io/y-scope/charts/clp-presto \
-  --version 0.1.0-SNAPSHOT \
+  --version 0.2.0-SNAPSHOT \
   --namespace clp --create-namespace \
   --values clp-presto-values.yaml \
   --wait --timeout 10m
@@ -126,6 +126,30 @@ presto --server localhost:18080 --catalog clp --schema default
 ```
 
 Then run `SHOW TABLES;` to discover your datasets. The chart deploys the query engine; the tables come from the data already ingested into CLP.
+
+#### Using the chart as a subchart
+
+A parent chart can include this chart as a dependency and pass release-derived values. The
+following values are rendered with `tpl`, so they can reference the parent's release:
+
+```yaml
+fullnameOverride: '{{ include "clp.fullname" . }}-presto'
+serviceAccountName: '{{ include "clp.fullname" . }}-service-account'
+catalogs:
+  # A Secret the parent renders, containing "coordinator-catalog-clp.properties" and
+  # "worker-catalog-clp.properties". When set, `metadataDb` and the S3 credentials are unused.
+  existingSecret: '{{ include "clp.fullname" . }}-presto-catalog'
+archiveStorage:
+  type: "fs"
+  fs:
+    existingClaim: '{{ include "clp.fullname" . }}-shared-data-archives'
+```
+
+`coordinator.extraEnv`, `worker.extraEnv`, `coordinator.podAnnotations`,
+`worker.podAnnotations`, `coordinator.extraInitContainers`, and `worker.extraInitContainers` are
+also rendered with `tpl`. Set `coordinator.rollOnUpgrade` and `worker.rollOnUpgrade` when the
+catalog comes from an external Secret: the chart cannot hash that Secret into the pod template, so
+without this an upgrade that changes the catalog leaves the running pods on the old one.
 
 ### Install the plugins
 
@@ -217,7 +241,7 @@ WHERE CLP_GET_STRING('method') = 'POST'
 
 This returns the same `req-106`, `/auth/login` row. Other field-access functions include `CLP_GET_DOUBLE`, `CLP_GET_BOOL`, and `CLP_GET_STRING_ARRAY`. Their field paths must be constant strings. `CLP_GET_JSON_STRING()` selects the full record as JSON.
 
-The planner rewrites these functions into typed column references. Supported predicates are translated into CLP queries, and configured metadata filters can exclude archives before they are opened. For MySQL metadata, archive pruning is configured through `clp.split-filter-config`; the Helm chart exposes it through `splitFilter`.
+The planner rewrites these functions into typed column references. Supported predicates are translated into CLP queries, and configured metadata filters can exclude archives before they are opened. For MySQL metadata, archive pruning is configured through `clp.split-metadata-config-path`; the Helm chart exposes it through `splitMetadataConfig`.
 
 ## Current limitations
 
