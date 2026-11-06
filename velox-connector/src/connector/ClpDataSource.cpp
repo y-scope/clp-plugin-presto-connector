@@ -117,8 +117,10 @@ void ClpDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
     cursor_ =
         std::make_unique<search_lib::ClpArchiveCursor>(inputSource, splitPath);
   } else if (ClpConnectorSplit::SplitType::kIr == clpSplit->type_) {
+    // IR splits match case-sensitively, matching archive splits. This argument
+    // is `ignoreCase`, so it is false.
     cursor_ =
-        std::make_unique<search_lib::ClpIrCursor>(inputSource, splitPath, true);
+        std::make_unique<search_lib::ClpIrCursor>(inputSource, splitPath, false);
   } else {
     VELOX_UNSUPPORTED(
         "Unsupported split type: {}", static_cast<int>(clpSplit->type_));
