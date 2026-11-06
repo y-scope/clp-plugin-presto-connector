@@ -114,13 +114,13 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
     private final StandardFunctionResolution standardFunctionResolution;
     private final FunctionMetadataManager functionMetadataManager;
     private final Map<VariableReferenceExpression, ColumnHandle> assignments;
-    private final Set<String> metadataFilterColumns;
+    private final Set<String> rangeBoundedColumns;
 
     public ClpFilterToKqlConverter(
             StandardFunctionResolution standardFunctionResolution,
             FunctionMetadataManager functionMetadataManager,
             Map<VariableReferenceExpression, ColumnHandle> assignments,
-            Set<String> metadataFilterColumns
+            Set<String> rangeBoundedColumns
     ) {
         this.standardFunctionResolution = requireNonNull(
                 standardFunctionResolution,
@@ -131,9 +131,9 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 "function metadata manager is null"
         );
         this.assignments = requireNonNull(assignments, "assignments is null");
-        this.metadataFilterColumns = requireNonNull(
-                metadataFilterColumns,
-                "metadataFilterColumns is null"
+        this.rangeBoundedColumns = requireNonNull(
+                rangeBoundedColumns,
+                "rangeBoundedColumns is null"
         );
     }
 
@@ -275,7 +275,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 variable,
                 formatLiteral(third.getType(), upperBound)
         );
-        RowExpression metadataExpression = metadataFilterColumns.contains(variable) ? node : null;
+        RowExpression metadataExpression = rangeBoundedColumns.contains(variable) ? node : null;
         return new ClpExpression(kql, metadataExpression);
     }
 
@@ -480,7 +480,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                         )
                 );
             } else {
-                if (metadataFilterColumns.contains(variableName)) {
+                if (rangeBoundedColumns.contains(variableName)) {
                     metadataExpression = originalNode;
                 }
                 return new ClpExpression(
@@ -498,7 +498,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                         )
                 );
             } else {
-                if (metadataFilterColumns.contains(variableName)) {
+                if (rangeBoundedColumns.contains(variableName)) {
                     metadataExpression = originalNode;
                 }
                 return new ClpExpression(
@@ -515,7 +515,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 LOGICAL_BINARY_OPS_FILTER.contains(operator)
                         && !(literalType instanceof VarcharType)
             ) {
-                if (metadataFilterColumns.contains(variableName)) {
+                if (rangeBoundedColumns.contains(variableName)) {
                     metadataExpression = originalNode;
                 }
                 return new ClpExpression(

@@ -111,9 +111,9 @@ public class ClpComputePushDown implements ConnectorPlanOptimizer {
                                     functionResolution,
                                     functionManager,
                                     assignments,
-                                    metadataConfig.getMetadataColumns(
+                                    metadataConfig.getRangeBoundedColumns(
                                             clpTableHandle.getSchemaTableName()
-                                    ).keySet()
+                                    )
                             ),
                             null
                     ) : new ClpExpression();

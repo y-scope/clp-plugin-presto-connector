@@ -154,6 +154,21 @@ public class ClpSplitMetadataConfig {
 
     /**
      * @param table
+     * @return The data columns a predicate can prune splits on, i.e. those that at least one
+     * metadata column bounds.
+     */
+    public Set<String> getRangeBoundedColumns(SchemaTableName table) {
+        ImmutableSet.Builder<String> columns = ImmutableSet.builder();
+        for (MetaColumn meta : mergedColumns(table).values()) {
+            if (null != meta.asRangeBoundOf && null != meta.boundType) {
+                columns.add(meta.asRangeBoundOf);
+            }
+        }
+        return columns.build();
+    }
+
+    /**
+     * @param table
      * @return The columns a query against {@code table} must filter on.
      */
     public Set<String> getRequiredColumns(SchemaTableName table) {
