@@ -168,7 +168,41 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
 
     @Override
     public ClpExpression visitVariableReference(VariableReferenceExpression node, Void context) {
+        // TEMPORARY: filtering on a mixed-type TIMESTAMP column is wrong when pushed down, so such
+        // a column is never translated and its predicates are left to Presto. TODO: record each
+        // value's timestamp precision, and support fields whose values disagree on it, so that a
+        // comparison can be converted to the precision of the value it is compared against. Then
+        // delete this guard.
+        if (isMixedTypeTimestampColumn(node)) { return new ClpExpression(node); }
         return new ClpExpression(getVariableName(node));
+    }
+
+    /**
+     * Whether {@code variable} is a TIMESTAMP column for a field that CLP stored under more than
+     * one physical type.
+     * <p>
+     * </p>
+     * CLP keeps a field's value once per type it was written with, so such a field becomes several
+     * columns. {@link com.facebook.presto.plugin.clp.metadata.ClpSchemaTree} tells them apart by
+     * appending the type to the name, which is the only case where a column's name differs from
+     * its {@code originalColumnName}. Projecting the TIMESTAMP column converts every encoding to
+     * the same instant, but a pushed-down filter is a KQL comparison against the field's raw
+     * encodings, and CLP records their type without the precision of the timestamp they hold, so
+     * the comparison silently drops the encodings it cannot interpret: {@code COUNT(*)} and
+     * {@code COUNT(*) WHERE timestamp = <literal>} disagree. Such a filter must therefore be
+     * evaluated by Presto on the projected values instead.
+     * <p>
+     * </p>
+     * Only TIMESTAMP is guarded: fixing it means recording each value's precision, and letting a
+     * field hold values of several precisions, so that the comparison can be converted to the
+     * precision of the value it is compared against. The other Presto types each correspond to a
+     * single physical encoding.
+     */
+    private boolean isMixedTypeTimestampColumn(VariableReferenceExpression variable) {
+        ClpColumnHandle column = (ClpColumnHandle)assignments.get(variable);
+        if (column.getColumnName().equals(column.getOriginalColumnName())) { return false; }
+        Type type = column.getColumnType();
+        return TIMESTAMP.equals(type) || TIMESTAMP_MICROSECONDS.equals(type);
     }
 
     @Override

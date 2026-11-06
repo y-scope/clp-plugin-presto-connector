@@ -367,6 +367,33 @@ public class TestClpFilterToKql extends TestClpQueryBase {
     }
 
     @Test
+    public void testMixedTypeTimestampIsNotPushedDown() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+        String predicate = "mixedTimestamp_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'";
+
+        // A field CLP stored under several physical types becomes one column per type, and each
+        // column reads back only its own encoding. A pushed-down filter compares the raw
+        // encodings, so it would drop the records it cannot interpret; Presto evaluates the
+        // predicate on the projected values instead.
+        testFilter(
+                tryPushDown(predicate, sessionHolder, ImmutableSet.of()),
+                null,
+                predicate,
+                sessionHolder
+        );
+
+        // Predicates alongside it still reach CLP.
+        ClpExpression conjunction = tryPushDown(
+                predicate + " AND fare = 0.0",
+                sessionHolder,
+                ImmutableSet.of()
+        );
+        assertTrue(conjunction.getPushDownExpression().isPresent());
+        assertTrue(conjunction.getPushDownExpression().get().contains("fare"));
+        assertTrue(conjunction.getRemainingExpression().isPresent());
+    }
+
+    @Test
     public void testTimestampPushDown() {
         // Use UTC to ensure stable epoch-ms values regardless of local timezone
         SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
