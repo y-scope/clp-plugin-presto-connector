@@ -34,17 +34,15 @@ def test_ir_timestamps(client: PrestoClient) -> None:
     assert rows == [[_INSTANT], ["2025-12-17 20:23:25.000"], [None]]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Non-blocking: filtering on a timestamp column drops the integer-encoded records, even"
-        " though all four read back as the same instant. Fixing it needs its own investigation;"
-        " see test_projected_and_filtered_disagree below."
-    ),
-    strict=False,
-)
 @pytest.mark.pushdown
 def test_equality_matches_every_encoding(client: PrestoClient) -> None:
-    """Every encoding denotes the same instant, so equality should match all four records."""
+    """
+    Every encoding denotes the same instant, so equality should match all four records.
+
+    `timestamp` is stored under three physical types, so this only holds once the predicate is
+    compared against the projected column instead of the raw encodings -- see
+    test_mixed_type_timestamp_is_not_pushed_down.
+    """
     matched = client.scalar(
         "SELECT COUNT(*) FROM clp.default.timestamps"
         f" WHERE timestamp_timestamp = TIMESTAMP '{_INSTANT_LITERAL}'"
@@ -52,13 +50,6 @@ def test_equality_matches_every_encoding(client: PrestoClient) -> None:
     assert matched == 4
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Non-blocking: the same problem on the IR path, where the filter drops the only"
-        " matching record."
-    ),
-    strict=False,
-)
 @pytest.mark.pushdown
 @pytest.mark.ir
 def test_ir_range_pushdown(client: PrestoClient) -> None:
@@ -71,20 +62,30 @@ def test_ir_range_pushdown(client: PrestoClient) -> None:
 
 
 @pytest.mark.pushdown
-def test_projected_and_filtered_disagree(client: PrestoClient) -> None:
+@pytest.mark.archive
+def test_mixed_type_timestamp_is_not_pushed_down(client: PrestoClient) -> None:
     """
-    Pins the shape of the defect above, so that a fix has an unambiguous target.
+    A filter on a mixed-type timestamp column stays in the plan.
 
-    The same comparison is true for every record when projected, yet filtering on it drops two.
-    This test asserts the discrepancy so that it cannot regress further unnoticed. When the
-    underlying bug is fixed, the two xfails above flip to XPASS and this one should be deleted.
+    CLP stores `timestamp` as a timestamp, an integer, and a float, and a pushed-down comparison
+    only sees the raw encodings, so the connector translates no KQL for such a column: the table
+    layout carries no filter and Presto applies the predicate to the projected values itself.
     """
-    projected = client.run(
-        f"SELECT timestamp_timestamp = TIMESTAMP '{_INSTANT_LITERAL}' FROM clp.default.timestamps"
-    )
-    filtered = client.scalar(
-        "SELECT COUNT(*) FROM clp.default.timestamps"
+    plan = client.run(
+        "EXPLAIN SELECT COUNT(*) FROM clp.default.timestamps"
         f" WHERE timestamp_timestamp = TIMESTAMP '{_INSTANT_LITERAL}'"
     )
-    assert [row[0] for row in projected] == [True] * 4
-    assert filtered == 2
+    assert len(plan) == 1
+    assert "kqlQuery=Optional.empty" in plan[0][0]
+
+
+@pytest.mark.pushdown
+@pytest.mark.archive
+def test_single_encoding_timestamp_is_still_pushed_down(client: PrestoClient) -> None:
+    """A timestamp column whose field was stored one way keeps its filter inside CLP."""
+    plan = client.run(
+        "EXPLAIN SELECT requestId FROM clp.default.http_logs"
+        " WHERE timestamp < TIMESTAMP '2025-04-30 08:50:00'"
+    )
+    assert len(plan) == 1
+    assert "kqlQuery=Optional[timestamp < timestamp(" in plan[0][0]

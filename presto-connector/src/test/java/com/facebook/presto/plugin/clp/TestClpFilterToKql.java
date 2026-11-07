@@ -11,6 +11,8 @@
  */
 package com.facebook.presto.plugin.clp;
 
+import static com.facebook.presto.common.type.BigintType.BIGINT;
+import static com.facebook.presto.common.type.TimestampType.TIMESTAMP;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -20,10 +22,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.facebook.presto.common.type.RowType;
 import com.facebook.presto.common.type.TimeZoneKey;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
+import com.facebook.presto.sql.planner.TypeProvider;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.testng.annotations.Test;
 
@@ -363,6 +369,125 @@ public class TestClpFilterToKql extends TestClpQueryBase {
                 "(fare: 0 AND (city.Name: \"b*\" OR city.Region.Id: 1))",
                 "(\"fare\" = 0)",
                 testMetadataFilterColumns
+        );
+    }
+
+    @Test
+    public void testMixedTypeTimestampIsNotPushedDown() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+        String predicate = "mixedTimestamp_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'";
+
+        // A field CLP stored under several physical types becomes one column per type, and each
+        // column reads back only its own encoding. A pushed-down filter compares the raw
+        // encodings, so it would drop the records it cannot interpret; Presto evaluates the
+        // predicate on the projected values instead.
+        testFilter(
+                tryPushDown(predicate, sessionHolder, ImmutableSet.of()),
+                null,
+                predicate,
+                sessionHolder
+        );
+
+        // Predicates alongside it still reach CLP.
+        ClpExpression conjunction = tryPushDown(
+                predicate + " AND fare = 0.0",
+                sessionHolder,
+                ImmutableSet.of()
+        );
+        assertTrue(conjunction.getPushDownExpression().isPresent());
+        assertTrue(conjunction.getPushDownExpression().get().contains("fare"));
+        assertTrue(conjunction.getRemainingExpression().isPresent());
+    }
+
+    @Test
+    public void testMixedTypeTimestampKeepsMetadataFilter() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+        String predicate = "mixedTimestamp_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'";
+
+        // The comparison cannot be pushed down, but the metadata query only selects archives, so
+        // it is produced anyway and a required split filter on the field stays satisfied.
+        ClpExpression comparison = tryPushDown(
+                predicate,
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp")
+        );
+        testFilter(comparison, null, predicate, sessionHolder);
+        assertTrue(comparison.getMetadataSqlQuery().isPresent());
+        assertEquals("\"mixedTimestamp\" = 1672531200000", comparison.getMetadataSqlQuery().get());
+
+        // A sibling predicate still reaches CLP, and the metadata query keeps both comparisons.
+        ClpExpression conjunction = tryPushDown(
+                predicate + " AND fare > 0",
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp", "fare")
+        );
+        testFilter(conjunction, "(fare > 0)", predicate, sessionHolder);
+        assertTrue(conjunction.getMetadataSqlQuery().isPresent());
+        assertEquals(
+                "(\"mixedTimestamp\" = 1672531200000 AND \"fare\" > 0)",
+                conjunction.getMetadataSqlQuery().get()
+        );
+
+        // BETWEEN is translated by its own handler, which keeps the metadata query the same way.
+        String range = "mixedTimestamp_timestamp BETWEEN TIMESTAMP '2023-01-01 00:00:00.000'"
+                + " AND TIMESTAMP '2023-01-02 00:00:00.000'";
+        ClpExpression between = tryPushDown(
+                range,
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp")
+        );
+        testFilter(between, null, range, sessionHolder);
+        assertTrue(between.getMetadataSqlQuery().isPresent());
+        assertEquals(
+                "\"mixedTimestamp\" >= 1672531200000 AND \"mixedTimestamp\" <= 1672617600000",
+                between.getMetadataSqlQuery().get()
+        );
+    }
+
+    @Test
+    public void testFieldThatIsAlsoAnObjectKeepsPushDown() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+
+        // A field stored both as a leaf and as an object keeps its leaf under a suffixed name and
+        // its object under the field's own name. That is one encoding, not two, so the leaf still
+        // reaches CLP.
+        ClpColumnHandle object = new ClpColumnHandle(
+                "node",
+                RowType.from(ImmutableList.of(RowType.field("id", BIGINT)))
+        );
+        ClpColumnHandle leaf = new ClpColumnHandle("node_timestamp", "node", TIMESTAMP);
+        Map<VariableReferenceExpression, ColumnHandle> assignments = ImmutableMap.of(
+                new VariableReferenceExpression(
+                        Optional.empty(),
+                        object.getColumnName(),
+                        object.getColumnType()
+                ),
+                object,
+                new VariableReferenceExpression(
+                        Optional.empty(),
+                        leaf.getColumnName(),
+                        leaf.getColumnType()
+                ),
+                leaf
+        );
+        RowExpression predicate = toRowExpression(
+                expression("node_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'"),
+                TypeProvider.fromVariables(assignments.keySet()),
+                sessionHolder.getSession()
+        );
+        ClpExpression expression = predicate.accept(
+                new ClpFilterToKqlConverter(
+                        standardFunctionResolution,
+                        functionAndTypeManager,
+                        assignments,
+                        ImmutableSet.of()
+                ),
+                null
+        );
+        assertTrue(expression.getPushDownExpression().isPresent());
+        assertEquals(
+                expression.getPushDownExpression().get(),
+                "node: timestamp(\"1672531200000\", \"\\L\")"
         );
     }
 

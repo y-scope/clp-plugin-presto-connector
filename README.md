@@ -222,7 +222,7 @@ The planner rewrites these functions into typed column references. Supported pre
 ## Current limitations
 
 * The connector is read-only. Ingestion and compression are handled by CLP.
-* Timestamp filtering has a known correctness issue: integer-encoded timestamps can be omitted by pushed-down filters even when they display as matching timestamps. See the [documented cases](integration-tests/README.md#known-failures) before relying on these filters.
+* Filters on a timestamp column whose field CLP stored under more than one physical type are not pushed into CLP. Presto evaluates them against the projected values, so they return the correct rows, but those queries read every archive instead of pruning them.
 
 ## Development
 
