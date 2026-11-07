@@ -155,11 +155,13 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
         Map<String, Integer> columnCounts = new HashMap<>();
         for (ColumnHandle handle : assignments.values()) {
             if (handle instanceof ClpColumnHandle) {
-                columnCounts.merge(
-                        ((ClpColumnHandle)handle).getOriginalColumnName(),
-                        1,
-                        Integer::sum
-                );
+                ClpColumnHandle column = (ClpColumnHandle)handle;
+                // A field that is both a leaf and an object keeps its leaf under a suffixed name
+                // and its object under the field's own name; the object is not another encoding.
+                if (column.getColumnType() instanceof RowType) {
+                    continue;
+                }
+                columnCounts.merge(column.getOriginalColumnName(), 1, Integer::sum);
             }
         }
         ImmutableSet.Builder<String> fieldNames = ImmutableSet.builder();

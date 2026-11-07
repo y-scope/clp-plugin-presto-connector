@@ -11,6 +11,8 @@
  */
 package com.facebook.presto.plugin.clp;
 
+import static com.facebook.presto.common.type.BigintType.BIGINT;
+import static com.facebook.presto.common.type.TimestampType.TIMESTAMP;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -20,10 +22,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.facebook.presto.common.type.RowType;
 import com.facebook.presto.common.type.TimeZoneKey;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
+import com.facebook.presto.sql.planner.TypeProvider;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.testng.annotations.Test;
 
@@ -435,6 +441,53 @@ public class TestClpFilterToKql extends TestClpQueryBase {
         assertEquals(
                 "\"mixedTimestamp\" >= 1672531200000 AND \"mixedTimestamp\" <= 1672617600000",
                 between.getMetadataSqlQuery().get()
+        );
+    }
+
+    @Test
+    public void testFieldThatIsAlsoAnObjectKeepsPushDown() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+
+        // A field stored both as a leaf and as an object keeps its leaf under a suffixed name and
+        // its object under the field's own name. That is one encoding, not two, so the leaf still
+        // reaches CLP.
+        ClpColumnHandle object = new ClpColumnHandle(
+                "node",
+                RowType.from(ImmutableList.of(RowType.field("id", BIGINT)))
+        );
+        ClpColumnHandle leaf = new ClpColumnHandle("node_timestamp", "node", TIMESTAMP);
+        Map<VariableReferenceExpression, ColumnHandle> assignments = ImmutableMap.of(
+                new VariableReferenceExpression(
+                        Optional.empty(),
+                        object.getColumnName(),
+                        object.getColumnType()
+                ),
+                object,
+                new VariableReferenceExpression(
+                        Optional.empty(),
+                        leaf.getColumnName(),
+                        leaf.getColumnType()
+                ),
+                leaf
+        );
+        RowExpression predicate = toRowExpression(
+                expression("node_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'"),
+                TypeProvider.fromVariables(assignments.keySet()),
+                sessionHolder.getSession()
+        );
+        ClpExpression expression = predicate.accept(
+                new ClpFilterToKqlConverter(
+                        standardFunctionResolution,
+                        functionAndTypeManager,
+                        assignments,
+                        ImmutableSet.of()
+                ),
+                null
+        );
+        assertTrue(expression.getPushDownExpression().isPresent());
+        assertEquals(
+                expression.getPushDownExpression().get(),
+                "node: timestamp(\"1672531200000\", \"\\L\")"
         );
     }
 
