@@ -394,6 +394,51 @@ public class TestClpFilterToKql extends TestClpQueryBase {
     }
 
     @Test
+    public void testMixedTypeTimestampKeepsMetadataFilter() {
+        SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);
+        String predicate = "mixedTimestamp_timestamp = TIMESTAMP '2023-01-01 00:00:00.000'";
+
+        // The comparison cannot be pushed down, but the metadata query only selects archives, so
+        // it is produced anyway and a required split filter on the field stays satisfied.
+        ClpExpression comparison = tryPushDown(
+                predicate,
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp")
+        );
+        testFilter(comparison, null, predicate, sessionHolder);
+        assertTrue(comparison.getMetadataSqlQuery().isPresent());
+        assertEquals("\"mixedTimestamp\" = 1672531200000", comparison.getMetadataSqlQuery().get());
+
+        // A sibling predicate still reaches CLP, and the metadata query keeps both comparisons.
+        ClpExpression conjunction = tryPushDown(
+                predicate + " AND fare > 0",
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp", "fare")
+        );
+        testFilter(conjunction, "(fare > 0)", predicate, sessionHolder);
+        assertTrue(conjunction.getMetadataSqlQuery().isPresent());
+        assertEquals(
+                "(\"mixedTimestamp\" = 1672531200000 AND \"fare\" > 0)",
+                conjunction.getMetadataSqlQuery().get()
+        );
+
+        // BETWEEN is translated by its own handler, which keeps the metadata query the same way.
+        String range = "mixedTimestamp_timestamp BETWEEN TIMESTAMP '2023-01-01 00:00:00.000'"
+                + " AND TIMESTAMP '2023-01-02 00:00:00.000'";
+        ClpExpression between = tryPushDown(
+                range,
+                sessionHolder,
+                ImmutableSet.of("mixedTimestamp")
+        );
+        testFilter(between, null, range, sessionHolder);
+        assertTrue(between.getMetadataSqlQuery().isPresent());
+        assertEquals(
+                "\"mixedTimestamp\" >= 1672531200000 AND \"mixedTimestamp\" <= 1672617600000",
+                between.getMetadataSqlQuery().get()
+        );
+    }
+
+    @Test
     public void testTimestampPushDown() {
         // Use UTC to ensure stable epoch-ms values regardless of local timezone
         SessionHolder sessionHolder = new SessionHolder(TimeZoneKey.UTC_KEY);

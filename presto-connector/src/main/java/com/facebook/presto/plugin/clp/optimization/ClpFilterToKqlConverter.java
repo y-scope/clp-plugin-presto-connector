@@ -37,6 +37,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,6 +115,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
     private final FunctionMetadataManager functionMetadataManager;
     private final Map<VariableReferenceExpression, ColumnHandle> assignments;
     private final Set<String> metadataFilterColumns;
+    private final Set<String> mixedTypeFieldNames;
 
     public ClpFilterToKqlConverter(
             StandardFunctionResolution standardFunctionResolution,
@@ -134,6 +136,39 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 metadataFilterColumns,
                 "metadataFilterColumns is null"
         );
+        this.mixedTypeFieldNames = collectMixedTypeFieldNames(assignments);
+    }
+
+    /**
+     * Collects the names of the fields that CLP stored under more than one physical type.
+     * <p>
+     * </p>
+     * Such a field becomes one column per type, and each column reads back only its own encoding,
+     * so a comparison against the field's raw encodings can drop the ones it cannot interpret.
+     *
+     * @param assignments the columns of the table being filtered
+     * @return the names of the fields that became more than one column
+     */
+    private static Set<String> collectMixedTypeFieldNames(
+            Map<VariableReferenceExpression, ColumnHandle> assignments
+    ) {
+        Map<String, Integer> columnCounts = new HashMap<>();
+        for (ColumnHandle handle : assignments.values()) {
+            if (handle instanceof ClpColumnHandle) {
+                columnCounts.merge(
+                        ((ClpColumnHandle)handle).getOriginalColumnName(),
+                        1,
+                        Integer::sum
+                );
+            }
+        }
+        ImmutableSet.Builder<String> fieldNames = ImmutableSet.builder();
+        columnCounts.forEach((fieldName, count) -> {
+            if (count > 1) {
+                fieldNames.add(fieldName);
+            }
+        });
+        return fieldNames.build();
     }
 
     @Override
@@ -168,12 +203,6 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
 
     @Override
     public ClpExpression visitVariableReference(VariableReferenceExpression node, Void context) {
-        // TEMPORARY: filtering on a mixed-type TIMESTAMP column is wrong when pushed down, so such
-        // a column is never translated and its predicates are left to Presto. TODO: record each
-        // value's timestamp precision, and support fields whose values disagree on it, so that a
-        // comparison can be converted to the precision of the value it is compared against. Then
-        // delete this guard.
-        if (isMixedTypeTimestampColumn(node)) { return new ClpExpression(node); }
         return new ClpExpression(getVariableName(node));
     }
 
@@ -182,27 +211,27 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
      * one physical type.
      * <p>
      * </p>
-     * CLP keeps a field's value once per type it was written with, so such a field becomes several
-     * columns. {@link com.facebook.presto.plugin.clp.metadata.ClpSchemaTree} tells them apart by
-     * appending the type to the name, which is the only case where a column's name differs from
-     * its {@code originalColumnName}. Projecting the TIMESTAMP column converts every encoding to
-     * the same instant, but a pushed-down filter is a KQL comparison against the field's raw
-     * encodings, and CLP records their type without the precision of the timestamp they hold, so
-     * the comparison silently drops the encodings it cannot interpret: {@code COUNT(*)} and
+     * Projecting such a column converts every encoding of the field to the same instant, but a
+     * pushed-down filter is a KQL comparison against the field's raw encodings, and CLP records
+     * their type without the precision of the timestamp each one holds, so the comparison silently
+     * drops the encodings it cannot interpret: {@code COUNT(*)} and
      * {@code COUNT(*) WHERE timestamp = <literal>} disagree. Such a filter must therefore be
-     * evaluated by Presto on the projected values instead.
+     * evaluated by Presto on the projected values instead, while the metadata query, which only
+     * selects archives, can still be pushed down.
      * <p>
      * </p>
-     * Only TIMESTAMP is guarded: fixing it means recording each value's precision, and letting a
-     * field hold values of several precisions, so that the comparison can be converted to the
-     * precision of the value it is compared against. The other Presto types each correspond to a
-     * single physical encoding.
+     * Only TIMESTAMP is affected: the other Presto types each correspond to a single physical
+     * encoding.
+     *
+     * @param variable
+     * @return whether {@code variable} is one of several columns for its field and typed TIMESTAMP
      */
     private boolean isMixedTypeTimestampColumn(VariableReferenceExpression variable) {
         ClpColumnHandle column = (ClpColumnHandle)assignments.get(variable);
-        if (column.getColumnName().equals(column.getOriginalColumnName())) { return false; }
-        Type type = column.getColumnType();
-        return TIMESTAMP.equals(type) || TIMESTAMP_MICROSECONDS.equals(type);
+        if (null == column || !mixedTypeFieldNames.contains(column.getOriginalColumnName())) {
+            return false;
+        }
+        return TIMESTAMP.equals(column.getColumnType());
     }
 
     @Override
@@ -301,13 +330,6 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
         String variable = variableOpt.get();
         String lowerBound = getLiteralString((ConstantExpression)second);
         String upperBound = getLiteralString((ConstantExpression)third);
-        String kql = String.format(
-                "%s >= %s AND %s <= %s",
-                variable,
-                formatLiteral(second.getType(), lowerBound),
-                variable,
-                formatLiteral(third.getType(), upperBound)
-        );
         String metadataSqlQuery = metadataFilterColumns.contains(variable) ? String.format(
                 "\"%s\" >= %s AND \"%s\" <= %s",
                 variable,
@@ -315,6 +337,20 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 variable,
                 upperBound
         ) : null;
+        if (
+            first instanceof VariableReferenceExpression && isMixedTypeTimestampColumn(
+                    (VariableReferenceExpression)first
+            )
+        ) {
+            return new ClpExpression(null, metadataSqlQuery, node);
+        }
+        String kql = String.format(
+                "%s >= %s AND %s <= %s",
+                variable,
+                formatLiteral(second.getType(), lowerBound),
+                variable,
+                formatLiteral(third.getType(), upperBound)
+        );
         return new ClpExpression(kql, metadataSqlQuery);
     }
 
@@ -460,25 +496,66 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
         Type rightType = right.getType();
 
         if (rightIsConstant) {
-            return buildClpExpression(
-                    leftPushDownExpression.get(), // variable
+            return buildComparisonExpression(
+                    left, // variable
+                    leftPushDownExpression.get(),
                     rightPushDownExpression.get(), // literal
                     operator,
                     rightType,
                     node
             );
         } else if (leftIsConstant) {
-            OperatorType newOperator = flip(operator);
-            return buildClpExpression(
-                    rightPushDownExpression.get(), // variable
+            return buildComparisonExpression(
+                    right, // variable
+                    rightPushDownExpression.get(),
                     leftPushDownExpression.get(), // literal
-                    newOperator,
+                    flip(operator),
                     leftType,
                     node
             );
         }
         // fallback
         return new ClpExpression(node);
+    }
+
+    /**
+     * Builds a CLP expression from a comparison between a variable and a constant, keeping the
+     * metadata query for a column whose field CLP stored under more than one physical type.
+     * <p>
+     * </p>
+     * Such a column reads back only its own encoding, so a pushed-down comparison would drop the
+     * field's other encodings and report fewer rows than the projection shows. The predicate is
+     * left to Presto, but the metadata query only selects archives, so it is still produced.
+     *
+     * @param variable the compared expression, which may be the variable
+     * @param variableName name of the variable in CLP
+     * @param literalString string representation of the literal
+     * @param operator the comparison operator
+     * @param literalType the type of the literal
+     * @param originalNode the original RowExpression node
+     * @return a ClpExpression with the KQL query, or with only the metadata query when the variable
+     * is a mixed-type timestamp column
+     */
+    private ClpExpression buildComparisonExpression(
+            RowExpression variable,
+            String variableName,
+            String literalString,
+            OperatorType operator,
+            Type literalType,
+            RowExpression originalNode
+    ) {
+        if (
+            variable instanceof VariableReferenceExpression && isMixedTypeTimestampColumn(
+                    (VariableReferenceExpression)variable
+            )
+        ) {
+            return new ClpExpression(
+                    null,
+                    buildMetadataSql(variableName, literalString, operator, literalType),
+                    originalNode
+            );
+        }
+        return buildClpExpression(variableName, literalString, operator, literalType, originalNode);
     }
 
     /**
@@ -511,71 +588,62 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
             Type literalType,
             RowExpression originalNode
     ) {
-        String metadataSqlQuery = null;
+        String kql;
         if (operator.equals(EQUAL)) {
-            if (literalType instanceof VarcharType) {
-                return new ClpExpression(
-                        format(
-                                "%s: \"%s\"",
-                                variableName,
-                                escapeKqlSpecialCharsForStringValue(literalString)
-                        )
-                );
-            } else {
-                if (metadataFilterColumns.contains(variableName)) {
-                    metadataSqlQuery = format("\"%s\" = %s", variableName, literalString);
-                }
-                return new ClpExpression(
-                        format("%s: %s", variableName, formatLiteral(literalType, literalString)),
-                        metadataSqlQuery
-                );
-            }
+            kql = literalType instanceof VarcharType ? format(
+                    "%s: \"%s\"",
+                    variableName,
+                    escapeKqlSpecialCharsForStringValue(literalString)
+            ) : format("%s: %s", variableName, formatLiteral(literalType, literalString));
         } else if (operator.equals(NOT_EQUAL)) {
-            if (literalType instanceof VarcharType) {
-                return new ClpExpression(
-                        format(
-                                "NOT %s: \"%s\"",
-                                variableName,
-                                escapeKqlSpecialCharsForStringValue(literalString)
-                        )
-                );
-            } else {
-                if (metadataFilterColumns.contains(variableName)) {
-                    metadataSqlQuery = format("NOT \"%s\" = %s", variableName, literalString);
-                }
-                return new ClpExpression(
-                        format(
-                                "NOT %s: %s",
-                                variableName,
-                                formatLiteral(literalType, literalString)
-                        ),
-                        metadataSqlQuery
-                );
-            }
+            kql = literalType instanceof VarcharType ? format(
+                    "NOT %s: \"%s\"",
+                    variableName,
+                    escapeKqlSpecialCharsForStringValue(literalString)
+            ) : format("NOT %s: %s", variableName, formatLiteral(literalType, literalString));
         } else
             if (
                 LOGICAL_BINARY_OPS_FILTER.contains(operator)
                         && !(literalType instanceof VarcharType)
             ) {
-                if (metadataFilterColumns.contains(variableName)) {
-                    metadataSqlQuery = format(
-                            "\"%s\" %s %s",
-                            variableName,
-                            operator.getOperator(),
-                            literalString
-                    );
-                }
-                return new ClpExpression(
-                        format(
-                                "%s %s %s",
-                                variableName,
-                                operator.getOperator(),
-                                formatLiteral(literalType, literalString)
-                        ),
-                        metadataSqlQuery
+                kql = format(
+                        "%s %s %s",
+                        variableName,
+                        operator.getOperator(),
+                        formatLiteral(literalType, literalString)
                 );
+            } else {
+                return new ClpExpression(originalNode);
             }
-        return new ClpExpression(originalNode);
+        return new ClpExpression(
+                kql,
+                buildMetadataSql(variableName, literalString, operator, literalType)
+        );
+    }
+
+    /**
+     * Builds a query over CLP's metadata database that filters splits by the given comparison.
+     *
+     * @param variableName name of the variable in CLP
+     * @param literalString string representation of the literal
+     * @param operator the comparison operator
+     * @param literalType the type of the literal
+     * @return the metadata query, or null when the variable is not a metadata filter column or the
+     * literal is a string
+     */
+    private String buildMetadataSql(
+            String variableName,
+            String literalString,
+            OperatorType operator,
+            Type literalType
+    ) {
+        if (literalType instanceof VarcharType || !metadataFilterColumns.contains(variableName)) {
+            return null;
+        }
+        if (operator.equals(NOT_EQUAL)) {
+            return format("NOT \"%s\" = %s", variableName, literalString);
+        }
+        return format("\"%s\" %s %s", variableName, operator.getOperator(), literalString);
     }
 
     /**
@@ -786,35 +854,34 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
                 hasPushDownExpression = true;
                 queryBuilder.append(expression.getPushDownExpression().get());
                 queryBuilder.append(" AND ");
-                if (expression.getMetadataSqlQuery().isPresent()) {
-                    hasMetadataSql = true;
-                    metadataQueryBuilder.append(expression.getMetadataSqlQuery().get());
-                    metadataQueryBuilder.append(" AND ");
-                }
+            }
+            if (expression.getMetadataSqlQuery().isPresent()) {
+                hasMetadataSql = true;
+                metadataQueryBuilder.append(expression.getMetadataSqlQuery().get());
+                metadataQueryBuilder.append(" AND ");
             }
             if (expression.getRemainingExpression().isPresent()) {
                 remainingExpressions.add(expression.getRemainingExpression().get());
             }
         }
+        String metadataSqlQuery = hasMetadataSql ? metadataQueryBuilder.substring(
+                0,
+                metadataQueryBuilder.length() - 5
+        ) + ")" : null;
         if (!hasPushDownExpression) {
+            if (hasMetadataSql) { return new ClpExpression(null, metadataSqlQuery, node); }
             return new ClpExpression(node);
         } else if (!remainingExpressions.isEmpty()) {
             if (remainingExpressions.size() == 1) {
                 return new ClpExpression(
                         queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                        hasMetadataSql ? metadataQueryBuilder.substring(
-                                0,
-                                metadataQueryBuilder.length() - 5
-                        ) + ")" : null,
+                        metadataSqlQuery,
                         remainingExpressions.get(0)
                 );
             } else {
                 return new ClpExpression(
                         queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                        hasMetadataSql ? metadataQueryBuilder.substring(
-                                0,
-                                metadataQueryBuilder.length() - 5
-                        ) + ")" : null,
+                        metadataSqlQuery,
                         new SpecialFormExpression(
                                 node.getSourceLocation(),
                                 AND,
@@ -827,10 +894,7 @@ public class ClpFilterToKqlConverter implements RowExpressionVisitor<ClpExpressi
         // Remove the last " AND " from the query
         return new ClpExpression(
                 queryBuilder.substring(0, queryBuilder.length() - 5) + ")",
-                hasMetadataSql ? metadataQueryBuilder.substring(
-                        0,
-                        metadataQueryBuilder.length() - 5
-                ) + ")" : null
+                metadataSqlQuery
         );
     }
 

@@ -113,14 +113,32 @@ public class TestClpQueryBase {
             TIMESTAMP
     );
     // A field CLP stored under more than one physical type: the schema tree appends the type to
-    // tell the resulting columns apart, so the column's name stops matching the field's name.
+    // tell the resulting columns apart, so each column's name stops matching the field's name.
     protected static final ClpColumnHandle mixedTimestamp = new ClpColumnHandle(
             "mixedTimestamp_timestamp",
             "mixedTimestamp",
             TIMESTAMP
     );
+    protected static final ClpColumnHandle mixedTimestampBigint = new ClpColumnHandle(
+            "mixedTimestamp_bigint",
+            "mixedTimestamp",
+            BIGINT
+    );
+    protected static final ClpColumnHandle mixedTimestampDouble = new ClpColumnHandle(
+            "mixedTimestamp_double",
+            "mixedTimestamp",
+            DOUBLE
+    );
     protected static final Map<VariableReferenceExpression, ColumnHandle> variableToColumnHandleMap
-            = Stream.of(city, fare, isHoliday, clpTimestamp, mixedTimestamp).collect(
+            = Stream.of(
+                    city,
+                    fare,
+                    isHoliday,
+                    clpTimestamp,
+                    mixedTimestamp,
+                    mixedTimestampBigint,
+                    mixedTimestampDouble
+            ).collect(
                     toMap(
                             ch -> new VariableReferenceExpression(
                                     Optional.empty(),
