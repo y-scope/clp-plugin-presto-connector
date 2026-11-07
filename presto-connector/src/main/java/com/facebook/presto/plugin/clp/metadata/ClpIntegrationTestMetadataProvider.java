@@ -110,7 +110,7 @@ public class ClpIntegrationTestMetadataProvider implements ClpMetadataProvider {
             );
         }
 
-        ClpSchemaTree schemaTree = new ClpSchemaTree(config.isPolymorphicTypeEnabled());
+        ClpSchemaTree schemaTree = new ClpSchemaTree();
         for (Map<String, String> column : columns) {
             schemaTree.addColumn(
                     column.get("name"),

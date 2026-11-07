@@ -123,10 +123,11 @@ public final class ClpMetadataDbSetUp {
             fail(e.getMessage());
         }
 
-        ClpConfig config = new ClpConfig().setPolymorphicTypeEnabled(true).setMetadataDbUrl(
-                metadataDbUrl
-        ).setMetadataDbUser(METADATA_DB_USER).setMetadataDbPassword(METADATA_DB_PASSWORD)
-                .setMetadataTablePrefix(METADATA_DB_TABLE_PREFIX);
+        ClpConfig config = new ClpConfig().setMetadataDbUrl(metadataDbUrl).setMetadataDbUser(
+                METADATA_DB_USER
+        ).setMetadataDbPassword(METADATA_DB_PASSWORD).setMetadataTablePrefix(
+                METADATA_DB_TABLE_PREFIX
+        );
         ClpMetadataProvider metadataProvider = new ClpMySqlMetadataProvider(config);
         return new ClpMetadata(config, metadataProvider);
     }
@@ -189,10 +190,10 @@ public final class ClpMetadataDbSetUp {
         }
 
         return new ClpMySqlSplitProvider(
-                new ClpConfig().setPolymorphicTypeEnabled(true).setMetadataDbUrl(metadataDbUrl)
-                        .setMetadataDbUser(METADATA_DB_USER).setMetadataDbPassword(
-                                METADATA_DB_PASSWORD
-                        ).setMetadataTablePrefix(METADATA_DB_TABLE_PREFIX)
+                new ClpConfig().setMetadataDbUrl(metadataDbUrl).setMetadataDbUser(METADATA_DB_USER)
+                        .setMetadataDbPassword(METADATA_DB_PASSWORD).setMetadataTablePrefix(
+                                METADATA_DB_TABLE_PREFIX
+                        )
         );
     }
 

@@ -72,11 +72,10 @@ public class TestClpMetadata {
                         )
                 )
         );
-        ClpConfig config = new ClpConfig().setPolymorphicTypeEnabled(true).setMetadataDbUrl(
-                mockMetadataDatabase.getUrl()
-        ).setMetadataDbUser(mockMetadataDatabase.getUsername()).setMetadataDbPassword(
-                mockMetadataDatabase.getPassword()
-        ).setMetadataTablePrefix(mockMetadataDatabase.getTablePrefix());
+        ClpConfig config = new ClpConfig().setMetadataDbUrl(mockMetadataDatabase.getUrl())
+                .setMetadataDbUser(mockMetadataDatabase.getUsername()).setMetadataDbPassword(
+                        mockMetadataDatabase.getPassword()
+                ).setMetadataTablePrefix(mockMetadataDatabase.getTablePrefix());
         ClpMetadataProvider metadataProvider = new ClpMySqlMetadataProvider(config);
         metadata = new ClpMetadata(config, metadataProvider);
     }

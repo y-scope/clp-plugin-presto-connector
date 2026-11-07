@@ -74,7 +74,7 @@ public class ClpMySqlMetadataProvider implements ClpMetadataProvider {
                 config.getMetadataTablePrefix(),
                 schemaTableName.getTableName()
         );
-        ClpSchemaTree schemaTree = new ClpSchemaTree(config.isPolymorphicTypeEnabled());
+        ClpSchemaTree schemaTree = new ClpSchemaTree();
         try (
                 Connection connection = getConnection();
                 PreparedStatement statement = connection.prepareStatement(query)
