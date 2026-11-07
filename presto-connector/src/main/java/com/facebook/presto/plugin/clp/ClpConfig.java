@@ -20,8 +20,6 @@ import com.facebook.presto.spi.PrestoException;
 public class ClpConfig {
     public static final Pattern SAFE_SQL_TABLE_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]+$");
 
-    private boolean polymorphicTypeEnabled = true;
-
     private MetadataProviderType metadataProviderType = MetadataProviderType.MYSQL;
     private String integrationTestArchiveDir;
     private String metadataDbUrl;
@@ -35,14 +33,6 @@ public class ClpConfig {
     private String splitFilterConfig;
     private SplitFilterProviderType splitFilterProviderType = SplitFilterProviderType.MYSQL;
     private SplitProviderType splitProviderType = SplitProviderType.MYSQL;
-
-    public boolean isPolymorphicTypeEnabled() { return polymorphicTypeEnabled; }
-
-    @Config("clp.polymorphic-type-enabled")
-    public ClpConfig setPolymorphicTypeEnabled(boolean polymorphicTypeEnabled) {
-        this.polymorphicTypeEnabled = polymorphicTypeEnabled;
-        return this;
-    }
 
     public MetadataProviderType getMetadataProviderType() { return metadataProviderType; }
 

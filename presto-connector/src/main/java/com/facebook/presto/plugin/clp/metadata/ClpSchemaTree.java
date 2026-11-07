@@ -37,22 +37,20 @@ import com.facebook.presto.plugin.clp.ClpColumnHandle;
 
 /**
  * A representation of CLP's schema tree built by turning hierarchical column names (e.g., a.b.c)
- * with their types into a tree. The class handles name/type conflicts when the
- * `clp.polymorphic-type-enabled` option is enabled, and maps serialized CLP types to Presto types.
+ * with their types into a tree. CLP stores a field's value once per type it was written with, so
+ * the class tells the resulting columns apart by suffixing their names with the type, and maps
+ * serialized CLP types to Presto types.
  */
 public class ClpSchemaTree {
     private final ClpNode root;
-    private final boolean polymorphicTypeEnabled;
 
-    ClpSchemaTree(boolean polymorphicTypeEnabled) {
-        this.polymorphicTypeEnabled = polymorphicTypeEnabled;
+    ClpSchemaTree() {
         this.root = new ClpNode(""); // Root doesn't have an original name
     }
 
     /**
      * Adds a column to the internal CLP schema tree, creating intermediate nested nodes as needed.
-     * Handles potential name conflicts when polymorphic types are enabled by suffixing column names
-     * with type display names.
+     * Suffixes a column name with its type when the name collides with another column's.
      *
      * @param fullName Fully qualified column name using dot notation (e.g., "a.b.c").
      * @param type Serialized byte value representing the CLP column's type.
@@ -66,7 +64,7 @@ public class ClpSchemaTree {
             String segment = path[i];
             ClpNode existingNode = current.children.get(segment);
 
-            if (polymorphicTypeEnabled && existingNode != null && existingNode.type != null) {
+            if (existingNode != null && existingNode.type != null) {
                 // Conflict: An intermediate segment already exists as a leaf node. Rename it.
                 String existingSuffix = getTypeSuffix(existingNode.type);
                 String renamedExisting = segment + "_" + existingSuffix;
@@ -130,8 +128,6 @@ public class ClpSchemaTree {
     }
 
     private String resolvePolymorphicConflicts(ClpNode parent, String baseName, Type newType) {
-        if (!polymorphicTypeEnabled) { return baseName; }
-
         boolean conflictDetected = false;
         if (parent.children.containsKey(baseName)) {
             ClpNode existing = parent.children.get(baseName);

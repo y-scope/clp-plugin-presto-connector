@@ -76,11 +76,10 @@ public class TestClpSplit {
         mockMetadataDatabase.addTableToDatasetsTableIfNotExist(tableNamesBuilder.build());
         tableSplits = splitsMapBuilder.build();
         mockMetadataDatabase.addSplits(tableSplits);
-        ClpConfig config = new ClpConfig().setPolymorphicTypeEnabled(true).setMetadataDbUrl(
-                mockMetadataDatabase.getUrl()
-        ).setMetadataDbUser(mockMetadataDatabase.getUsername()).setMetadataDbPassword(
-                mockMetadataDatabase.getPassword()
-        ).setMetadataTablePrefix(mockMetadataDatabase.getTablePrefix());
+        ClpConfig config = new ClpConfig().setMetadataDbUrl(mockMetadataDatabase.getUrl())
+                .setMetadataDbUser(mockMetadataDatabase.getUsername()).setMetadataDbPassword(
+                        mockMetadataDatabase.getPassword()
+                ).setMetadataTablePrefix(mockMetadataDatabase.getTablePrefix());
         clpSplitProvider = new ClpMySqlSplitProvider(config);
     }
 
