@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from prestodb.exceptions import PrestoQueryError
 
 if TYPE_CHECKING:
     from clp_presto_integration_tests.client import PrestoClient
@@ -32,3 +33,12 @@ def test_reads_every_archive_of_a_table(client: PrestoClient) -> None:
 def test_pushed_down_filter(client: PrestoClient) -> None:
     """A filter that reaches the worker proves that the object is decoded, not merely listed."""
     assert client.scalar('SELECT COUNT(*) FROM clp_s3.default.http_logs WHERE "status" = 200') == 8
+
+
+def test_rejected_s3_read_fails_the_query(client: PrestoClient) -> None:
+    """A catalog with an invalid S3 key must not make existing archives look empty."""
+    with pytest.raises(
+        PrestoQueryError,
+        match=r"Failed to open the archive from S3|Failed to read the archive's metadata",
+    ):
+        client.scalar("SELECT COUNT(*) FROM clp_s3_denied.default.multi_archive")

@@ -117,6 +117,8 @@ never copies them into its environment, so catalogs with different identities ca
 The worker presigns the request for each split just before it sends it, using the catalog's current
 credentials, so refreshed credentials apply to the next split. If credentials are unavailable,
 incomplete, or expired, the query fails with an error that contains no credentials or URLs.
+The query also fails, instead of skipping the split, if S3 rejects the request (e.g.,
+because the credentials lack `s3:GetObject`).
 
 [presto-native-dependency]: https://hub.docker.com/r/prestodb/presto-native-dependency
 [Task]: https://taskfile.dev
