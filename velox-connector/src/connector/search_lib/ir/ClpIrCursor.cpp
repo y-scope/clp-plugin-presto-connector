@@ -73,10 +73,6 @@ VectorPtr ClpIrCursor::createVector(
 }
 
 ErrorCode ClpIrCursor::loadSplit() {
-  auto networkAuthOption = inputSource_ == InputSource::Filesystem
-      ? NetworkAuthOption{.method = AuthMethod::None}
-      : NetworkAuthOption{.method = AuthMethod::S3PresignedUrlV4};
-
   search::ast::SetTimestampLiteralPrecision timestampPrecisionPass{
       search::ast::TimestampLiteral::Precision::Milliseconds};
   expr_ = timestampPrecisionPass.run(expr_);
@@ -93,8 +89,10 @@ ErrorCode ClpIrCursor::loadSplit() {
   }
   auto queryHandler = std::move(queryHandlerResult).value();
 
+  // An `S3AuthenticationError` from authenticating the request propagates, so
+  // that it fails the query rather than skipping the split.
   auto irPath = get_path_object_for_raw_path(splitPath_);
-  irReader_ = try_create_reader(irPath, networkAuthOption);
+  irReader_ = try_create_reader(irPath, networkAuthOption_);
   if (nullptr == irReader_) {
     VLOG(2) << "Failed to create IR reader";
     return ErrorCode::InternalError;
