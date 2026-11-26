@@ -18,7 +18,9 @@
 
 #include <atomic>
 #include <chrono>
+#include <ctime>
 #include <functional>
+#include <iomanip>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -105,6 +107,19 @@ std::string getAccessKeyId(std::string_view url) {
   return credential.value_or("").substr(0, credential.value_or("").find("%2F"));
 }
 
+/// @return When the presigned `url` expires.
+system_clock::time_point getUrlExpiration(std::string_view url) {
+  const auto date = getQueryParameter(url, "X-Amz-Date");
+  const auto expires = getQueryParameter(url, "X-Amz-Expires");
+  EXPECT_TRUE(date.has_value());
+  EXPECT_TRUE(expires.has_value());
+  std::tm signingTime{};
+  std::istringstream{date.value_or("")} >>
+      std::get_time(&signingTime, "%Y%m%dT%H%M%SZ");
+  return system_clock::from_time_t(::timegm(&signingTime)) +
+      std::chrono::seconds{std::stoll(expires.value_or("0"))};
+}
+
 /// @return The presigned `kUrl`.
 /// @throw S3AuthenticationError if the URL can't be presigned.
 std::string presign(const clp_s::NetworkAuthOption& networkAuthOption) {
@@ -142,6 +157,9 @@ TEST(S3NetworkAuthTest, presignsWithTheProvidersCredentials) {
     const auto url = presign(networkAuthOption);
     EXPECT_EQ(kAccessKeyId, getAccessKeyId(url));
     EXPECT_EQ(kSessionToken, getQueryParameter(url, "X-Amz-Security-Token"));
+    EXPECT_EQ(
+        std::to_string(kPresignedUrlLifetime.count()),
+        getQueryParameter(url, "X-Amz-Expires"));
   }
   // Each request gets a fresh snapshot.
   EXPECT_EQ(size_t{3}, provider->numCalls());
@@ -156,6 +174,33 @@ TEST(S3NetworkAuthTest, omitsTheSessionTokenOfLongTermCredentials) {
   const auto url = presign(networkAuthOption);
   EXPECT_EQ(kAccessKeyId, getAccessKeyId(url));
   EXPECT_FALSE(getQueryParameter(url, "X-Amz-Security-Token").has_value());
+}
+
+TEST(S3NetworkAuthTest, urlsExpireBeforeTheirCredentials) {
+  const auto minimumLifetime =
+      kPresignedUrlLifetime + kCredentialExpirationMargin;
+  for (const auto remainingLifetime :
+       {std::chrono::seconds{std::chrono::hours{1}},
+        minimumLifetime + std::chrono::seconds{3}}) {
+    const auto expiration = system_clock::now() + remainingLifetime;
+    const auto networkAuthOption = createS3NetworkAuthOption(
+        std::make_shared<StaticS3CredentialsProvider>(
+            makeCredentials(expiration)));
+
+    const auto url = presign(networkAuthOption);
+    EXPECT_LE(getUrlExpiration(url), expiration);
+  }
+
+  for (const auto remainingLifetime :
+       {minimumLifetime - std::chrono::seconds{1},
+        kPresignedUrlLifetime,
+        std::chrono::seconds{0},
+        std::chrono::seconds{-1}}) {
+    SCOPED_TRACE(remainingLifetime.count());
+    expectAuthenticationError(createS3NetworkAuthOption(
+        std::make_shared<StaticS3CredentialsProvider>(
+            makeCredentials(system_clock::now() + remainingLifetime))));
+  }
 }
 
 TEST(S3NetworkAuthTest, rejectsMissingOrIncompleteCredentials) {

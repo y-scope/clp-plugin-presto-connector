@@ -115,8 +115,10 @@ Each catalog has its own credentials (and, with `default`, its own credential ca
 never copies them into its environment, so catalogs with different identities can share a worker.
 
 The worker presigns the request for each split just before it sends it, using the catalog's current
-credentials, so refreshed credentials apply to the next split. If credentials are unavailable,
-incomplete, or expired, the query fails with an error that contains no credentials or URLs.
+credentials, so refreshed credentials apply to the next split. Each presigned URL is valid for 60
+seconds and never outlives the credentials that signed it. If credentials are unavailable,
+incomplete, or do not have enough time remaining to sign the URL, the query fails with an error
+that contains no credentials or URLs.
 
 [presto-native-dependency]: https://hub.docker.com/r/prestodb/presto-native-dependency
 [Task]: https://taskfile.dev

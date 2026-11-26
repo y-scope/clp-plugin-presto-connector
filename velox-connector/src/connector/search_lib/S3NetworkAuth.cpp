@@ -28,7 +28,8 @@ namespace facebook::velox::connector::clp::search_lib {
 
 namespace {
 
-/// Gets credentials from `provider` and checks that they can sign a request.
+/// Gets credentials from `provider` and checks that they can sign a presigned
+/// URL that remains valid for `kPresignedUrlLifetime`.
 ///
 /// @param provider
 /// @return The credentials.
@@ -54,9 +55,11 @@ S3Credentials getSigningCredentials(S3CredentialsProvider& provider) {
         "The AWS credentials for S3 requests are incomplete.");
   }
   if (credentials->expiration.has_value() &&
-      credentials->expiration.value() <= std::chrono::system_clock::now()) {
+      credentials->expiration.value() - std::chrono::system_clock::now() <
+          kPresignedUrlLifetime + kCredentialExpirationMargin) {
     throw S3AuthenticationError(
-        "The AWS credentials for S3 requests have expired.");
+        "The AWS credentials for S3 requests have expired or are about to "
+        "expire.");
   }
   return std::move(credentials.value());
 }
@@ -84,7 +87,8 @@ clp_s::NetworkAuthOption createS3NetworkAuthOption(
             .access_key_id = std::move(credentials.accessKeyId),
             .secret_access_key = std::move(credentials.secretAccessKey),
             .session_token = std::move(sessionToken)};
-      }};
+      },
+      .presigned_url_expire_time = kPresignedUrlLifetime};
 }
 
 } // namespace facebook::velox::connector::clp::search_lib
