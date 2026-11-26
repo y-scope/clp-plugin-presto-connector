@@ -28,6 +28,7 @@ class ClpConfig {
  public:
   enum class S3AuthProvider {
     kClpPackage,
+    kDefault,
   };
 
   enum class StorageType {
