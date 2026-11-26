@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <stdexcept>
 
@@ -24,6 +25,16 @@
 #include "connector/search_lib/S3Credentials.h"
 
 namespace facebook::velox::connector::clp::search_lib {
+
+/// How long each presigned S3 URL remains valid. Every reader requests its
+/// object as soon as its URL is signed, so a short lifetime suffices, and it
+/// limits how long a leaked URL stays usable.
+inline constexpr std::chrono::seconds kPresignedUrlLifetime{60};
+
+/// How much longer than `kPresignedUrlLifetime` credentials must remain valid
+/// to sign a request. It covers the time between checking the credentials and
+/// signing with them, and clock skew between this host and their issuer.
+inline constexpr std::chrono::seconds kCredentialExpirationMargin{5};
 
 /// Thrown when an S3 request can't be authenticated. Its message never contains
 /// credentials, URLs, or messages from the credentials provider.
@@ -38,8 +49,12 @@ class S3AuthenticationError : public std::runtime_error {
 ///
 /// CLP presigns each request (every reader it creates) with a credential
 /// snapshot that it gets from `provider` just before the request, so refreshed
-/// credentials take effect on the next request. Missing, incomplete, or expired
-/// credentials fail the request; CLP never falls back to the environment.
+/// credentials take effect on the next request. Each presigned URL remains
+/// valid for `kPresignedUrlLifetime`, which never exceeds the remaining
+/// lifetime of the credentials that signed it: a request fails if its
+/// credentials are unavailable, incomplete, or expire within
+/// `kPresignedUrlLifetime` plus `kCredentialExpirationMargin`. CLP never falls
+/// back to the credentials in the environment.
 ///
 /// A failed request throws `S3AuthenticationError` out of the CLP call that
 /// creates the reader (e.g., `clp_s::ArchiveReader::open` or

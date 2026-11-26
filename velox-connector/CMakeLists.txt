@@ -83,7 +83,7 @@ set(CLP_BUILD_TESTING OFF CACHE BOOL "Build CLP tests")
 # caller-provided S3 credentials that the plugin's S3 authentication needs. Move the pin to a
 # y-scope/clp commit once that PR merges.
 set(CLP_GIT_REPOSITORY "https://github.com/junhaoliao/clp.git")
-set(CLP_GIT_TAG "eb738aee9468850d5a9dad89098a48bae211d6c5")
+set(CLP_GIT_TAG "095ec75633d3d670fdf8cf720cb179fceb692c40")
 message(STATUS "Downloading CLP (commit: ${CLP_GIT_TAG})")
 FetchContent_Declare(clp
   GIT_REPOSITORY ${CLP_GIT_REPOSITORY}
