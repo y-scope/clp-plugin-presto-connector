@@ -39,6 +39,6 @@ def test_rejected_s3_read_fails_the_query(client: PrestoClient) -> None:
     """A catalog with an invalid S3 key must not make existing archives look empty."""
     with pytest.raises(
         PrestoQueryError,
-        match="Failed to open the archive from S3|Failed to read the archive's metadata",
+        match=r"Failed to open the archive from S3|Failed to read the archive's metadata",
     ):
         client.scalar("SELECT COUNT(*) FROM clp_s3_denied.default.multi_archive")
